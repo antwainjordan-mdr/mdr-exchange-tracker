@@ -1,0 +1,60 @@
+name: Fetch CSVs from SharePoint
+ 
+on:
+  schedule:
+    # Runs every day at 6 AM and 12 PM UTC (adjust to your timezone)
+    - cron: '0 6,12 * * *'
+  workflow_dispatch:  # allows manual trigger from GitHub Actions tab
+ 
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+ 
+      - name: Fetch Historic CSV from SharePoint
+        run: |
+          curl -L \
+            "https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCggNdhQBwfSrtLL96tia_8ARDIOb1NkuNe48M-yVR8P_U?download=1" \
+            -H "User-Agent: Mozilla/5.0" \
+            -o historic.csv \
+            --fail \
+            --silent \
+            --show-error || echo "Warning: Historic CSV fetch failed"
+ 
+      - name: Fetch Daily CSV from SharePoint
+        run: |
+          curl -L \
+            "https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCTpUaxwb1vRoPaPgWlcXMsAQrftKYIQ27G38BRhlh65-U?download=1" \
+            -H "User-Agent: Mozilla/5.0" \
+            -o daily.csv \
+            --fail \
+            --silent \
+            --show-error || echo "Warning: Daily CSV fetch failed"
+ 
+      - name: Verify CSV files (not HTML login pages)
+        run: |
+          for f in historic.csv daily.csv; do
+            if [ -f "$f" ]; then
+              first=$(head -c 10 "$f")
+              if [[ "$first" == "<!DOCTYPE"* ]] || [[ "$first" == "<html"* ]]; then
+                echo "ERROR: $f appears to be an HTML page (login redirect) — skipping"
+                rm "$f"
+              else
+                echo "$f looks valid ($(wc -l < $f) lines)"
+              fi
+            fi
+          done
+ 
+      - name: Commit and push CSVs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add historic.csv daily.csv 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-update CSVs $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
