@@ -1642,10 +1642,14 @@ async function fetchFromOneDrive(){
   btn.disabled=true;
   let hAdded=0, dAdded=0, errors=[];
 
-  // CSVs are served from the same GitHub Pages origin — no CORS issue
-  const base = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
-  const historicUrl = base + '/historic.csv';
-  const dailyUrl   = base + '/daily.csv';
+  // CSVs served from GitHub Pages (same origin = no CORS)
+  // Use multiple URL candidates in case Pages hasn't deployed yet
+  const ghPagesBase = window.location.origin + '/' + (window.location.pathname.split('/').filter(Boolean)[0]||'');
+  const historicUrl = ghPagesBase + '/historic.csv';
+  const dailyUrl   = ghPagesBase + '/daily.csv';
+  // Fallback: raw GitHub content (public repo, no auth needed)
+  const historicRaw = 'https://raw.githubusercontent.com/antwainjordan-mdr/mdr-exchange-tracker/main/historic.csv';
+  const dailyRaw    = 'https://raw.githubusercontent.com/antwainjordan-mdr/mdr-exchange-tracker/main/daily.csv';
 
   async function fetchCSV(url, mode){
     try {
@@ -1659,11 +1663,15 @@ async function fetchFromOneDrive(){
     }
   }
 
-  try{ hAdded = await fetchCSV(historicUrl,'historic'); }
-  catch(e){ errors.push(`Historic: ${e.message}`); }
+  try{
+    try{ hAdded = await fetchCSV(historicUrl,'historic'); }
+    catch(e){ hAdded = await fetchCSV(historicRaw,'historic'); }
+  } catch(e){ errors.push(`Historic: ${e.message}`); }
 
-  try{ dAdded = await fetchCSV(dailyUrl,'daily'); }
-  catch(e){ errors.push(`Daily: ${e.message}`); }
+  try{
+    try{ dAdded = await fetchCSV(dailyUrl,'daily'); }
+    catch(e){ dAdded = await fetchCSV(dailyRaw,'daily'); }
+  } catch(e){ errors.push(`Daily: ${e.message}`); }
 
   buildChips(); renderTable(); renderStats();
 
