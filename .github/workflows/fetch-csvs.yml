@@ -1,53 +1,50 @@
 name: Fetch CSVs from SharePoint
- 
+
 on:
   schedule:
-    # Runs every day at 6 AM and 12 PM UTC (adjust to your timezone)
     - cron: '0 6,12 * * *'
-  workflow_dispatch:  # allows manual trigger from GitHub Actions tab
- 
+  workflow_dispatch:
+
 jobs:
   fetch-and-commit:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
- 
-      - name: Fetch Historic CSV from SharePoint
+
+      - name: Fetch Historic CSV (MDR Exchange Hcsv.csv - app export)
         run: |
           curl -L \
             "https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCggNdhQBwfSrtLL96tia_8ARDIOb1NkuNe48M-yVR8P_U?download=1" \
             -H "User-Agent: Mozilla/5.0" \
             -o historic.csv \
-            --fail \
-            --silent \
-            --show-error || echo "Warning: Historic CSV fetch failed"
- 
-      - name: Fetch Daily CSV from SharePoint
+            --fail --silent --show-error || echo "Warning: Historic CSV fetch failed"
+
+      - name: Fetch Daily CSV (data.csv - PowerBI export)
         run: |
           curl -L \
             "https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCTpUaxwb1vRoPaPgWlcXMsAQrftKYIQ27G38BRhlh65-U?download=1" \
             -H "User-Agent: Mozilla/5.0" \
             -o daily.csv \
-            --fail \
-            --silent \
-            --show-error || echo "Warning: Daily CSV fetch failed"
- 
-      - name: Verify CSV files (not HTML login pages)
+            --fail --silent --show-error || echo "Warning: Daily CSV fetch failed"
+
+      - name: Verify files are not login pages
         run: |
           for f in historic.csv daily.csv; do
             if [ -f "$f" ]; then
-              first=$(head -c 10 "$f")
+              first=$(head -c 15 "$f")
               if [[ "$first" == "<!DOCTYPE"* ]] || [[ "$first" == "<html"* ]]; then
-                echo "ERROR: $f appears to be an HTML page (login redirect) — skipping"
+                echo "ERROR: $f is an HTML login page — removing"
                 rm "$f"
               else
-                echo "$f looks valid ($(wc -l < $f) lines)"
+                echo "$f OK ($(wc -l < $f) lines)"
               fi
+            else
+              echo "WARNING: $f was not downloaded"
             fi
           done
- 
-      - name: Commit and push CSVs
+
+      - name: Commit and push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
