@@ -1642,49 +1642,46 @@ async function fetchFromOneDrive(){
   btn.disabled=true;
   let hAdded=0, dAdded=0, errors=[];
 
-  // CSVs served from GitHub Pages (same origin = no CORS)
-  // Use multiple URL candidates in case Pages hasn't deployed yet
-  // Always use raw.githubusercontent.com — works from any origin, no CORS issues
   const REPO = 'https://raw.githubusercontent.com/antwainjordan-mdr/mdr-exchange-tracker/main';
-  const historicUrl = REPO + '/historic.csv';
-  const dailyUrl    = REPO + '/daily.csv';
 
-  async function fetchCSV(url, mode){
-    try {
-      const resp = await fetch(url + '?t=' + Date.now()); // bust cache
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
-      if(text.trim().startsWith('<')) throw new Error('CSV not found in repo yet');
-      // Detect format from first line of CSV:
-      // App export (historic) has columns: id,source,sealed,patientName,...
-      // PowerBI export (daily) has columns: Patient Name,Job #,Pieces,...
-      const firstLine = text.split('\n')[0].replace(/^\uFEFF/,'').toLowerCase();
-      const isAppExport = firstLine.startsWith('id,') ||
-                          (firstLine.includes('source') && firstLine.includes('sealed') && firstLine.includes('pieceid'));
-      console.log('[MDR] CSV first line:', firstLine.slice(0,80));
-      console.log('[MDR] Detected as:', isAppExport ? 'app export (historic)' : 'PowerBI (daily)');
-      return isAppExport ? loadHistoric(text) : loadDaily(text);
-    } catch(e) {
-      throw new Error(e.message||'Fetch failed');
-    }
+  async function fetchCSV(url){
+    const resp = await fetch(url + '?t=' + Date.now());
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    if(text.trim().startsWith('<')) throw new Error('File not found in repo');
+    // Detect format: app export starts with 'id,' — PowerBI starts with patient name column
+    const firstLine = text.split('\n')[0].replace(/^\uFEFF/,'').toLowerCase().trim();
+    const isAppExport = firstLine.startsWith('id,') && firstLine.includes('source') && firstLine.includes('sealed');
+    console.log('[MDR] Fetched:', url);
+    console.log('[MDR] Format detected:', isAppExport ? 'APP EXPORT → loadHistoric' : 'POWERBI → loadDaily');
+    return isAppExport ? loadHistoric(text) : loadDaily(text);
   }
 
-  try{ hAdded = await fetchCSV(historicUrl,'historic'); }
-  catch(e){ errors.push(`Historic: ${e.message}`); }
-
-  try{ dAdded = await fetchCSV(dailyUrl,'daily'); }
+  // Always load daily (PowerBI export — auto-updated by GitHub Action)
+  try{ dAdded = await fetchCSV(REPO + '/daily.csv'); }
   catch(e){ errors.push(`Daily: ${e.message}`); }
+
+  // Only load historic if it exists and is a real app export
+  // (you upload this manually when sharing history)
+  try{ hAdded = await fetchCSV(REPO + '/historic.csv'); }
+  catch(e){
+    // Historic not found or wrong format — not an error, just skip
+    console.log('[MDR] Historic CSV skipped:', e.message);
+  }
 
   buildChips(); renderTable(); renderStats();
 
   btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.2 15c.7-1.2 1-2.5.7-3.9-.6-3.5-4-5.9-7.5-5.5-1.3.1-2.5.6-3.5 1.4C9.5 5.7 7.9 5 6.2 5 3.3 5 1 7.3 1 10.2c0 1.4.5 2.6 1.4 3.6"/><path d="M12 20l-4-4 4-4"/><path d="M8 16h12"/></svg> Load Data`;
   btn.disabled = false;
 
+  const total = hAdded + dAdded;
   if(errors.length){
     errors.forEach(e=>toast(e,'e'));
-  } else {
-    const total = hAdded + dAdded;
-    toast(`Loaded ${total} new record${total!==1?'s':''}`,'s');
+  }
+  if(total > 0){
+    toast(`Loaded ${total} new record${total!==1?'s':''}`, 's');
+  } else if(!errors.length){
+    toast('Data is up to date — no new records', 'i');
   }
 }
 
