@@ -1655,7 +1655,10 @@ async function fetchFromOneDrive(){
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await resp.text();
       if(text.trim().startsWith('<')) throw new Error('CSV not found in repo yet');
-      return mode==='historic' ? loadHistoric(text) : loadDaily(text);
+      // Auto-detect: app export has 'id' column, PowerBI export does not
+      const firstLine = text.trim().split('\n')[0];
+      const hasIdCol = firstLine.toLowerCase().includes(',id,') || firstLine.toLowerCase().startsWith('id,');
+      return hasIdCol ? loadHistoric(text) : loadDaily(text);
     } catch(e) {
       throw new Error(e.message||'Fetch failed');
     }
