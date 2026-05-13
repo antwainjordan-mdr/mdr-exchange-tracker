@@ -1655,10 +1655,15 @@ async function fetchFromOneDrive(){
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await resp.text();
       if(text.trim().startsWith('<')) throw new Error('CSV not found in repo yet');
-      // Auto-detect: app export has 'id' column, PowerBI export does not
-      const firstLine = text.trim().split('\n')[0];
-      const hasIdCol = firstLine.toLowerCase().includes(',id,') || firstLine.toLowerCase().startsWith('id,');
-      return hasIdCol ? loadHistoric(text) : loadDaily(text);
+      // Detect format from first line of CSV:
+      // App export (historic) has columns: id,source,sealed,patientName,...
+      // PowerBI export (daily) has columns: Patient Name,Job #,Pieces,...
+      const firstLine = text.split('\n')[0].replace(/^\uFEFF/,'').toLowerCase();
+      const isAppExport = firstLine.startsWith('id,') ||
+                          (firstLine.includes('source') && firstLine.includes('sealed') && firstLine.includes('pieceid'));
+      console.log('[MDR] CSV first line:', firstLine.slice(0,80));
+      console.log('[MDR] Detected as:', isAppExport ? 'app export (historic)' : 'PowerBI (daily)');
+      return isAppExport ? loadHistoric(text) : loadDaily(text);
     } catch(e) {
       throw new Error(e.message||'Fetch failed');
     }
