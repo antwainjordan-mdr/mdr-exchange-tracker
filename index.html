@@ -41,7 +41,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{overflow-x:auto;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;transition:background .2s,color .2s;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;transition:background .2s,color .2s;padding-top:var(--sticky-top-h,160px);}
 
 /* HEADER */
 .hdr{background:var(--hbg);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(0,0,0,.3);}
@@ -97,10 +97,10 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 .lnote{font-size:11px;color:var(--text3);margin-left:auto;}
 
 /* TABLE */
-.sticky-top{position:sticky;top:0;left:0;right:0;z-index:200;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.15);width:100%;}
+.sticky-top{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .twrap{padding:0 16px 12px;}
 table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1200px;}
-thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);position:sticky;top:var(--sticky-top-h,160px);z-index:50;box-shadow:0 2px 4px rgba(0,0,0,.2);}
+thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 2px 4px rgba(0,0,0,.2);}
 thead th.srt{cursor:pointer;}
 thead th.srt:hover{color:var(--text);}
 thead th.ctr{text-align:center;}
@@ -841,34 +841,84 @@ function loadDaily(text){
     const j=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');if(j)return`j:${j}`;
     return`p:${col(row,'patient name','patientname')}:${normDate(col(row,'pickup date','pickupdate'))}`;
   }
-  const existKeys=new Set(records.map(r=>r.jobNum?`j:${r.jobNum}`:`p:${r.patientName}:${r.pickupDate}`));
-  let added=0,skipped=0;
+
+  // Build lookup of existing records by key
+  const existMap={};
+  records.forEach(r=>{
+    const key=r.jobNum?`j:${r.jobNum}`:`p:${r.patientName}:${r.pickupDate}`;
+    existMap[key]=r;
+  });
+
+  let added=0,merged=0,skipped=0;
+
   rows.forEach(row=>{
-    const key=matchKey(row);if(existKeys.has(key)){skipped++;return;}
+    const key=matchKey(row);
     let rawName=col(row,'patient name','patientname');
     let patientName=rawName,patientId='';
     const nl=rawName.indexOf('\n');
     if(nl>-1){patientName=rawName.slice(0,nl).trim();patientId=rawName.slice(nl+1).trim();}
     const pieces=parsePiecesDaily(col(row,'pieces'));
-    // Strip trailing .00 from job numbers exported from PowerBI
     const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
     const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
     const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
+    const entryId=col(row,'entry id','entryid','entry_id','EntryID');
+
+    if(existMap[key]){
+      // ── Record already exists — smart merge ──
+      const ex=existMap[key];
+      if(isSealed(ex)){skipped++;return;} // never touch sealed records
+
+      let changed=false;
+
+      // Merge source data fields — take incoming if existing is empty
+      if(!ex.soIds&&soIds){ex.soIds=soIds;changed=true;}
+      if(!ex.pickupDate&&pickupDate){ex.pickupDate=pickupDate;changed=true;}
+      if(!ex.dropOffBy&&dropOffBy){ex.dropOffBy=dropOffBy;changed=true;}
+      if(!ex.patientId&&patientId){ex.patientId=patientId;changed=true;}
+      if(!ex.entryId&&entryId){ex.entryId=entryId;changed=true;}
+
+      // Merge pieces — add any new pieces from incoming that don't exist
+      if(pieces.length){
+        const existPieceNames=new Set((ex.pieces||[]).map(p=>p.name.toLowerCase()));
+        const newPieces=pieces.filter(p=>!existPieceNames.has(p.name.toLowerCase()));
+        if(newPieces.length){
+          ex.pieces=[...(ex.pieces||[]),...newPieces];
+          changed=true;
+        }
+      }
+
+      // Update locked fields map with latest source data
+      const obj={patientName:ex.patientName,patientId:ex.patientId,jobNum:ex.jobNum,soIds:ex.soIds,pickupDate:ex.pickupDate,entryId:ex.entryId};
+      ex.locked=makeLockMap(obj);
+
+      if(changed){saveRecs(ex);merged++;}
+      else{skipped++;}
+      return;
+    }
+
+    // ── New record ──
     const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
     const locked=makeLockMap(obj);
-    const entryId=col(row,'entry id','entryid','entry_id','EntryID');
     const rec={
       id:gid(),source:'daily',sealed:false,
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
       dateReturned:'',sgiNotes:'',mdrNotes:'',
       jobClosed:false,confirmed:false,verified:false,
-      entryId,
-      locked,pieces
+      entryId,locked,pieces
     };
-    records.push(rec);existKeys.add(key);added++;
+    records.push(rec);
+    existMap[key]=rec;
+    added++;
   });
-  saveRecs();return added;
+
+  saveRecs();
+  const parts=[];
+  if(added)parts.push(`${added} new`);
+  if(merged)parts.push(`${merged} merged`);
+  if(skipped)parts.push(`${skipped} unchanged`);
+  toast('Daily loaded — '+parts.join(', '),added||merged?'s':'i');
+  return added+merged;
 }
 
 function loadCSV(e,mode){
@@ -2225,15 +2275,16 @@ async function showSignedIn(email){
 window.addEventListener('DOMContentLoaded', () => {
   initTheme(); initLib();
   // Set thead sticky top to match sticky-top wrapper height
-  function updateTheadTop(){
+  function updateStickyHeight(){
     const st = document.querySelector('.sticky-top');
     if(st){
       const h = st.offsetHeight;
       document.documentElement.style.setProperty('--sticky-top-h', h + 'px');
+      document.body.style.paddingTop = h + 'px';
     }
   }
-  setTimeout(updateTheadTop, 200);
-  window.addEventListener('resize', updateTheadTop);
+  setTimeout(updateStickyHeight, 100);
+  window.addEventListener('resize', updateStickyHeight);
   if(window.location.protocol !== 'file:'){
     showAuthOverlay();
     initMSAL();
