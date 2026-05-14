@@ -1174,7 +1174,7 @@ function dateRetChanged(id, val){
   rec.dateReturned=val;
   // Auto-check Job Closed when date is set, auto-uncheck when cleared
   rec.jobClosed=!!val;
-  saveRecs();
+  saveRecs(rec);
   // Update the Job Closed checkbox in DOM without full re-render
   const tr=document.querySelector(`tr[data-id="${id}"]`);
   if(tr){
@@ -1209,7 +1209,7 @@ function jobClosedChanged(id, checked){
       if(drc)drc.classList.remove('has-date');
     }
   }
-  saveRecs();refreshRowStatus(rec);renderStats();
+  saveRecs(rec);refreshRowStatus(rec);renderStats();
 }
 
 // ══════════════════════════════════
@@ -1219,7 +1219,7 @@ function updateF(id,field,value){
   const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
   if(isLocked(rec,field)){toast('Field is locked (from source data)','e');return;}
   rec[field]=value;
-  saveRecs();
+  saveRecs(rec);
   if(field==='pickupDate')buildChips();
   refreshRowStatus(rec);renderStats();
 }
@@ -1231,7 +1231,7 @@ function togglePiece(rid,pid,checked){
   // Auto-fill rcv qty when PIECE checkbox checked
   if(checked&&p.receivedQty===null)p.receivedQty=p.expectedQty;
   if(!checked)p.receivedQty=null;
-  saveRecs();
+  saveRecs(rec);
   // If ALL pieces are now checked, auto-set Date Returned + Job Closed
   const allNowChecked=rec.pieces.every(p2=>p2.checked);
   if(allNowChecked){
@@ -1248,7 +1248,7 @@ function togglePiece(rid,pid,checked){
       const sa=tr.querySelector('.sabtn');
       if(sa)sa.textContent='☐ Deselect All';
     }
-    saveRecs();
+    saveRecs(rec);
   }
   refreshPiece(rec,p);refreshRowStatus(rec);renderStats();
 }
@@ -1257,7 +1257,7 @@ function updatePieceQty(rid,pid,val){
   const rec=records.find(r=>r.id===rid);if(!rec||isSealed(rec))return;
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
   p.receivedQty=val===''?null:parseInt(val);
-  saveRecs();refreshPiece(rec,p);refreshRowStatus(rec);renderStats();
+  saveRecs(rec);refreshPiece(rec,p);refreshRowStatus(rec);renderStats();
 }
 
 function refreshPiece(rec,p){
@@ -1300,7 +1300,7 @@ function toggleAll(rid){
     rec.dateReturned='';
     rec.jobClosed=false;
   }
-  saveRecs();
+  saveRecs(rec);
   const tr=document.querySelector(`tr[data-id="${rid}"]`);
   if(tr){
     const td=tr.querySelector('.pcell');if(td)td.innerHTML=renderPcell(rec);
@@ -1316,7 +1316,15 @@ function toggleAll(rid){
 
 function delRec(id){
   if(!confirm('Delete this record?'))return;
-  records=records.filter(r=>r.id!==id);saveRecs();renderTable();toast('Record deleted','i');
+  const rec=records.find(r=>r.id===id);
+  records=records.filter(r=>r.id!==id);
+  localStorage.setItem('mdr_v5',JSON.stringify(records));
+  // Delete from SharePoint if connected
+  if(rec&&rec._spId&&spSiteId&&spListId){
+    gDelete('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId)
+      .catch(e=>console.error('SP delete error:',e));
+  }
+  renderTable();toast('Record deleted','i');
 }
 
 function removePieceInline(rid,pid){
@@ -1324,7 +1332,7 @@ function removePieceInline(rid,pid){
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
   if(p.fromSource){toast('Cannot remove source items','e');return;}
   rec.pieces=rec.pieces.filter(p=>p.id!==pid);
-  saveRecs();
+  saveRecs(rec);
   const tr=document.querySelector(`tr[data-id="${rid}"]`);
   if(tr){const td=tr.querySelector('.pcell');if(td)td.innerHTML=renderPcell(rec);}
   refreshRowStatus(rec);renderStats();
@@ -1835,6 +1843,13 @@ async function gGet(path){
   if(!r.ok) throw new Error('Graph ' + r.status + ' ' + path);
   return r.json();
 }
+async function gDelete(path){
+  const t = await getToken();
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
+    {method:'DELETE', headers:{'Authorization':'Bearer ' + t}});
+  if(!r.ok && r.status !== 204){const e=await r.text();throw new Error('DELETE ' + r.status + ' ' + e);}
+}
+
 async function gPatch(path, body){
   const t = await getToken();
   const r = await fetch('https://graph.microsoft.com/v1.0' + path,
