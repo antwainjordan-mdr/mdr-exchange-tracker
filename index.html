@@ -473,12 +473,39 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 </div>
 
 
+<!-- AUTH OVERLAY -->
+<div id="authOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="background:linear-gradient(135deg,#4f8ef7,#a78bfa);width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff;margin:0 auto 16px">MDR</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--text)">MDR Exchange Tracker</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:24px;line-height:1.5">Sign in with your Microsoft 365 account.<br>MDR staff and SGI partners only.</div>
+    <button onclick="msalSignIn()" style="background:#0078d4;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+      <svg width="16" height="16" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Sign in with Microsoft
+    </button>
+    <div id="authErrMsg" style="font-size:11px;color:#f25c5c;margin-top:12px;min-height:16px"></div>
+  </div>
+</div>
+
 <!-- PRINT-ONLY OUTPUT — built by exportPDF() -->
 <div id="printContainer" style="display:none"></div>
 
 <div class="tcontainer" id="toasts"></div>
 
 <script>
+// ─────────────────────────────────────
+// SECTION 1: CONFIG & AUTH CONSTANTS
+// ─────────────────────────────────────
+const MDR_CLIENT_ID = 'cad58e24-70d1-4d46-8556-cc68ffe4a31c';
+const MDR_DOMAIN    = 'mdr.net';
+const SGI_DOMAIN    = 'sgi-solutions.com';
+
+let msalApp     = null;
+let currentUser = null;
+let userRole    = null;
+let spSiteId    = null;
+let spListId    = null;
+
 // ══════════════════════════════════
 //  THEME
 // ══════════════════════════════════
@@ -1649,8 +1676,216 @@ function loadStorageLocal(){
   return false;
 }
 
+// ─────────────────────────────────────
+// SECTION 2: GRAPH API HELPERS
+// ─────────────────────────────────────
+
+async function getToken(){
+  const stored = localStorage.getItem('mdr_access_token');
+  if(stored) return stored;
+  const nonce = Math.random().toString(36).slice(2);
+  const redirectUri = window.location.origin + window.location.pathname;
+  window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+    + '?client_id=' + MDR_CLIENT_ID
+    + '&response_type=token+id_token'
+    + '&redirect_uri=' + encodeURIComponent(redirectUri)
+    + '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All')
+    + '&response_mode=fragment&nonce=' + nonce + '&prompt=none';
+  return null;
+}
+
+async function gGet(path){
+  const t = await getToken(); if(!t) return null;
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
+    {headers:{'Authorization':'Bearer ' + t}});
+  if(!r.ok) throw new Error('Graph GET ' + r.status + ' ' + path);
+  return r.json();
+}
+
+async function gPost(path, body){
+  const t = await getToken(); if(!t) return null;
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
+    {method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},
+     body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.text();throw new Error('POST '+r.status+' '+e);}
+  return r.json();
+}
+
+async function gPatch(path, body){
+  const t = await getToken(); if(!t) return null;
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
+    {method:'PATCH',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},
+     body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.text();throw new Error('PATCH '+r.status+' '+e);}
+  return r.json();
+}
+
+async function gDelete(path){
+  const t = await getToken(); if(!t) return;
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
+    {method:'DELETE',headers:{'Authorization':'Bearer '+t}});
+  if(!r.ok && r.status!==204){const e=await r.text();throw new Error('DELETE '+r.status+' '+e);}
+}
+
+// ─────────────────────────────────────
+// SECTION 3: SHAREPOINT SYNC
+// ─────────────────────────────────────
+
+async function ensureSPIds(){
+  if(spSiteId && spListId) return;
+  const site = await gGet('/sites/mdrnet.sharepoint.com:/sites/MDRExchangeTracker');
+  spSiteId = site.id;
+  const lists = await gGet(`/sites/${spSiteId}/lists?$filter=displayName eq 'ExchangeRecords'`);
+  spListId = lists.value[0]?.id;
+  if(!spListId) throw new Error('ExchangeRecords list not found');
+}
+
+function spToRec(item){
+  const f = item.fields || {};
+  function fv(...names){ for(const n of names){ if(f[n]!==undefined&&f[n]!==null&&f[n]!=='') return f[n]; } return ''; }
+  function fdate(...names){ const v=fv(...names); return v?String(v).slice(0,10):''; }
+  function fbool(...names){ const v=fv(...names); return v===true||v===1||v==='1'||v==='Yes'; }
+  let locked={};
+  try{ locked=JSON.parse(fv('LockedFields')||'{}'); }catch(e){}
+  return {
+    id: fv('AppRecordId') || String(item.id), _spId: item.id,
+    source: fv('Source')||'daily', sealed: fbool('Sealed'),
+    patientName: fv('PatientName')||f.Title||'', patientId: fv('PatientId'),
+    jobNum: fv('JobNum'), soIds: fv('SoIds'),
+    pickupDate: fdate('PickupDate'), dropOffBy: fdate('DropOffBy'),
+    dateReturned: fdate('DateReturned'),
+    sgiNotes: fv('SgiNotes'), mdrNotes: fv('MdrNotes'),
+    jobClosed: fbool('JobClosed'), verified: fbool('Verified'), confirmed: fbool('Confirmed'),
+    entryId: fv('EntryId'), locked,
+    pieces: parsePiecesRich(fv('Pieces')||'')
+  };
+}
+
+function recToSP(r){
+  return {
+    Title: r.patientName||'Unknown', PatientName: r.patientName||'',
+    PatientId: r.patientId||'', JobNum: r.jobNum||'', SoIds: r.soIds||'',
+    PickupDate: r.pickupDate||null, DropOffBy: r.dropOffBy||null,
+    DateReturned: r.dateReturned||null, SgiNotes: r.sgiNotes||'',
+    MdrNotes: r.mdrNotes||'', JobClosed: !!r.jobClosed,
+    Verified: !!r.verified, Confirmed: !!r.confirmed,
+    EntryId: r.entryId||'', Source: r.source||'daily', Sealed: !!r.sealed,
+    Pieces: serPieces(r.pieces||[]), LockedFields: JSON.stringify(r.locked||{})
+  };
+}
+
+async function loadFromSharePoint(){
+  try{
+    toast('Loading from SharePoint\u2026','i');
+    await ensureSPIds();
+    let url = '/sites/'+spSiteId+'/lists/'+spListId+'/items?$expand=fields($select=*)&$top=999';
+    let all = [];
+    while(url){
+      const data = await gGet(url); if(!data) return;
+      all = all.concat(data.value||[]);
+      url = data['@odata.nextLink']
+        ? data['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0','') : null;
+    }
+    const spRecs = all.map(spToRec);
+    const valid = spRecs.filter(r=>r.patientName&&r.patientName.trim());
+    if(valid.length > 0){
+      records = spRecs;
+      localStorage.setItem('mdr_v5',JSON.stringify(records));
+      buildChips(); renderTable(); renderStats();
+      toast('Loaded '+valid.length+' records from SharePoint','s');
+    } else if(spRecs.length > 0){
+      console.warn('[MDR] SP records missing patient names:',spRecs[0]);
+      toast('SharePoint data issue \u2014 keeping local data','e');
+      buildChips(); renderTable(); renderStats();
+    } else {
+      toast('SharePoint is empty \u2014 use Load Historic to populate','i');
+      buildChips(); renderTable(); renderStats();
+    }
+  } catch(e){
+    console.error('SP load error:',e);
+    loadStorageLocal(); buildChips(); renderTable(); renderStats();
+    toast('SharePoint unavailable \u2014 showing local cache','i');
+  }
+}
+
+async function syncRecordToSP(rec){
+  if(!spSiteId||!spListId||!rec) return;
+  try{
+    const fields = recToSP(rec);
+    if(rec._spId){
+      await gPatch('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId+'/fields',fields);
+    } else {
+      const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
+      if(created) rec._spId = created.id;
+    }
+  } catch(e){ console.error('SP sync error:',e); }
+}
+
+async function syncAllToSharePoint(){
+  if(!spSiteId||!spListId||!records.length) return;
+  toast('Syncing '+records.length+' records to SharePoint\u2026','i');
+  let success=0, failed=0;
+  for(const rec of records){
+    try{
+      const fields = recToSP(rec);
+      if(rec._spId){
+        await gPatch('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId+'/fields',fields);
+      } else {
+        const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
+        if(created) rec._spId = created.id;
+      }
+      success++;
+    } catch(e){ console.error('Sync failed for',rec.patientName,e); failed++; }
+  }
+  localStorage.setItem('mdr_v5',JSON.stringify(records));
+  toast('Synced '+success+' records'+(failed?' ('+failed+' failed)':''),success>0?'s':'e');
+}
+
+async function setupSPList(){
+  if(!confirm('Create all required columns in the ExchangeRecords SharePoint list?')) return;
+  try{
+    await ensureSPIds();
+    toast('Creating SharePoint columns\u2026','i');
+    const base = '/sites/'+spSiteId+'/lists/'+spListId+'/columns';
+    let created=0,skipped=0;
+    for(const name of ['PatientName','PatientId','JobNum','SoIds','EntryId','Source','LockedFields'])
+      try{ await gPost(base,{name,text:{},hidden:false}); created++; }catch(e){skipped++;}
+    for(const name of ['SgiNotes','MdrNotes','Pieces'])
+      try{ await gPost(base,{name,text:{allowMultipleLines:true},hidden:false}); created++; }catch(e){skipped++;}
+    for(const name of ['PickupDate','DropOffBy','DateReturned'])
+      try{ await gPost(base,{name,dateTime:{displayAs:'standard'},hidden:false}); created++; }catch(e){skipped++;}
+    for(const name of ['JobClosed','Verified','Confirmed','Sealed'])
+      try{ await gPost(base,{name,boolean:{},hidden:false}); created++; }catch(e){skipped++;}
+    toast('Created '+created+' columns ('+skipped+' skipped)','s');
+  } catch(e){ toast('Setup failed: '+e.message,'e'); }
+}
+
+async function diagSPColumns(){
+  try{
+    await ensureSPIds();
+    const data = await gGet('/sites/'+spSiteId+'/lists/'+spListId+'/columns');
+    console.log('[MDR] SP columns:',JSON.stringify(data.value.map(c=>({name:c.name,displayName:c.displayName})),null,2));
+    toast('Column names logged to console \u2014 press F12','s');
+  } catch(e){ toast('Error: '+e.message,'e'); }
+}
+
 async function spRefresh(){
   await loadFromSharePoint();
+}
+
+async function msalSignIn(){
+  document.getElementById('authErrMsg').textContent = '';
+  const redirectUri = window.location.origin + window.location.pathname;
+  const nonce = Math.random().toString(36).slice(2);
+  localStorage.setItem('mdr_nonce', nonce);
+  window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+    + '?client_id=' + MDR_CLIENT_ID
+    + '&response_type=token+id_token'
+    + '&redirect_uri=' + encodeURIComponent(redirectUri)
+    + '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All')
+    + '&response_mode=fragment'
+    + '&nonce=' + nonce
+    + '&prompt=select_account';
 }
 
 async function signOut(){
@@ -1667,7 +1902,7 @@ async function signOut(){
 
 function showAuthOverlay(){
   const o = document.getElementById('authOverlay');
-  if(o) o.style.display = 'flex';
+  if(o){ o.style.display = 'flex'; o.style.alignItems = 'center'; o.style.justifyContent = 'center'; }
 }
 
 function hideAuthOverlay(){
@@ -1677,19 +1912,6 @@ function hideAuthOverlay(){
 
 function isMDR(){ return userRole === 'mdr'; }
 function isSGI(){ return userRole === 'sgi'; }
-
-// ─────────────────────────────────────
-// SECTION 1: CONFIG & AUTH CONSTANTS
-// ─────────────────────────────────────
-const MDR_CLIENT_ID = 'cad58e24-70d1-4d46-8556-cc68ffe4a31c';
-const MDR_DOMAIN    = 'mdr.net';
-const SGI_DOMAIN    = 'sgi-solutions.com';
-
-let msalApp     = null;
-let currentUser = null;
-let userRole    = null;
-let spSiteId    = null;
-let spListId    = null;
 
 async function initMSAL(){
   try {
