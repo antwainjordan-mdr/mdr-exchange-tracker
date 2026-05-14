@@ -1649,6 +1649,10 @@ function loadStorageLocal(){
   return false;
 }
 
+async function spRefresh(){
+  await loadFromSharePoint();
+}
+
 async function signOut(){
   if(!confirm('Sign out of MDR Exchange Tracker?')) return;
   localStorage.removeItem('mdr_access_token');
@@ -1673,6 +1677,19 @@ function hideAuthOverlay(){
 
 function isMDR(){ return userRole === 'mdr'; }
 function isSGI(){ return userRole === 'sgi'; }
+
+// ─────────────────────────────────────
+// SECTION 1: CONFIG & AUTH CONSTANTS
+// ─────────────────────────────────────
+const MDR_CLIENT_ID = 'cad58e24-70d1-4d46-8556-cc68ffe4a31c';
+const MDR_DOMAIN    = 'mdr.net';
+const SGI_DOMAIN    = 'sgi-solutions.com';
+
+let msalApp     = null;
+let currentUser = null;
+let userRole    = null;
+let spSiteId    = null;
+let spListId    = null;
 
 async function initMSAL(){
   try {
