@@ -50,7 +50,7 @@
   --hbg:linear-gradient(135deg,#ffffff,#eceaf8);--cal:invert(.2);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:14px;transition:background .2s,color .2s;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;transition:background .2s,color .2s;padding-top:var(--sticky-top-h,160px);}
 
 /* HEADER */
 .hdr{background:var(--hbg);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(0,0,0,.3);}
@@ -107,9 +107,9 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 
 /* TABLE */
 .sticky-top{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.15);}
-.twrap{padding:0;overflow:auto;height:calc(100vh - var(--sticky-top-h, 160px));}
-table{width:calc(100% - 32px);margin:0 16px;border-collapse:separate;border-spacing:0 3px;min-width:1248px;}
-thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--border),0 2px 4px rgba(0,0,0,.2);}
+.twrap{padding:0 16px 12px;overflow-x:auto;}
+table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1280px;}
+thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);}
 thead th.srt{cursor:pointer;}
 thead th.srt:hover{color:var(--text);}
 thead th.ctr{text-align:center;}
@@ -2318,11 +2318,10 @@ async function showSignedIn(email){
 
 function updateStickyHeight(){
   const st = document.querySelector('.sticky-top');
-  const tw = document.querySelector('.twrap');
   if(st){
     const h = st.offsetHeight;
     document.documentElement.style.setProperty('--sticky-top-h', h + 'px');
-    if(tw) tw.style.height = (window.innerHeight - h) + 'px';
+    document.body.style.paddingTop = h + 'px';
   }
 }
 
