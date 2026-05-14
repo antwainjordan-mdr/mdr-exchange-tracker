@@ -492,6 +492,10 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
       </div>
     </div>
     <div class="mftr">
+      <button class="btn btn-sm mdr-modal-only" id="m-delete-btn" onclick="delRecFromModal()" style="background:transparent;color:var(--red);border:1px solid var(--red);margin-right:auto;" title="Permanently delete this record">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Delete Record
+      </button>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveModal()">Save</button>
     </div>
@@ -838,15 +842,20 @@ function loadDaily(text){
     return'';
   }
   function matchKey(row){
-    const j=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');if(j)return`j:${j}`;
-    return`p:${col(row,'patient name','patientname')}:${normDate(col(row,'pickup date','pickupdate'))}`;
+    const j=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
+    if(j) return `j:${j}`;
+    // No job# — match on patient name only (normalized, lowercase, trimmed)
+    const name = col(row,'patient name','patientname').split('\n')[0].trim().toLowerCase();
+    return `n:${name}`;
   }
 
-  // Build lookup of existing records by key
+  // Build lookup: job# takes priority, then patient name
   const existMap={};
   records.forEach(r=>{
-    const key=r.jobNum?`j:${r.jobNum}`:`p:${r.patientName}:${r.pickupDate}`;
-    existMap[key]=r;
+    if(r.jobNum) existMap[`j:${r.jobNum}`] = r;
+    // Also index by name for no-jobnum matching
+    const name = (r.patientName||'').trim().toLowerCase();
+    if(name && !existMap[`n:${name}`]) existMap[`n:${name}`] = r;
   });
 
   let added=0,merged=0,skipped=0;
@@ -886,6 +895,13 @@ function loadDaily(text){
           ex.pieces=[...(ex.pieces||[]),...newPieces];
           changed=true;
         }
+      }
+
+      // If existing had no jobNum but incoming has one, adopt it and re-index
+      if(!ex.jobNum&&jobNum){
+        ex.jobNum=jobNum;
+        existMap[`j:${jobNum}`]=ex; // index by jobNum for subsequent rows
+        changed=true;
       }
 
       // Update locked fields map with latest source data
@@ -1410,6 +1426,13 @@ function toggleAll(rid){
   refreshRowStatus(rec);renderStats();
 }
 
+function delRecFromModal(){
+  if(!editId) return;
+  if(!confirm('Permanently delete this record?\n\nThis cannot be undone.')) return;
+  delRec(editId);
+  closeModal();
+}
+
 function delRec(id){
   if(!confirm('Delete this record?'))return;
   const rec=records.find(r=>r.id===id);
@@ -1461,6 +1484,8 @@ function setModalField(fname,rec){
 
 function openAddModal(){
   document.querySelector('.modal')?.classList.toggle('sgi-modal', isSGI());
+  const db = document.getElementById('m-delete-btn');
+  if(db) db.style.display = 'none'; // no delete on new records
   editId=null;
   document.getElementById('mtitle').textContent='Add Patient';
   LOCKABLE.forEach(f=>{
@@ -1618,6 +1643,8 @@ function popupAddToLib(){
 
 function openEditModal(id){
   document.querySelector('.modal')?.classList.remove('sgi-modal'); // Full view for everyone on Edit
+  const db = document.getElementById('m-delete-btn');
+  if(db) db.style.display = isMDR() ? '' : 'none'; // MDR only
   const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
   editId=id;
   document.getElementById('mtitle').textContent='Edit Record';
