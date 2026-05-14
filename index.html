@@ -221,6 +221,19 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .delbtn:hover{color:var(--red);}
 
 /* MODAL */
+/* Popup modal — no overlay, positioned at click */
+.popup-overlay{display:none;position:fixed;inset:0;z-index:300;} /* invisible click-away catcher */
+.popup-overlay.open{display:block;}
+.popup-modal{position:fixed;z-index:301;background:var(--surface);border:1px solid var(--border);border-radius:12px;width:340px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.4);display:none;}
+.popup-modal.open{display:block;}
+.popup-modal .mhdr{display:flex;align-items:center;justify-content:space-between;padding:11px 14px 9px;border-bottom:1px solid var(--border);}
+.popup-modal .mbody{padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.popup-modal .mftr{padding:9px 14px;border-top:1px solid var(--border);display:flex;gap:7px;justify-content:flex-end;}
+
+/* Row click target */
+tr.clickable-row{cursor:pointer;}
+tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
+
 .moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
 .moverlay.open{display:flex;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);}
@@ -497,6 +510,39 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
       Sign in with Microsoft
     </button>
     <div id="authErrMsg" style="font-size:11px;color:#f25c5c;margin-top:12px;min-height:16px"></div>
+  </div>
+</div>
+
+<!-- POPUP PIECES MODAL (no overlay, positioned at click) -->
+<div class="popup-overlay" id="popupOverlay" onclick="closePopup()"></div>
+<div class="popup-modal" id="popupModal">
+  <div class="mhdr">
+    <span class="mtitle" id="popupTitle">Add Items</span>
+    <button class="closebtn" onclick="closePopup()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="mbody">
+    <div class="fg">
+      <label class="flabel">Pieces / Items <span style="color:var(--text3);font-size:9px">(🔒 = source, ✏ = added by you)</span></label>
+      <div id="popup-cur-pieces" style="display:flex;flex-direction:column;gap:3px;margin-bottom:4px;"></div>
+      <input type="text" class="psearch" id="popup-psearch" placeholder="Search library to add…" oninput="renderPopupPselList()">
+      <div class="psel-list" id="popup-psel"></div>
+      <div class="newprow">
+        <input type="text" class="finput" id="popup-newname" placeholder="New item name…" style="flex:1">
+        <button class="btn btn-success btn-sm" onclick="popupAddToLib()">+ Add</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="flabel">SGI Notes <span style="color:var(--green);font-size:9px">(editable)</span></label>
+      <textarea class="finput ntxt" id="popup-sgiNotes" rows="2" placeholder="SGI notes…"></textarea>
+    </div>
+    <div class="fg mdr-modal-only" id="popup-mdrnotes-wrap">
+      <label class="flabel">MDR Notes <span style="color:var(--green);font-size:9px">(editable)</span></label>
+      <textarea class="finput ntxt" id="popup-mdrNotes" rows="2" placeholder="MDR notes…"></textarea>
+    </div>
+  </div>
+  <div class="mftr">
+    <button class="btn btn-ghost btn-sm" onclick="closePopup()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="savePopup()">Save</button>
   </div>
 </div>
 
@@ -1051,7 +1097,7 @@ function renderRow(r){
 
   const chipHtml=`<span class="schip c-${status}"><span class="cdot"></span>${status.charAt(0).toUpperCase()+status.slice(1)}</span>`;
 
-  return`<tr class="${cls}" data-id="${r.id}">
+  return`<tr class="${cls} clickable-row" data-id="${r.id}" onclick="rowClick(event,'${r.id}')">
     <td>
       <div>${isMDR() && r.entryId
         ?`<a class="pname-link" href="https://appsmith.mdrsvrs.com/app/service-log-iv/edit-service-entry-63daca7262693232546677f4?EntryID=${encodeURIComponent(r.entryId)}&CameFrom=All%20Logs" target="_blank" rel="noopener">${esc(r.patientName)}</a>`
@@ -1067,7 +1113,7 @@ function renderRow(r){
     <td class="ctr">
       <div class="cbwrap">
         <input type="checkbox" class="bigcb cb-jobclosed" ${r.jobClosed?'checked':''}
-          onchange="jobClosedChanged('${r.id}',this.checked)">
+          onchange="jobClosedChanged('${r.id}',this.checked)" onclick="event.stopPropagation()">
       </div>
       <span class="print-cb jobclosed-p${r.jobClosed?' checked-p':''}"></span>
     </td>
@@ -1081,23 +1127,22 @@ function renderRow(r){
     <td class="ctr col-mdr-only">
       <div class="cbwrap">
         <input type="checkbox" class="bigcb cb-verified" ${r.verified?'checked':''}
-          onchange="updateF('${r.id}','verified',this.checked)">
+          onchange="updateF('${r.id}','verified',this.checked)" onclick="event.stopPropagation()">
       </div>
       <span class="print-cb verified-p${r.verified?' checked-p':''}"></span>
     </td>
     <td class="ctr col-mdr-only">
       <div class="cbwrap">
         <input type="checkbox" class="bigcb cb-confirmed" ${r.confirmed?'checked':''}
-          onchange="updateF('${r.id}','confirmed',this.checked)">
+          onchange="updateF('${r.id}','confirmed',this.checked)" onclick="event.stopPropagation()">
       </div>
       <span class="print-cb confirmed-p${r.confirmed?' checked-p':''}"></span>
     </td>
     <td class="col-status">${chipHtml}</td>
     <td>${pickupHtml}</td>
-    <td class="no-print"><div class="racts">
-      <button class="btn btn-ghost btn-xs" onclick="openEditModal('${r.id}')">✏ Edit</button>
-      ${r.source==='manual'?`<button class="delbtn" onclick="delRec('${r.id}')">✕</button>`:''}
-    </div></td>
+    <td class="no-print" style="width:24px;padding:4px;">
+      ${r.source==='manual'?`<button class="delbtn" onclick="event.stopPropagation();delRec('${r.id}')" title="Delete record">✕</button>`:''}
+    </td>
   </tr>`;
 }
 
@@ -1123,7 +1168,7 @@ function renderSealedRow(r){
 
 function renderPcell(r){
   if(!r.pieces||!r.pieces.length){
-    return`<div style="color:var(--text3);font-size:11px;font-style:italic">No items — <button class="addpbtn" onclick="openEditModal('${r.id}')">+ add</button></div>`;
+    return`<div style="color:var(--text3);font-size:11px;font-style:italic">No items — <button class="addpbtn" onclick="event.stopPropagation();openPopup(event,'${r.id}')">+ add</button></div>`;
   }
   const allChk=r.pieces.every(p=>p.checked);
   const items=r.pieces.map(p=>{
@@ -1151,7 +1196,7 @@ function renderPcell(r){
   }).join('');
   return`<div class="phdr"><button class="sabtn" onclick="toggleAll('${r.id}')">${allChk?'☐ Deselect All':'☑ Select All'}</button></div>
     <div class="plist">${items}</div>
-    <div class="pftr"><button class="addpbtn" onclick="openEditModal('${r.id}')">
+    <div class="pftr"><button class="addpbtn" onclick="event.stopPropagation();openPopup(event,'${r.id}')">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add item
     </button></div>`;
 }
@@ -1387,6 +1432,138 @@ function openAddModal(){
   mSrcPieces=[];mAddPieces=[];
   renderCurPieces();renderPselList();
   document.getElementById('moverlay').classList.add('open');
+}
+
+// ─────────────────────────────────────
+// POPUP (Add Items) + ROW CLICK
+// ─────────────────────────────────────
+let popupRecId = null;
+let popupSrcPieces = [], popupAddPieces = [];
+
+function rowClick(event, id){
+  // Don't open edit modal if clicking on interactive elements
+  const tag = event.target.tagName.toLowerCase();
+  const interactive = ['input','textarea','select','button','a','label'];
+  if(interactive.includes(tag)) return;
+  if(event.target.closest('button,a,input,textarea,select,label,.addpbtn,.delbtn,.bigcb,.cbwrap,.schip,.pname-link')) return;
+  openEditModal(id);
+}
+
+function openPopup(event, id){
+  event.stopPropagation();
+  const rec = records.find(r=>r.id===id);
+  if(!rec||isSealed(rec)) return;
+  popupRecId = id;
+  popupSrcPieces = (rec.pieces||[]).filter(p=>p.fromSource).map(p=>({...p}));
+  popupAddPieces = (rec.pieces||[]).filter(p=>!p.fromSource).map(p=>({...p}));
+
+  // Position popup at click point
+  const popup = document.getElementById('popupModal');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = event.clientX, y = event.clientY;
+  popup.style.display = 'block';
+  const pw = popup.offsetWidth || 340;
+  const ph = popup.offsetHeight || 400;
+  if(x + pw > vw - 10) x = vw - pw - 10;
+  if(y + ph > vh - 10) y = vh - ph - 10;
+  if(y < 10) y = 10;
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  popup.classList.add('open');
+  document.getElementById('popupOverlay').classList.add('open');
+
+  // Populate fields
+  document.getElementById('popupTitle').textContent = 'Add Items — ' + rec.patientName;
+  document.getElementById('popup-sgiNotes').value = rec.sgiNotes||'';
+  document.getElementById('popup-mdrNotes').value = rec.mdrNotes||'';
+  document.getElementById('popup-newname').value = '';
+  document.getElementById('popup-psearch').value = '';
+  // Hide MDR notes for SGI
+  const mn = document.getElementById('popup-mdrnotes-wrap');
+  if(mn) mn.style.display = isSGI() ? 'none' : '';
+  renderPopupCurPieces();
+  renderPopupPselList();
+}
+
+function closePopup(){
+  document.getElementById('popupModal').classList.remove('open');
+  document.getElementById('popupOverlay').classList.remove('open');
+  document.getElementById('popupModal').style.display='none';
+  popupRecId = null;
+}
+
+function savePopup(){
+  if(!popupRecId) return;
+  const rec = records.find(r=>r.id===popupRecId);
+  if(!rec) return;
+  rec.pieces = [...popupSrcPieces, ...popupAddPieces];
+  rec.sgiNotes = document.getElementById('popup-sgiNotes').value;
+  if(isMDR()) rec.mdrNotes = document.getElementById('popup-mdrNotes').value;
+  saveRecs(rec);
+  const tr = document.querySelector(`tr[data-id="${popupRecId}"]`);
+  if(tr){ const td=tr.querySelector('.pcell'); if(td) td.innerHTML=renderPcell(rec); }
+  refreshRowStatus(rec); renderStats();
+  closePopup();
+  toast('Saved','s');
+}
+
+function renderPopupCurPieces(){
+  const c = document.getElementById('popup-cur-pieces');
+  const all = [...popupSrcPieces.map(p=>({...p,_l:true})),...popupAddPieces.map(p=>({...p,_l:false}))];
+  if(!all.length){ c.innerHTML='<div style="color:var(--text3);font-size:11px;padding:2px 0">No items yet</div>'; return; }
+  c.innerHTML = all.map(p=>{
+    const badge = p.type==='Pickup'
+      ?'<span class="ptbadge bp" style="font-size:9px">PKP</span>'
+      :'<span class="ptbadge be" style="font-size:9px">EXC</span>';
+    const lock = p._l?'🔒':'✏';
+    const rm = p._l?'':`<button onclick="popupRmPiece('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0 2px;">✕</button>`;
+    return`<div style="display:flex;align-items:center;gap:5px;font-size:11px;padding:2px 0;">
+      <span>${lock}</span>${badge}<span style="flex:1">${esc(p.name)}</span>
+      <input type="number" min="0" value="${p.receivedQty??p.expectedQty??1}" style="width:42px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;color:var(--text);"
+        onchange="popupQty('${p.id}',this.value)" ${p._l&&isSGI()?'':''}>${rm}
+    </div>`;
+  }).join('');
+}
+
+function renderPopupPselList(){
+  const q = (document.getElementById('popup-psearch').value||'').toLowerCase();
+  const used = new Set([...popupSrcPieces,...popupAddPieces].map(p=>p.name));
+  const list = LIB.filter(x=>!used.has(x.name)&&(!q||x.name.toLowerCase().includes(q)));
+  const c = document.getElementById('popup-psel');
+  if(!list.length){ c.innerHTML=''; return; }
+  c.innerHTML = list.map(x=>`
+    <div style="display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:11px;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
+      <span style="flex:1">${esc(x.name)}</span>
+      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Exchange')">EXC</button>
+      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Pickup')">PKP</button>
+    </div>`).join('');
+}
+
+function popupAddItem(name, type){
+  const id = gid();
+  popupAddPieces.push({id,name,type,expectedQty:1,receivedQty:null,checked:false,fromSource:false});
+  renderPopupCurPieces();
+  renderPopupPselList();
+}
+
+function popupRmPiece(pid){
+  popupAddPieces = popupAddPieces.filter(p=>p.id!==pid);
+  renderPopupCurPieces();
+  renderPopupPselList();
+}
+
+function popupQty(pid, val){
+  const p = [...popupSrcPieces,...popupAddPieces].find(x=>x.id===pid);
+  if(p) p.receivedQty = val===''?null:parseInt(val);
+}
+
+function popupAddToLib(){
+  const name = document.getElementById('popup-newname').value.trim();
+  if(!name) return;
+  ensureLib(name);
+  document.getElementById('popup-newname').value='';
+  renderPopupPselList();
+  toast('Added to library','s');
 }
 
 function openEditModal(id){
