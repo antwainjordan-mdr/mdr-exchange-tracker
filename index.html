@@ -246,6 +246,9 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .toast.s{border-color:var(--green);color:var(--green);}
 .toast.e{border-color:var(--red);color:var(--red);}
 .toast.i{border-color:var(--accent);color:var(--accent);}
+
+/* SGI MODAL — hides MDR-only fields when SGI opens the modal */
+.sgi-modal .mdr-modal-only{display:none !important;}
 @keyframes sIn{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
@@ -310,7 +313,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 <!-- HEADER -->
 <header class="hdr">
   <div class="logo">
-    <div class="logobadge">MDR</div>
+    <div class="logobadge" style="background:transparent;padding:2px;"><svg width="100%" height="100%" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g><path d="M529.111,535.543l0,-264.557l58.955,0c56.752,0 62.738,-1.533 74.424,5.221c19.406,11.214 24.148,31.907 24.156,62.134c0.008,26.13 -13.672,42.456 -26.493,51.558c26.751,14.864 26.496,54.851 26.624,84.461l0,61.183l-61.093,0l0,-67.091c0,-40.077 -1.346,-50.943 -9.602,-53.157c-8.256,-2.213 -11.253,-1.204 -18.621,-1.204l-0,121.452l-68.35,0Zm97.458,-198.836c-0.072,-11.21 -4.269,-23.927 -11.946,-28.577c-8.863,-0 -12.941,-1.236 -17.162,-0c-0,11.909 0.203,13.682 -0,26.218c-0,25.116 0.027,27.695 -0,37.745c4.265,0.011 1.899,-0.016 17.162,-0c9.46,-7.54 11.946,-22.781 11.946,-35.386Z" style="fill:#f41617;fill-rule:nonzero;"/><path d="M331.671,795.272c-208.86,-39.633 -353.155,-231.203 -329.042,-436.845c22.2,-189.33 166.325,-333.745 355.206,-355.919c153.568,-18.029 311.314,62.49 389.195,198.658c114.854,200.814 36.296,456.587 -171.52,558.442c-23.219,11.38 -58.364,24.638 -78.099,29.462c-47.598,11.636 -122.362,14.433 -165.74,6.202Zm142.901,-78.047c117.593,-29.604 208.272,-119.128 241.045,-237.974c10.305,-37.366 11.881,-121.899 -0.561,-159.14c-37.909,-113.476 -113.269,-197.726 -226.089,-232.993c-26.638,-8.327 -65,-12.832 -88.341,-12.832c-23.34,0 -62.327,4.505 -88.966,12.832c-112.536,35.178 -195.349,120.509 -226.356,233.237c-10.337,37.579 -10.337,122.451 0,160.03c17.423,63.342 48.254,113.837 97.747,160.085c37.288,34.845 89.692,63.234 141.274,76.533c43.466,11.207 106.245,11.299 150.247,0.222l-0,0Zm-88.08,-194.138c-17.638,-18.422 -25.136,-39.598 -25.69,-84.699c-0.577,-46.937 20.426,-83.066 43.515,-94.93c21.879,-11.242 52.989,4.191 52.989,4.191l-0,-76.663c27.353,0 32.365,0.845 48.548,0l-0,264.557l-48.548,0c-0,-22.184 1.714,-17.713 -0,-22.184c-6.353,7.534 -13.553,13.79 -13.553,13.79c-12.61,12.618 -43.095,10.733 -57.261,-4.062Zm44.476,-122.495c-30.641,-0 -29.072,84.593 1.495,84.593c30.567,-0 29.147,-84.593 -1.495,-84.593Zm-312.657,-129.606c9.741,0 0.001,-0.211 78.27,0c33.607,160.035 24.109,99.975 34.909,159.526c36.209,-160.035 34.907,-159.526 34.907,-159.526l78.583,0l2.564,260.229l-49.139,-0l-0,-204.393l-43.735,204.393l-46.36,-0c-16.74,-66.039 1.476,-0 -44.406,-200.547c0,200.547 0.055,131.733 0,200.547c-24.312,0.047 -39.294,0.001 -47.844,-0c-0,-88.159 1.585,-171.579 2.251,-260.229Z" style="fill:#23118c;fill-rule:nonzero;"/></g></svg></div>
     <div><div class="apptitle">Exchange Tracker</div><div class="appsub">Pickup &amp; Exchange Management</div></div>
   </div>
   <div class="hacts">
@@ -427,19 +430,19 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
       <button class="closebtn" onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mbody">
-      <div class="frow">
+      <div class="frow mdr-modal-only">
         <div class="fg"><label class="flabel">Patient Name</label><div id="m-patientName-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientName-lockval"></span></div><input type="text" class="finput" id="m-patientName" placeholder="Last, First"></div>
         <div class="fg"><label class="flabel">Patient ID</label><div id="m-patientId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientId-lockval"></span></div><input type="text" class="finput" id="m-patientId" placeholder="e.g. 18366"></div>
       </div>
-      <div class="frow">
+      <div class="frow mdr-modal-only">
         <div class="fg"><label class="flabel">Job #</label><div id="m-jobNum-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-jobNum-lockval"></span></div><input type="text" class="finput" id="m-jobNum" placeholder="e.g. 3946548"></div>
         <div class="fg"><label class="flabel">Reference</label><div id="m-soIds-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-soIds-lockval"></span></div><input type="text" class="finput" id="m-soIds" placeholder="e.g. 122682, 34952"></div>
       </div>
-      <div class="frow">
+      <div class="frow mdr-modal-only">
         <div class="fg"><label class="flabel">Entry ID</label><div id="m-entryId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-entryId-lockval"></span></div><input type="text" class="finput" id="m-entryId" placeholder="e.g. 19491"></div>
         <div class="fg"></div>
       </div>
-      <div class="frow">
+      <div class="frow mdr-modal-only">
         <div class="fg"><label class="flabel">Pickup Date</label><div id="m-pickupDate-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-pickupDate-lockval"></span></div><input type="date" class="finput datepick" id="m-pickupDate"></div>
         <div class="fg"><label class="flabel">Late by Date <span style="color:var(--green);font-size:9px">(editable)</span></label><input type="date" class="finput datepick" id="m-dropOffBy"></div>
       </div>
@@ -452,12 +455,12 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
         <div class="newprow">
           <input type="text" class="finput" id="m-newname" placeholder="New item name to add to library…" style="flex:1">
           <button class="btn btn-success btn-sm" onclick="addToLib()">+ Add to Library</button>
-          <button class="btn btn-xs" onclick="resetLibrary()" style="background:transparent;color:var(--red);border:1px solid var(--red);white-space:nowrap;" title="Wipe custom items and restore defaults">Reset Library</button>
+          <button class="btn btn-xs mdr-modal-only" onclick="resetLibrary()" style="background:transparent;color:var(--red);border:1px solid var(--red);white-space:nowrap;" title="Wipe custom items and restore defaults">Reset Library</button>
         </div>
       </div>
       <div class="frow">
         <div class="fg"><label class="flabel">SGI Notes <span style="color:var(--green);font-size:9px">(editable)</span></label><textarea class="finput ntxt" id="m-sgiNotes" rows="2" placeholder="SGI notes…"></textarea></div>
-        <div class="fg"><label class="flabel">MDR Notes <span style="color:var(--green);font-size:9px">(editable)</span></label><textarea class="finput ntxt" id="m-mdrNotes" rows="2" placeholder="MDR notes…"></textarea></div>
+        <div class="fg mdr-modal-only"><label class="flabel">MDR Notes <span style="color:var(--green);font-size:9px">(editable)</span></label><textarea class="finput ntxt" id="m-mdrNotes" rows="2" placeholder="MDR notes…"></textarea></div>
       </div>
     </div>
     <div class="mftr">
@@ -471,7 +474,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 <!-- AUTH OVERLAY -->
 <div id="authOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;flex-direction:column;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-    <div style="background:linear-gradient(135deg,#4f8ef7,#a78bfa);width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff;margin:0 auto 16px">MDR</div>
+    <div style="background:linear-gradient(135deg,#4f8ef7,#a78bfa);width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff;margin:0 auto 16px" style="background:transparent;padding:4px;"><svg width="100%" height="100%" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g><path d="M529.111,535.543l0,-264.557l58.955,0c56.752,0 62.738,-1.533 74.424,5.221c19.406,11.214 24.148,31.907 24.156,62.134c0.008,26.13 -13.672,42.456 -26.493,51.558c26.751,14.864 26.496,54.851 26.624,84.461l0,61.183l-61.093,0l0,-67.091c0,-40.077 -1.346,-50.943 -9.602,-53.157c-8.256,-2.213 -11.253,-1.204 -18.621,-1.204l-0,121.452l-68.35,0Zm97.458,-198.836c-0.072,-11.21 -4.269,-23.927 -11.946,-28.577c-8.863,-0 -12.941,-1.236 -17.162,-0c-0,11.909 0.203,13.682 -0,26.218c-0,25.116 0.027,27.695 -0,37.745c4.265,0.011 1.899,-0.016 17.162,-0c9.46,-7.54 11.946,-22.781 11.946,-35.386Z" style="fill:#f41617;fill-rule:nonzero;"/><path d="M331.671,795.272c-208.86,-39.633 -353.155,-231.203 -329.042,-436.845c22.2,-189.33 166.325,-333.745 355.206,-355.919c153.568,-18.029 311.314,62.49 389.195,198.658c114.854,200.814 36.296,456.587 -171.52,558.442c-23.219,11.38 -58.364,24.638 -78.099,29.462c-47.598,11.636 -122.362,14.433 -165.74,6.202Zm142.901,-78.047c117.593,-29.604 208.272,-119.128 241.045,-237.974c10.305,-37.366 11.881,-121.899 -0.561,-159.14c-37.909,-113.476 -113.269,-197.726 -226.089,-232.993c-26.638,-8.327 -65,-12.832 -88.341,-12.832c-23.34,0 -62.327,4.505 -88.966,12.832c-112.536,35.178 -195.349,120.509 -226.356,233.237c-10.337,37.579 -10.337,122.451 0,160.03c17.423,63.342 48.254,113.837 97.747,160.085c37.288,34.845 89.692,63.234 141.274,76.533c43.466,11.207 106.245,11.299 150.247,0.222l-0,0Zm-88.08,-194.138c-17.638,-18.422 -25.136,-39.598 -25.69,-84.699c-0.577,-46.937 20.426,-83.066 43.515,-94.93c21.879,-11.242 52.989,4.191 52.989,4.191l-0,-76.663c27.353,0 32.365,0.845 48.548,0l-0,264.557l-48.548,0c-0,-22.184 1.714,-17.713 -0,-22.184c-6.353,7.534 -13.553,13.79 -13.553,13.79c-12.61,12.618 -43.095,10.733 -57.261,-4.062Zm44.476,-122.495c-30.641,-0 -29.072,84.593 1.495,84.593c30.567,-0 29.147,-84.593 -1.495,-84.593Zm-312.657,-129.606c9.741,0 0.001,-0.211 78.27,0c33.607,160.035 24.109,99.975 34.909,159.526c36.209,-160.035 34.907,-159.526 34.907,-159.526l78.583,0l2.564,260.229l-49.139,-0l-0,-204.393l-43.735,204.393l-46.36,-0c-16.74,-66.039 1.476,-0 -44.406,-200.547c0,200.547 0.055,131.733 0,200.547c-24.312,0.047 -39.294,0.001 -47.844,-0c-0,-88.159 1.585,-171.579 2.251,-260.229Z" style="fill:#23118c;fill-rule:nonzero;"/></g></svg></div>
     <div style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--text)">MDR Exchange Tracker</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:24px;line-height:1.5">Sign in with your Microsoft 365 account.<br>MDR staff and SGI partners only.</div>
     <button onclick="msalSignIn()" style="background:#0078d4;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
@@ -1026,7 +1029,9 @@ function renderRow(r){
     style="width:92px;">`;
 
   // Late by date — always editable
-  const lateHtml=`<input type="date" class="datepick" value="${esc(r.dropOffBy||'')}"
+  const lateHtml=isSGI()
+    ?`<span style="font-size:12px;color:var(--text2)">${fmtDate(r.dropOffBy)||'—'}</span>`
+    :`<input type="date" class="datepick" value="${esc(r.dropOffBy||'')}"
     onclick="openCal(this)"
     onchange="updateF('${r.id}','dropOffBy',this.value)">`;
 
@@ -1034,9 +1039,11 @@ function renderRow(r){
 
   return`<tr class="${cls}" data-id="${r.id}">
     <td>
-      <div>${r.entryId && isMDR()
+      <div>${isMDR() && r.entryId
         ?`<a class="pname-link" href="https://appsmith.mdrsvrs.com/app/service-log-iv/edit-service-entry-63daca7262693232546677f4?EntryID=${encodeURIComponent(r.entryId)}&CameFrom=All%20Logs" target="_blank" rel="noopener">${esc(r.patientName)}</a>`
-        :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
+        :isSGI()
+          ?`<a class="pname-link" href="#" onclick="openEditModal('${r.id}');return false;">${esc(r.patientName)}</a>`
+          :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
       <div class="pid">${esc(r.patientId)}</div>
     </td>
     <td style="text-align:center">${renderJobLink(r.jobNum)}</td>
@@ -1344,6 +1351,7 @@ function setModalField(fname,rec){
 }
 
 function openAddModal(){
+  document.querySelector('.modal')?.classList.toggle('sgi-modal', isSGI());
   editId=null;
   document.getElementById('mtitle').textContent='Add Patient';
   LOCKABLE.forEach(f=>{
@@ -1368,6 +1376,7 @@ function openAddModal(){
 }
 
 function openEditModal(id){
+  document.querySelector('.modal')?.classList.toggle('sgi-modal', isSGI());
   const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
   editId=id;
   document.getElementById('mtitle').textContent='Edit Record';
@@ -1660,7 +1669,7 @@ function applyRoleUI(){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
       const t = b.textContent.trim();
       if(['Load Historic','Load Daily','Export CSV','Export PDF',
-          'Add Patient','Clear Data','Sync to SP','Setup SP','Diag'].some(s=>t.includes(s))){
+          'Add Patient','Clear Data'].some(s=>t.includes(s))){
         b.style.display = 'none';
       }
     });
