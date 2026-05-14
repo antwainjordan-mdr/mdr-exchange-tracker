@@ -332,6 +332,9 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
       Sync to SP
     </button>
+    <button class="btn btn-sm mdr-only" onclick="setupSPList()" title="Create SharePoint columns" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;">
+      Setup SP
+    </button>
     <button class="btn btn-sm mdr-only" onclick="diagSPColumns()" title="Get SP column names" style="background:transparent;color:var(--text2);border:1px solid var(--border);">
       Diag
     </button>
@@ -1935,6 +1938,53 @@ async function loadFromSharePoint(){
     loadStorageLocal();
     buildChips(); renderTable(); renderStats();
     toast('SharePoint unavailable — showing local cache', 'i');
+  }
+}
+
+async function setupSPList(){
+  if(!confirm('This will create all required columns in the ExchangeRecords SharePoint list.\nMake sure the list is empty first. Continue?')) return;
+  try {
+    await ensureSPIds();
+    toast('Creating SharePoint columns…', 'i');
+    const base = '/sites/' + spSiteId + '/lists/' + spListId + '/columns';
+
+    const textCols = ['PatientName','PatientId','JobNum','SoIds','EntryId','Source','LockedFields'];
+    const noteCols = ['SgiNotes','MdrNotes','Pieces'];
+    const dateCols = ['PickupDate','DropOffBy','DateReturned'];
+    const boolCols = ['JobClosed','Verified','Confirmed','Sealed'];
+
+    let created = 0, skipped = 0;
+
+    for(const name of textCols){
+      try {
+        await gPost(base, {name, text:{}, hidden:false});
+        created++;
+      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
+    }
+    for(const name of noteCols){
+      try {
+        await gPost(base, {name, text:{allowMultipleLines:true}, hidden:false});
+        created++;
+      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
+    }
+    for(const name of dateCols){
+      try {
+        await gPost(base, {name, dateTime:{displayAs:"standard"}, hidden:false});
+        created++;
+      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
+    }
+    for(const name of boolCols){
+      try {
+        await gPost(base, {name, boolean:{}, hidden:false});
+        created++;
+      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
+    }
+
+    toast(`Created ${created} columns (${skipped} skipped). Now click Sync to SP.`, 's');
+    console.log('[MDR] Column setup complete:', created, 'created,', skipped, 'skipped');
+  } catch(e) {
+    console.error('Setup error:', e);
+    toast('Setup failed: ' + e.message, 'e');
   }
 }
 
