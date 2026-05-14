@@ -2311,17 +2311,18 @@ async function showSignedIn(email){
   await loadFromSharePoint();
 }
 
+function updateStickyHeight(){
+  const st = document.querySelector('.sticky-top');
+  if(st){
+    const h = st.offsetHeight;
+    document.documentElement.style.setProperty('--sticky-top-h', h + 'px');
+    document.body.style.paddingTop = h + 'px';
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   initTheme(); initLib();
   // Set thead sticky top to match sticky-top wrapper height
-  function updateStickyHeight(){
-    const st = document.querySelector('.sticky-top');
-    if(st){
-      const h = st.offsetHeight;
-      document.documentElement.style.setProperty('--sticky-top-h', h + 'px');
-      document.body.style.paddingTop = h + 'px';
-    }
-  }
   setTimeout(updateStickyHeight, 100);
   window.addEventListener('resize', updateStickyHeight);
   if(window.location.protocol !== 'file:'){
