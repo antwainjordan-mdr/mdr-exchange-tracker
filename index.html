@@ -109,7 +109,7 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 /* TABLE */
 .sticky-top{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .twrap{padding:0 16px 12px;}
-table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1200px;}
+table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1280px;}
 thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 2px 4px rgba(0,0,0,.2);}
 thead th.srt{cursor:pointer;}
 thead th.srt:hover{color:var(--text);}
@@ -326,11 +326,12 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
   .pr-mixed    td{background:#fff9e6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-sealed   td{background:#f5f5f5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   /* Column widths */
-  .pc-patient  {width:15%;}
-  .pc-job      {width:9%;}
-  .pc-pieces   {width:24%;}
-  .pc-ref      {width:12%;}
-  .pc-notes    {width:40%;}
+  .pc-pickup   {width:9%;}
+  .pc-patient  {width:12%;}
+  .pc-job      {width:8%;}
+  .pc-pieces   {width:22%;}
+  .pc-ref      {width:11%;}
+  .pc-notes    {width:38%;}
   .pt-name{font-weight:700;font-size:11pt;}
   .pt-id{font-size:9.5pt;color:#555;}
   .pt-piece{font-size:10.5pt;margin-bottom:2pt;line-height:1.3;}
@@ -357,6 +358,9 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
     <button class="btn btn-primary btn-sm" onclick="spRefresh()" id="btnRefresh" title="Refresh data from SharePoint">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
+    </button>
+    <button class="btn btn-pdf btn-sm" onclick="exportPDF()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Export PDF
     </button>
 
     <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);">
@@ -435,6 +439,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
   <table>
     <thead>
       <tr>
+        <th class="srt" onclick="sortBy('pickupDate')" style="min-width:120px">Pickup Date ↕</th>
         <th class="srt" onclick="sortBy('patientName')" style="min-width:140px">Patient ↕</th>
         <th class="srt" onclick="sortBy('jobNum')" style="min-width:90px">Job #</th>
         <th style="min-width:160px">Pieces / Items</th>
@@ -447,8 +452,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
         <th class="ctr th-mdr-only" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
         <th class="ctr th-mdr-only" style="min-width:80px">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
         <th class="col-status" style="min-width:90px">Status</th>
-        <th class="srt" onclick="sortBy('pickupDate')" style="min-width:120px">Pickup Date ↕</th>
-        <th class="no-print" style="min-width:80px"></th>
+        <th class="no-print" style="min-width:50px"></th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -1174,6 +1178,7 @@ function renderRow(r){
   const chipHtml=`<span class="schip c-${status}"><span class="cdot"></span>${status.charAt(0).toUpperCase()+status.slice(1)}</span>`;
 
   return`<tr class="${cls} clickable-row" data-id="${r.id}" onclick="rowClick(event,'${r.id}')">
+    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;">${pickupHtml}</td>
     <td>
       <div>${isMDR() && r.entryId
         ?`<a class="pname-link" href="https://appsmith.mdrsvrs.com/app/service-log-iv/edit-service-entry-63daca7262693232546677f4?EntryID=${encodeURIComponent(r.entryId)}&CameFrom=All%20Logs" target="_blank" rel="noopener">${esc(r.patientName)}</a>`
@@ -1215,7 +1220,6 @@ function renderRow(r){
       <span class="print-cb confirmed-p${r.confirmed?' checked-p':''}"></span>
     </td>
     <td class="col-status">${chipHtml}</td>
-    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;">${pickupHtml}</td>
     <td class="no-print" style="width:24px;padding:4px;">
       ${r.source==='manual'?`<button class="delbtn" onclick="event.stopPropagation();delRec('${r.id}')" title="Delete record">✕</button>`:''}
     </td>
@@ -1225,6 +1229,7 @@ function renderRow(r){
 function renderSealedRow(r){
   const pieces=(r.pieces||[]).map(p=>`${p.type} -- ${p.name} ×${p.expectedQty}`).join(', ');
   return`<tr class="r-sealed t-${rowType(r)}" data-id="${r.id}">
+    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;"><div class="sealed-val">${fmtDate(r.pickupDate)}</div></td>
     <td><div class="sealed-val">${esc(r.patientName)}</div><div class="pid" style="color:var(--sealed-text)">${esc(r.patientId)}</div><span class="seal-badge">🔒 SEALED</span></td>
     <td>${renderJobLink(r.jobNum)}</td>
     <td><div class="sealed-val" style="font-size:10px;max-width:250px">${esc(pieces)||'—'}</div></td>
@@ -1237,7 +1242,6 @@ function renderSealedRow(r){
     <td class="ctr"><span style="font-size:14px">${r.verified?'✅':''}</span></td>
     <td class="ctr"><span style="font-size:14px">${r.confirmed?'✅':''}</span></td>
     <td><span class="schip" style="background:rgba(90,100,128,.2);color:var(--sealed-text)">Sealed</span></td>
-    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;"><div class="sealed-val">${fmtDate(r.pickupDate)}</div></td>
     <td></td>
   </tr>`;
 }
@@ -1814,6 +1818,7 @@ function exportPDF(){
   const hdrText=`MDR Exchange Report  •  ${label}  •  ${rows.length} patient${rows.length!==1?'s':''}  •  Printed ${now}`;
 
   const theadHtml=`<thead><tr>
+    <th class="pc-pickup">Pickup Date</th>
     <th class="pc-patient">Patient</th>
     <th class="pc-job">Job #</th>
     <th class="pc-pieces">Pieces / Items</th>
@@ -1832,6 +1837,7 @@ function exportPDF(){
     const notes=[sgi,mdr].filter(Boolean).join('\n');
     const ref=r.soIds||'—';
     return`<tr class="${cls}">
+      <td class="pc-pickup" style="font-size:10pt;white-space:nowrap;">${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td class="pc-patient"><div class="pt-name">${esc(r.patientName)}</div><div class="pt-id">${esc(r.patientId)}</div></td>
       <td class="pc-job" style="font-family:monospace;font-size:10.5pt">${esc(r.jobNum)||'—'}</td>
       <td class="pc-pieces">${piecesHtml||'<span style="color:#999;font-size:10pt">No items</span>'}</td>
