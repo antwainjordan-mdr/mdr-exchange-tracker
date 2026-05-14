@@ -286,7 +286,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
 @media print{
   /* ── When printing, hide the live app table entirely ── */
   @page{size:landscape;margin:10mm 8mm;}
-  html,body{background:#fff !important;color:#000 !important;font-family:Arial,sans-serif;font-size:9pt;}
+  html,body{background:#fff !important;color:#000 !important;font-family:Arial,sans-serif;font-size:11pt;}
   /* Hide everything except the print container */
   .hdr,.datebar,.toolbar,.legend,.tcontainer,.moverlay,
   #emptyState,.themetog,.twrap{display:none !important;}
@@ -300,33 +300,33 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
   .print-table{border-collapse:collapse;width:100%;table-layout:fixed;}
   .print-table th{
     background:#1e3a5f !important;color:#fff !important;
-    border:1pt solid #555;padding:4pt 5pt;font-size:8pt;font-weight:700;
+    border:1pt solid #555;padding:6pt 7pt;font-size:10pt;font-weight:700;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;
     text-align:left;
   }
   .print-table td{
-    border:1pt solid #aaa;padding:4pt 5pt;
-    vertical-align:top;font-size:8pt;color:#000;
+    border:1pt solid #aaa;padding:6pt 7pt;
+    vertical-align:top;font-size:10pt;color:#000;
   }
   /* Never split a record across pages */
-  .print-table tr{page-break-inside:avoid;break-inside:avoid;}
+  .print-table tbody tr{page-break-inside:avoid;break-inside:avoid;}
   /* Row colors */
   .pr-exchange td{background:#dce8fd !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-pickup   td{background:#ede7f6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-mixed    td{background:#fff9e6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-sealed   td{background:#f5f5f5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  /* Column widths: Patient(13%) Job#(8%) Pieces(22%) Reference(12%) Notes(45%) */
-  .pc-patient  {width:13%;}
-  .pc-job      {width:8%;}
+  /* Column widths */
+  .pc-patient  {width:14%;}
+  .pc-job      {width:9%;}
   .pc-pieces   {width:22%;}
   .pc-ref      {width:12%;}
-  .pc-notes    {width:45%;}
-  .pt-name{font-weight:700;font-size:8pt;}
-  .pt-id{font-size:7pt;color:#555;}
-  .pt-piece{font-size:7.5pt;margin-bottom:1pt;}
-  .pt-notes{font-size:8pt;white-space:pre-wrap;word-break:break-word;}
+  .pc-notes    {width:43%;}
+  .pt-name{font-weight:700;font-size:10pt;}
+  .pt-id{font-size:9pt;color:#555;}
+  .pt-piece{font-size:9.5pt;margin-bottom:2pt;}
+  .pt-notes{font-size:9.5pt;white-space:pre-wrap;word-break:break-word;}
   /* Page number footer */
-  @page{@bottom-right{content:"Page " counter(page) " of " counter(pages);font-size:7pt;color:#666;}}
+  @page{@bottom-right{content:"Page " counter(page) " of " counter(pages);font-size:8pt;color:#666;}}
 }
 
 
@@ -1719,17 +1719,12 @@ function exportPDF(){
   const rows=filtered();
   if(!rows.length){toast('No records to export','e');return;}
 
-  const ROWS_PER_PAGE=10;
   const dates=rows.map(r=>r.pickupDate).filter(Boolean).sort();
   const label=dates.length
     ?(dates[0]===dates[dates.length-1]?`Pickup: ${fmtDate(dates[0])}`:`Pickups: ${fmtDate(dates[0])} – ${fmtDate(dates[dates.length-1])}`)
     :'All Dates';
   const now=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   const hdrText=`MDR Exchange Report  •  ${label}  •  ${rows.length} patient${rows.length!==1?'s':''}  •  Printed ${now}`;
-
-  // Split into pages of max 10
-  const pages=[];
-  for(let i=0;i<rows.length;i+=ROWS_PER_PAGE) pages.push(rows.slice(i,i+ROWS_PER_PAGE));
 
   const theadHtml=`<thead><tr>
     <th class="pc-patient">Patient</th>
@@ -1742,42 +1737,38 @@ function exportPDF(){
   function buildRow(r){
     const rt=rowType(r);
     const cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':r.sealed?'pr-sealed':'';
-    // Pieces: one line per piece showing type, name, expected qty
     const piecesHtml=(r.pieces||[]).map(p=>
       `<div class="pt-piece">${esc(p.type==='Pickup'?'PKP':'EXC')} ${esc(p.name)} ×${p.expectedQty}</div>`
     ).join('');
-    // Notes: combine SGI and MDR with labels if both present
     const sgi=r.sgiNotes?`SGI: ${r.sgiNotes}`:'';
     const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
     const notes=[sgi,mdr].filter(Boolean).join('\n');
-    // Reference: plain numbers, comma separated
     const ref=r.soIds||'—';
     return`<tr class="${cls}">
       <td class="pc-patient"><div class="pt-name">${esc(r.patientName)}</div><div class="pt-id">${esc(r.patientId)}</div></td>
-      <td class="pc-job" style="font-family:monospace;font-size:7.5pt">${esc(r.jobNum)||'—'}</td>
-      <td class="pc-pieces">${piecesHtml||'<span style="color:#999;font-size:7pt">No items</span>'}</td>
-      <td class="pc-ref" style="font-family:monospace;font-size:7.5pt;word-break:break-all">${esc(ref)}</td>
+      <td class="pc-job" style="font-family:monospace;font-size:9.5pt">${esc(r.jobNum)||'—'}</td>
+      <td class="pc-pieces">${piecesHtml||'<span style="color:#999;font-size:9pt">No items</span>'}</td>
+      <td class="pc-ref" style="font-family:monospace;font-size:9.5pt;word-break:break-all">${esc(ref)}</td>
       <td class="pc-notes"><div class="pt-notes">${esc(notes)}</div></td>
     </tr>`;
   }
 
-  const pagesHtml=pages.map((pageRows,pi)=>`
-    <div class="print-page">
-      <div class="print-hdr">${esc(hdrText)}${pages.length>1?` &nbsp;(Page ${pi+1} of ${pages.length})`:''}</div>
+  // Single table — browser handles page breaks, never splitting a row
+  const html=`
+    <div class="print-page" style="page-break-after:avoid">
+      <div class="print-hdr">${esc(hdrText)}</div>
       <table class="print-table">
         ${theadHtml}
-        <tbody>${pageRows.map(buildRow).join('')}</tbody>
+        <tbody>${rows.map(buildRow).join('')}</tbody>
       </table>
-    </div>`).join('');
+    </div>`;
 
   const container=document.getElementById('printContainer');
-  container.innerHTML=pagesHtml;
+  container.innerHTML=html;
   container.style.display='block';
 
-  // Small delay so DOM renders before print dialog opens
   setTimeout(()=>{
     window.print();
-    // Hide container again after printing
     setTimeout(()=>{container.style.display='none';},500);
   },120);
 }
