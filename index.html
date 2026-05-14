@@ -338,6 +338,9 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
     <button class="btn btn-sm mdr-only" onclick="diagSPColumns()" title="Get SP column names" style="background:transparent;color:var(--text2);border:1px solid var(--border);">
       Diag
     </button>
+    <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);">
+      👁 SGI View
+    </button>
     <button class="btn btn-ghost btn-sm" onclick="openCfgModal()" title="Configure OneDrive links" style="padding:5px 7px;">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     </button>
@@ -414,14 +417,14 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
         <th class="srt" onclick="sortBy('patientName')">Patient ↕</th>
         <th class="srt" onclick="sortBy('jobNum')">Job #</th>
         <th>Pieces / Items</th>
-        <th>Reference</th>
+        <th class="th-mdr-only">Reference</th>
         <th class="srt" onclick="sortBy('dateReturned')">Date Returned ↕</th>
         <th class="ctr">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
         <th>SGI Notes</th>
-        <th>MDR Notes</th>
+        <th class="th-mdr-only">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')">Late by Date ↕</th>
-        <th class="ctr">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
-        <th class="ctr">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
+        <th class="ctr th-mdr-only">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
+        <th class="ctr th-mdr-only">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
         <th class="col-status">Status</th>
         <th class="srt" onclick="sortBy('pickupDate')">Pickup Date ↕</th>
         <th class="no-print"></th>
@@ -1054,14 +1057,14 @@ function renderRow(r){
 
   return`<tr class="${cls}" data-id="${r.id}">
     <td>
-      <div>${r.entryId
+      <div>${r.entryId && isMDR()
         ?`<a class="pname-link" href="https://appsmith.mdrsvrs.com/app/service-log-iv/edit-service-entry-63daca7262693232546677f4?EntryID=${encodeURIComponent(r.entryId)}&CameFrom=All%20Logs" target="_blank" rel="noopener">${esc(r.patientName)}</a>`
         :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
       <div class="pid">${esc(r.patientId)}</div>
     </td>
     <td style="text-align:center">${renderJobLink(r.jobNum)}</td>
     <td class="pcell">${renderPcell(r)}</td>
-    <td>${refHtml}</td>
+    <td class="col-mdr-only">${refHtml}</td>
     <td class="ret-cell${r.dateReturned?' has-date':''}">${retHtml}</td>
     <td class="ctr">
       <div class="cbwrap">
@@ -1073,18 +1076,18 @@ function renderRow(r){
     <td style="min-width:160px"><textarea class="ntxt${r.sgiNotes?' hv':''}" rows="2" placeholder="SGI notes…"
       onchange="updateF('${r.id}','sgiNotes',this.value)"
       oninput="this.classList.toggle('hv',this.value.length>0)">${esc(r.sgiNotes)}</textarea></td>
-    <td style="min-width:160px"><textarea class="ntxt${r.mdrNotes?' hv':''}" rows="2" placeholder="MDR notes…"
+    <td style="min-width:160px" class="col-mdr-only"><textarea class="ntxt${r.mdrNotes?' hv':''}" rows="2" placeholder="MDR notes…"
       onchange="updateF('${r.id}','mdrNotes',this.value)"
       oninput="this.classList.toggle('hv',this.value.length>0)">${esc(r.mdrNotes)}</textarea></td>
     <td>${lateHtml}</td>
-    <td class="ctr">
+    <td class="ctr col-mdr-only">
       <div class="cbwrap">
         <input type="checkbox" class="bigcb cb-verified" ${r.verified?'checked':''}
           onchange="updateF('${r.id}','verified',this.checked)">
       </div>
       <span class="print-cb verified-p${r.verified?' checked-p':''}"></span>
     </td>
-    <td class="ctr">
+    <td class="ctr col-mdr-only">
       <div class="cbwrap">
         <input type="checkbox" class="bigcb cb-confirmed" ${r.confirmed?'checked':''}
           onchange="updateF('${r.id}','confirmed',this.checked)">
@@ -1649,6 +1652,23 @@ function saveCfgLinks(){
 // Direct download links — return as-is
 function odToDirectURL(shareUrl){
   return shareUrl || null;
+}
+
+function toggleRoleView(){
+  const btn = document.getElementById('btnRoleToggle');
+  if(userRole === 'mdr'){
+    userRole = 'sgi';
+    btn.textContent = '👁 MDR View';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+  } else {
+    userRole = 'mdr';
+    btn.textContent = '👁 SGI View';
+    btn.style.color = 'var(--yellow)';
+    btn.style.borderColor = 'var(--yellow)';
+  }
+  applyRoleUI();
+  renderTable();
 }
 
 async function spRefresh(){
