@@ -1659,6 +1659,25 @@ function toggleRoleView(){
   renderTable();
 }
 
+function applyRoleUI(){
+  if(isSGI()){
+    // Hide MDR-only buttons — SGI keeps Refresh and Role Toggle
+    document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
+      const t = b.textContent.trim();
+      if(['Load Historic','Load Daily','Export CSV','Export PDF',
+          'Add Patient','Clear Data','Sync to SP','Setup SP','Diag'].some(s=>t.includes(s))){
+        b.style.display = 'none';
+      }
+    });
+    // Hide MDR-only table columns
+    document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
+    document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
+  } else {
+    // MDR — restore everything
+    document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
+    document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
+  }
+}
 
 // ─────────────────────────────────────
 // SECTION 6: PERSISTENCE
