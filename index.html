@@ -30,6 +30,16 @@
   --lock-bg:rgba(0,0,0,.03);--lock-icon:#cccccc;
   --hbg:linear-gradient(135deg,#ffffff,#f0f0f0);--cal:invert(.3);
 }
+/* SGI dark theme — charcoal/gray with red accent matching their logo */
+[data-theme="dark"][data-brand="sgi"] {
+  --bg:#1a1a1a;--surface:#252525;--surface2:#2e2e2e;--surface3:#383838;
+  --border:#444444;--text:#f0f0f0;--text2:#aaaaaa;--text3:#666666;
+  --accent:#cc1f24;--purple:#8a1a1e;--green:#3a9a3a;--yellow:#c87800;
+  --red:#cc1f24;--blue:#cc1f24;
+  --sealed-bg:#1e1e1e;--sealed-text:#555555;
+  --lock-bg:rgba(255,255,255,.03);--lock-icon:#555555;
+  --hbg:linear-gradient(135deg,#252525,#1a1a1a);--cal:invert(.5);
+}
 [data-theme="light"] {
   --bg:#f5f5f8;--surface:#ffffff;--surface2:#eeecf8;--surface3:#e0ddf2;
   --border:#c8c3e8;--text:#12076e;--text2:#4a3f9e;--text3:#8b82c4;
@@ -1205,7 +1215,7 @@ function renderRow(r){
       <span class="print-cb confirmed-p${r.confirmed?' checked-p':''}"></span>
     </td>
     <td class="col-status">${chipHtml}</td>
-    <td>${pickupHtml}</td>
+    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;">${pickupHtml}</td>
     <td class="no-print" style="width:24px;padding:4px;">
       ${r.source==='manual'?`<button class="delbtn" onclick="event.stopPropagation();delRec('${r.id}')" title="Delete record">✕</button>`:''}
     </td>
@@ -1227,7 +1237,7 @@ function renderSealedRow(r){
     <td class="ctr"><span style="font-size:14px">${r.verified?'✅':''}</span></td>
     <td class="ctr"><span style="font-size:14px">${r.confirmed?'✅':''}</span></td>
     <td><span class="schip" style="background:rgba(90,100,128,.2);color:var(--sealed-text)">Sealed</span></td>
-    <td><div class="sealed-val">${fmtDate(r.pickupDate)}</div></td>
+    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;"><div class="sealed-val">${fmtDate(r.pickupDate)}</div></td>
     <td></td>
   </tr>`;
 }
@@ -1941,6 +1951,8 @@ function applyRoleUI(){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
   }
+  // Recalculate sticky header height after role UI changes
+  setTimeout(updateStickyHeight, 50);
 }
 
 // ─────────────────────────────────────
