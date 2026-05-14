@@ -319,16 +319,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
     </button>
-    <button class="btn btn-sm mdr-only" onclick="syncAllToSharePoint()" title="Push all local records to SharePoint" style="background:linear-gradient(135deg,#059669,#047857);color:#fff;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-      Sync to SP
-    </button>
-    <button class="btn btn-sm mdr-only" onclick="setupSPList()" title="Create SharePoint columns" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;">
-      Setup SP
-    </button>
-    <button class="btn btn-sm mdr-only" onclick="diagSPColumns()" title="Get SP column names" style="background:transparent;color:var(--text2);border:1px solid var(--border);">
-      Diag
-    </button>
+
     <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);">
       👁 SGI View
     </button>
@@ -1862,34 +1853,6 @@ async function syncAllToSharePoint(){
   }
   localStorage.setItem('mdr_v5',JSON.stringify(records));
   toast('Synced '+success+' records'+(failed?' ('+failed+' failed)':''),success>0?'s':'e');
-}
-
-async function setupSPList(){
-  if(!confirm('Create all required columns in the ExchangeRecords SharePoint list?')) return;
-  try{
-    await ensureSPIds();
-    toast('Creating SharePoint columns\u2026','i');
-    const base = '/sites/'+spSiteId+'/lists/'+spListId+'/columns';
-    let created=0,skipped=0;
-    for(const name of ['PatientName','PatientId','JobNum','SoIds','EntryId','Source','LockedFields'])
-      try{ await gPost(base,{name,text:{},hidden:false}); created++; }catch(e){skipped++;}
-    for(const name of ['SgiNotes','MdrNotes','Pieces'])
-      try{ await gPost(base,{name,text:{allowMultipleLines:true},hidden:false}); created++; }catch(e){skipped++;}
-    for(const name of ['PickupDate','DropOffBy','DateReturned'])
-      try{ await gPost(base,{name,dateTime:{displayAs:'standard'},hidden:false}); created++; }catch(e){skipped++;}
-    for(const name of ['JobClosed','Verified','Confirmed','Sealed'])
-      try{ await gPost(base,{name,boolean:{},hidden:false}); created++; }catch(e){skipped++;}
-    toast('Created '+created+' columns ('+skipped+' skipped)','s');
-  } catch(e){ toast('Setup failed: '+e.message,'e'); }
-}
-
-async function diagSPColumns(){
-  try{
-    await ensureSPIds();
-    const data = await gGet('/sites/'+spSiteId+'/lists/'+spListId+'/columns');
-    console.log('[MDR] SP columns:',JSON.stringify(data.value.map(c=>({name:c.name,displayName:c.displayName})),null,2));
-    toast('Column names logged to console \u2014 press F12','s');
-  } catch(e){ toast('Error: '+e.message,'e'); }
 }
 
 async function spRefresh(){
