@@ -97,7 +97,7 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 
 /* TABLE */
 .twrap{overflow-x:auto;padding:12px 16px;}
-table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1120px;}
+table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1200px;}
 thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);}
 thead th.srt{cursor:pointer;}
 thead th.srt:hover{color:var(--text);}
@@ -143,7 +143,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .datepick{
   background:var(--surface2);border:1px solid var(--border);border-radius:6px;
   padding:5px 6px;color:var(--text);font-family:'DM Mono',monospace;
-  font-size:11px;outline:none;width:92px;cursor:pointer;
+  font-size:11px;outline:none;width:108px;cursor:pointer;
   -webkit-appearance:none;appearance:none;
   position:relative;
 }
@@ -154,7 +154,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 }
 .datepick::-webkit-datetime-edit{pointer-events:none;font-size:11px;}
 .datepick::-webkit-datetime-edit-fields-wrapper{padding:0;}
-.datepick::-webkit-datetime-edit-year-field{max-width:22px;min-width:0;}
+.datepick::-webkit-datetime-edit-year-field{min-width:32px;}
 .datepick::-webkit-inner-spin-button{display:none;}
 [data-theme="light"] .datepick{background:var(--surface2);}
 
@@ -360,9 +360,9 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
   <div class="mchips" id="mchips"></div>
   <div class="rangegrp">
     <span class="dbl">Range:</span>
-    <input type="date" class="datepick" id="rangeS" onchange="setRange()" style="width:92px;">
+    <input type="date" class="datepick" id="rangeS" onchange="setRange()" style="width:108px;">
     <span style="color:var(--text3);font-size:11px">→</span>
-    <input type="date" class="datepick" id="rangeE" onchange="setRange()" style="width:92px;">
+    <input type="date" class="datepick" id="rangeE" onchange="setRange()" style="width:108px;">
     <button class="btn btn-ghost btn-xs" onclick="clearRange()">✕</button>
   </div>
 </div>
@@ -407,20 +407,20 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
   <table>
     <thead>
       <tr>
-        <th class="srt" onclick="sortBy('patientName')">Patient ↕</th>
-        <th class="srt" onclick="sortBy('jobNum')">Job #</th>
-        <th>Pieces / Items</th>
-        <th class="th-mdr-only">Reference</th>
-        <th class="srt" onclick="sortBy('dateReturned')">Date Returned ↕</th>
-        <th class="ctr">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
-        <th>SGI Notes</th>
-        <th class="th-mdr-only">MDR Notes</th>
-        <th class="srt" onclick="sortBy('dropOffBy')">Late by Date ↕</th>
-        <th class="ctr th-mdr-only">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
-        <th class="ctr th-mdr-only">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
-        <th class="col-status">Status</th>
-        <th class="srt" onclick="sortBy('pickupDate')">Pickup Date ↕</th>
-        <th class="no-print"></th>
+        <th class="srt" onclick="sortBy('patientName')" style="min-width:140px">Patient ↕</th>
+        <th class="srt" onclick="sortBy('jobNum')" style="min-width:90px">Job #</th>
+        <th style="min-width:160px">Pieces / Items</th>
+        <th class="th-mdr-only" style="min-width:120px">Reference</th>
+        <th class="srt" onclick="sortBy('dateReturned')" style="min-width:120px">Date Returned ↕</th>
+        <th class="ctr" style="min-width:80px">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
+        <th style="min-width:160px">SGI Notes</th>
+        <th class="th-mdr-only" style="min-width:160px">MDR Notes</th>
+        <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
+        <th class="ctr th-mdr-only" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
+        <th class="ctr th-mdr-only" style="min-width:80px">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
+        <th class="col-status" style="min-width:90px">Status</th>
+        <th class="srt" onclick="sortBy('pickupDate')" style="min-width:120px">Pickup Date ↕</th>
+        <th class="no-print" style="min-width:80px"></th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -1035,8 +1035,7 @@ function renderRow(r){
   // Date returned — always editable; syncs with Job Closed
   const retHtml=`<input type="date" class="datepick" value="${esc(r.dateReturned||'')}"
     onclick="openCal(this)"
-    onchange="dateRetChanged('${r.id}',this.value)"
-    style="width:92px;">`;
+    onchange="dateRetChanged('${r.id}',this.value)">`;
 
   // Late by date — always editable
   const lateHtml=isSGI()
