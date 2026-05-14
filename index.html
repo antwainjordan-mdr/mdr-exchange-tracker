@@ -297,20 +297,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
   @page{@bottom-right{content:"Page " counter(page) " of " counter(pages);font-size:7pt;color:#666;}}
 }
 
-/* ── ONEDRIVE LINK CONFIG ── */
-.btn-onedrive{background:linear-gradient(135deg,#0078d4,#005a9e);color:#fff;}
-.btn-onedrive:hover{filter:brightness(1.15);}
-.cfg-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
-.cfg-modal-overlay.open{display:flex;}
-.cfg-modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
-.cfg-hdr{display:flex;align-items:center;justify-content:space-between;padding:15px 18px 12px;border-bottom:1px solid var(--border);}
-.cfg-title{font-size:15px;font-weight:700;}
-.cfg-body{padding:16px 18px;display:flex;flex-direction:column;gap:14px;}
-.cfg-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;align-items:center;}
-.cfg-note{font-size:11px;color:var(--text2);flex:1;line-height:1.4;}
-.link-status{font-size:11px;margin-top:4px;}
-.link-status.ok{color:var(--green);}
-.link-status.err{color:var(--red);}
+
 </style>
 </head>
 <body>
@@ -324,7 +311,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
   </div>
   <div class="hacts">
     <button class="themetog" onclick="toggleTheme()"><span id="tIcon">☀️</span><span id="tLbl">Light Mode</span></button>
-    <button class="btn btn-onedrive btn-sm" onclick="spRefresh()" id="btnRefresh" title="Refresh data from SharePoint">
+    <button class="btn btn-primary btn-sm" onclick="spRefresh()" id="btnRefresh" title="Refresh data from SharePoint">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
     </button>
@@ -341,9 +328,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
     <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);">
       👁 SGI View
     </button>
-    <button class="btn btn-ghost btn-sm" onclick="openCfgModal()" title="Configure OneDrive links" style="padding:5px 7px;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    </button>
+
     <label class="btn btn-historic btn-sm" title="Load full historic CSV (app export)">📂 Load Historic<input type="file" id="fi-historic" accept=".csv" onchange="loadCSV(event,'historic')"></label>
     <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="loadCSV(event,'daily')"></label>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
@@ -487,39 +472,6 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
   </div>
 </div>
 
-<!-- ONEDRIVE CONFIG MODAL -->
-<div class="cfg-modal-overlay" id="cfgOverlay" onclick="cfgOverlayClick(event)">
-  <div class="cfg-modal">
-    <div class="cfg-hdr">
-      <span class="cfg-title">⚙️ OneDrive Link Configuration</span>
-      <button class="closebtn" onclick="closeCfgModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="cfg-body">
-      <div style="font-size:12px;color:var(--text2);background:var(--surface2);border-radius:8px;padding:10px 12px;line-height:1.6;">
-        Paste a OneDrive or SharePoint <strong style="color:var(--text)">shared link</strong> for each file.<br>
-        In OneDrive: right-click the CSV → Share → Copy Link (set to <em>Anyone with the link can view</em>).<br>
-        These links are saved in this HTML file and shared with everyone who uses it.
-      </div>
-      <div class="fg">
-        <label class="flabel">Historic CSV Link <span style="font-size:9px;color:var(--text2)">(full app export — master file)</span></label>
-        <input type="url" class="finput" id="cfg-historic-url" placeholder="https://1drv.ms/u/s!... or SharePoint link">
-        <div class="link-status" id="cfg-historic-status"></div>
-      </div>
-      <div class="fg">
-        <label class="flabel">Daily CSV Link <span style="font-size:9px;color:var(--text2)">(PowerBI daily export)</span></label>
-        <input type="url" class="finput" id="cfg-daily-url" placeholder="https://1drv.ms/u/s!... or SharePoint link">
-        <div class="link-status" id="cfg-daily-status"></div>
-      </div>
-    </div>
-    <div class="cfg-ftr">
-      <span class="cfg-note">Links are saved inside this HTML file. After saving, re-upload this file to OneDrive to share the links with your team.</span>
-      <button class="btn btn-ghost btn-sm" onclick="closeCfgModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="saveCfgLinks()">Save Links</button>
-    </div>
-  </div>
-</div>
 
 <!-- PRINT-ONLY OUTPUT — built by exportPDF() -->
 <div id="printContainer" style="display:none"></div>
@@ -554,6 +506,9 @@ const SEEDS=[
   "Oximeter MBH2307122","Oximeter MBH2014864","Ped Reg Drive MAX4LPM",
   "Precision Medical Regulator","D/E Cylinder Cart wheeled"
 ];
+// ─────────────────────────────────────
+// SECTION 4: ITEM LIBRARY
+// ─────────────────────────────────────
 // LIB: [{name, isFromData}] — type is chosen per use, not stored on the item
 let LIB=[];
 function initLib(){
@@ -586,6 +541,9 @@ function ensureLib(name){if(!LIB.find(x=>x.name===name)){LIB.push({name,isFromDa
 // ══════════════════════════════════
 //  STATE
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 5: STATE
+// ─────────────────────────────────────
 let records=[];
 let sortCol='pickupDate',sortDir=1;
 let activeMon='all',rangeS='',rangeE='';
@@ -623,6 +581,9 @@ function makeLockMap(obj){
 // ══════════════════════════════════
 //  CSV
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 7: CSV IMPORT / EXPORT
+// ─────────────────────────────────────
 const HCOLS=['id','source','sealed','patientName','patientId','jobNum','soIds',
   'pickupDate','dropOffBy','dateReturned','sgiNotes','mdrNotes',
   'jobClosed','confirmed','verified','pieces','lockedFields','entryId'];
@@ -741,16 +702,6 @@ function parseCSV(text){
   }
   return rows;
 }
-function parseRow(line){
-  const r=[];let c='',q=false;
-  for(let i=0;i<line.length;i++){
-    const ch=line[i];
-    if(ch==='"'){if(q&&line[i+1]==='"'){c+='"';i++;}else q=!q;}
-    else if(ch===','&&!q){r.push(c);c='';}
-    else c+=ch;
-  }
-  r.push(c);return r;
-}
 
 function loadHistoric(text){
   const rows=parseCSV(text);if(!rows.length){toast('Historic CSV empty','e');return 0;}
@@ -853,9 +804,11 @@ function loadCSV(e,mode){
 // ══════════════════════════════════
 //  UTILS
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 8: UTILS
+// ─────────────────────────────────────
 function gid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
 function tod(){return new Date().toISOString().slice(0,10);}
-function todDisp(){return fmtDate(tod());}
 function fmtDate(d){
   if(!d)return'—';const c=d.toString().slice(0,10);const p=c.split('-');
   if(p.length!==3)return d;
@@ -878,10 +831,6 @@ function rowStatus(rec){
   if(mis||chk.length<rec.pieces.length)return'partial';
   return'complete';
 }
-function pieceClass(p){
-  if(!p.checked)return'';
-  return(p.receivedQty!==null&&p.receivedQty!==p.expectedQty)?'p-partial':'p-ok';
-}
 function rowType(rec){
   const t=[...new Set((rec.pieces||[]).map(p=>p.type))];
   if(!t.length)return'unknown';if(t.length>1)return'mixed';return t[0].toLowerCase();
@@ -891,6 +840,9 @@ function esc(s){if(!s&&s!==0)return'';return String(s).replace(/&/g,'&amp;').rep
 // ══════════════════════════════════
 //  FILTER / SORT
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 9: FILTERING & SORT
+// ─────────────────────────────────────
 function filtered(){
   const q=document.getElementById('searchQ').value.trim().toLowerCase();
   const sf=document.getElementById('statusF').value;
@@ -997,6 +949,9 @@ function renderRefLinks(soIds){
 // ══════════════════════════════════
 //  RENDER TABLE
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 10: RENDER
+// ─────────────────────────────────────
 function renderTable(){
   const tbody=document.getElementById('tbody'),empty=document.getElementById('emptyState');
   const rows=filtered();
@@ -1169,6 +1124,9 @@ function openCal(input){
 // ══════════════════════════════════
 //  SYNC: Date Returned ↔ Job Closed
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 11: MUTATIONS
+// ─────────────────────────────────────
 function dateRetChanged(id, val){
   const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
   rec.dateReturned=val;
@@ -1341,6 +1299,9 @@ function removePieceInline(rid,pid){
 // ══════════════════════════════════
 //  MODAL
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 12: MODAL
+// ─────────────────────────────────────
 const LOCKABLE=['patientName','patientId','pickupDate','entryId']; // jobNum + soIds always editable
 
 function setModalField(fname,rec){
@@ -1529,6 +1490,9 @@ function saveModal(){
 // ══════════════════════════════════
 //  PDF
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 13: PDF EXPORT
+// ─────────────────────────────────────
 function exportPDF(){
   const rows=filtered();
   if(!rows.length){toast('No records to export','e');return;}
@@ -1608,6 +1572,9 @@ function toast(msg,t='i'){
 // ══════════════════════════════════
 //  INIT
 // ══════════════════════════════════
+// ─────────────────────────────────────
+// SECTION 14: ADMIN TOOLS
+// ─────────────────────────────────────
 function clearAllData(){
   if(!confirm('This will permanently clear ALL records and data from this browser.\n\nMake sure you have exported your CSV first if you need to keep anything.\n\nContinue?'))return;
   localStorage.removeItem('mdr_v5');
@@ -1618,15 +1585,6 @@ function clearAllData(){
   buildChips();renderTable();renderStats();
   toast('All data cleared — ready for a fresh load','i');
 }
-
-// ══════════════════════════════════
-//  ONEDRIVE LINK CONFIG
-//  Links are stored as JS variables in the file itself.
-//  Edit them here directly, OR use the ⚙️ modal which
-//  rewrites this file's content via a Blob download.
-// ══════════════════════════════════
-let OD_HISTORIC_URL = 'https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCggNdhQBwfSrtLL96tia_8ARDIOb1NkuNe48M-yVR8P_U?download=1';  // paste your OneDrive historic CSV link here
-let OD_DAILY_URL    = 'https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCTpUaxwb1vRoPaPgWlcXMsAQrftKYIQ27G38BRhlh65-U?download=1';  // paste your OneDrive daily CSV link here
 
 function openCfgModal(){
   document.getElementById('cfg-historic-url').value = OD_HISTORIC_URL || '';
@@ -1657,11 +1615,6 @@ function saveCfgLinks(){
   toast('Links saved — replace the file on OneDrive with the downloaded copy','s');
 }
 
-// Direct download links — return as-is
-function odToDirectURL(shareUrl){
-  return shareUrl || null;
-}
-
 function toggleRoleView(){
   const btn = document.getElementById('btnRoleToggle');
   if(userRole === 'mdr'){
@@ -1679,401 +1632,10 @@ function toggleRoleView(){
   renderTable();
 }
 
-async function spRefresh(){
-  if(!spSiteId||!spListId){
-    toast('Not connected to SharePoint','e');return;
-  }
-  await loadFromSharePoint();
-}
 
-async function fetchFromOneDrive(){
-  const btn = document.getElementById('btnLoadOD');
-  btn.textContent='Loading…';
-  btn.disabled=true;
-  let hAdded=0, dAdded=0, errors=[];
-
-  const REPO = 'https://raw.githubusercontent.com/antwainjordan-mdr/mdr-exchange-tracker/main';
-
-  async function fetchCSV(url){
-    const resp = await fetch(url + '?t=' + Date.now());
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const text = await resp.text();
-    if(text.trim().startsWith('<')) throw new Error('File not found in repo');
-    // Detect format: app export starts with 'id,' — PowerBI starts with patient name column
-    const firstLine = text.split('\n')[0].replace(/^\uFEFF/,'').toLowerCase().trim();
-    const isAppExport = firstLine.startsWith('id,') && firstLine.includes('source') && firstLine.includes('sealed');
-    console.log('[MDR] Fetched:', url);
-    console.log('[MDR] Format detected:', isAppExport ? 'APP EXPORT → loadHistoric' : 'POWERBI → loadDaily');
-    return isAppExport ? loadHistoric(text) : loadDaily(text);
-  }
-
-  // Always load daily (PowerBI export — auto-updated by GitHub Action)
-  try{ dAdded = await fetchCSV(REPO + '/daily.csv'); }
-  catch(e){ errors.push(`Daily: ${e.message}`); }
-
-  // Only load historic if it exists and is a real app export
-  // (you upload this manually when sharing history)
-  try{ hAdded = await fetchCSV(REPO + '/historic.csv'); }
-  catch(e){
-    // Historic not found or wrong format — not an error, just skip
-    console.log('[MDR] Historic CSV skipped:', e.message);
-  }
-
-  buildChips(); renderTable(); renderStats();
-
-  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.2 15c.7-1.2 1-2.5.7-3.9-.6-3.5-4-5.9-7.5-5.5-1.3.1-2.5.6-3.5 1.4C9.5 5.7 7.9 5 6.2 5 3.3 5 1 7.3 1 10.2c0 1.4.5 2.6 1.4 3.6"/><path d="M12 20l-4-4 4-4"/><path d="M8 16h12"/></svg> Load Data`;
-  btn.disabled = false;
-
-  const total = hAdded + dAdded;
-  if(errors.length){
-    errors.forEach(e=>toast(e,'e'));
-  }
-  if(total > 0){
-    toast(`Loaded ${total} new record${total!==1?'s':''}`, 's');
-  } else if(!errors.length){
-    toast('Data is up to date — no new records', 'i');
-  }
-}
-
-
-// ══ MSAL AUTH + SHAREPOINT ══
-const MDR_CLIENT_ID = 'cad58e24-70d1-4d46-8556-cc68ffe4a31c';
-const MDR_DOMAIN = 'mdr.net';
-const SGI_DOMAIN = 'sgi-solutions.com';
-let msalApp = null, currentUser = null, userRole = null;
-let spSiteId = null, spListId = null;
-
-function isMDR(){ return userRole === 'mdr'; }
-function isSGI(){ return userRole === 'sgi'; }
-
-function showAuthOverlay(){
-  let o = document.getElementById('authOverlay');
-  if(!o){
-    o = document.createElement('div');
-    o.id = 'authOverlay';
-    o.style.cssText = 'position:fixed;inset:0;background:var(--bg,#0f1117);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;';
-    o.innerHTML = `<div style="background:var(--surface,#1a1d27);border:1px solid var(--border,#2e3350);border-radius:16px;padding:40px;text-align:center;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-      <div style="background:linear-gradient(135deg,#4f8ef7,#a78bfa);width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff;margin:0 auto 16px">MDR</div>
-      <div style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--text,#e8eaf6)">MDR Exchange Tracker</div>
-      <div style="font-size:12px;color:var(--text2,#8892b0);margin-bottom:24px;line-height:1.5">Sign in with your Microsoft 365 account.<br>MDR staff and SGI partners only.</div>
-      <button onclick="msalSignIn()" style="background:#0078d4;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
-        <svg width="16" height="16" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
-        Sign in with Microsoft
-      </button>
-      <div id="authErrMsg" style="font-size:11px;color:#f25c5c;margin-top:12px;min-height:16px"></div>
-    </div>`;
-    document.body.appendChild(o);
-  }
-  o.style.display = 'flex';
-}
-function hideAuthOverlay(){
-  const o = document.getElementById('authOverlay');
-  if(o) o.style.display = 'none';
-}
-
-async function msalSignIn(){
-  // Navigate THIS tab directly to Microsoft login — no popups, no new tabs
-  const redirectUri = window.location.origin + window.location.pathname;
-  const state = btoa(JSON.stringify({ts: Date.now()}));
-  const nonce = Math.random().toString(36).slice(2);
-  sessionStorage.setItem('mdr_nonce', nonce);
-  const url = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' +
-    '?client_id=' + MDR_CLIENT_ID +
-    '&response_type=token+id_token' +
-    '&redirect_uri=' + encodeURIComponent(redirectUri) +
-    '&scope=' + encodeURIComponent('openid profile email User.Read') +
-    '&response_mode=fragment' +
-    '&nonce=' + nonce +
-    '&state=' + encodeURIComponent(state) +
-    '&prompt=select_account';
-  window.location.href = url;
-}
-
-async function signOut(){
-  if(!confirm('Sign out of MDR Exchange Tracker?')) return;
-  sessionStorage.removeItem('mdr_access_token');
-  sessionStorage.removeItem('mdr_id_token');
-  sessionStorage.removeItem('mdr_user_email');
-  currentUser = null; userRole = null; records = [];
-  localStorage.removeItem('mdr_v5');
-  showAuthOverlay();
-  const chip = document.getElementById('userChip');
-  if(chip) chip.style.display = 'none';
-}
-
-async function afterSignIn(account){
-  currentUser = account;
-  await showSignedIn(account.username);
-}
-
-function applyRoleUI(){
-  if(isSGI()){
-    document.querySelectorAll('.hacts .btn, .hacts label').forEach(b => {
-      const t = b.textContent.trim();
-      if(['Load Historic','Load Daily','Export CSV','Export PDF','Add Patient','Clear Data','Refresh'].some(s => t.includes(s))){
-        b.style.display = 'none';
-      }
-    });
-  }
-}
-
-async function getToken(){
-  const stored = sessionStorage.getItem('mdr_access_token');
-  if(stored) return stored;
-  // Token expired — need to re-authenticate
-  // Redirect to get a new token with Sites.ReadWrite.All scope
-  const redirectUri = window.location.origin + window.location.pathname;
-  const nonce = Math.random().toString(36).slice(2);
-  const url = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' +
-    '?client_id=' + MDR_CLIENT_ID +
-    '&response_type=token+id_token' +
-    '&redirect_uri=' + encodeURIComponent(redirectUri) +
-    '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All') +
-    '&response_mode=fragment' +
-    '&nonce=' + nonce +
-    '&prompt=none'; // silent re-auth
-  window.location.href = url;
-  return null;
-}
-
-async function gGet(path){
-  const t = await getToken();
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {headers:{'Authorization':'Bearer ' + t}});
-  if(!r.ok) throw new Error('Graph ' + r.status + ' ' + path);
-  return r.json();
-}
-async function gDelete(path){
-  const t = await getToken();
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {method:'DELETE', headers:{'Authorization':'Bearer ' + t}});
-  if(!r.ok && r.status !== 204){const e=await r.text();throw new Error('DELETE ' + r.status + ' ' + e);}
-}
-
-async function gPatch(path, body){
-  const t = await getToken();
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {method:'PATCH', headers:{'Authorization':'Bearer ' + t, 'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  if(!r.ok){const e=await r.text();throw new Error('PATCH ' + r.status + ' ' + e);}
-  return r.json();
-}
-async function gPost(path, body){
-  const t = await getToken();
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {method:'POST', headers:{'Authorization':'Bearer ' + t, 'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  if(!r.ok){const e=await r.text();throw new Error('POST ' + r.status + ' ' + e);}
-  return r.json();
-}
-
-async function ensureSPIds(){
-  if(spSiteId && spListId) return;
-  const site = await gGet('/sites/mdrnet.sharepoint.com:/sites/MDRExchangeTracker');
-  spSiteId = site.id;
-  const listName = encodeURIComponent('ExchangeRecords');
-  const lists = await gGet('/sites/' + spSiteId + '/lists?$filter=displayName eq %27ExchangeRecords%27');
-  spListId = lists.value[0]?.id;
-  if(!spListId) throw new Error('ExchangeRecords list not found');
-}
-
-function spToRec(item){
-  const f = item.fields || {};
-  // Helper: get field value trying multiple name variants (SharePoint internal names vary)
-  function fv(...names){
-    for(const n of names){
-      if(f[n] !== undefined && f[n] !== null && f[n] !== '') return f[n];
-    }
-    return '';
-  }
-  function fdate(...names){
-    const v = fv(...names);
-    return v ? String(v).slice(0,10) : '';
-  }
-  function fbool(...names){
-    const v = fv(...names);
-    return v === true || v === 1 || v === '1' || v === 'Yes';
-  }
-  let locked = {};
-  try { locked = JSON.parse(fv('LockedFields','lockedFields','Lockedfields') || '{}'); } catch(e) {}
-  return {
-    id: String(item.id),
-    _spId: item.id,
-    source: fv('Source','source') || 'daily',
-    sealed: fbool('Sealed','sealed'),
-    patientName: fv('PatientName','patientName','Patientname','Patient_x0020_Name') || f.Title || '',
-    patientId: fv('PatientId','patientId','Patientid','Patient_x0020_Id'),
-    jobNum: fv('JobNum','jobNum','Jobnum','Job_x0020_Num'),
-    soIds: fv('SoIds','soIds','Soids','So_x0020_Ids','Solds'),
-    pickupDate: fdate('PickupDate','pickupDate','Pickupdate','Pickup_x0020_Date'),
-    dropOffBy: fdate('DropOffBy','dropOffBy','Dropoffby','Drop_x0020_Off_x0020_By'),
-    dateReturned: fdate('DateReturned','dateReturned','Datereturned','Date_x0020_Returned'),
-    sgiNotes: fv('SgiNotes','sgiNotes','Sginotes','Sgi_x0020_Notes'),
-    mdrNotes: fv('MdrNotes','mdrNotes','Mdrnotes','Mdr_x0020_Notes'),
-    jobClosed: fbool('JobClosed','jobClosed','Jobclosed'),
-    verified: fbool('Verified','verified'),
-    confirmed: fbool('Confirmed','confirmed'),
-    entryId: fv('EntryId','entryId','Entryid','Entry_x0020_Id'),
-    locked,
-    pieces: parsePiecesRich(fv('Pieces','pieces') || '')
-  };
-}
-function recToSP(r){
-  return {
-    Title: r.patientName || 'Unknown',
-    PatientName: r.patientName || '', PatientId: r.patientId || '',
-    JobNum: r.jobNum || '', SoIds: r.soIds || '',
-    PickupDate: r.pickupDate || null, DropOffBy: r.dropOffBy || null,
-    DateReturned: r.dateReturned || null,
-    SgiNotes: r.sgiNotes || '', MdrNotes: r.mdrNotes || '',
-    JobClosed: !!r.jobClosed, Verified: !!r.verified, Confirmed: !!r.confirmed,
-    EntryId: r.entryId || '', Source: r.source || 'daily', Sealed: !!r.sealed,
-    Pieces: serPieces(r.pieces || []), LockedFields: JSON.stringify(r.locked || {})
-  };
-}
-
-async function loadFromSharePoint(){
-  try {
-    toast('Loading from SharePoint…', 'i');
-    await ensureSPIds();
-    let url = '/sites/' + spSiteId + '/lists/' + spListId + '/items?$expand=fields($select=*)&$top=999';
-    let all = [];
-    while(url){
-      const data = await gGet(url);
-      all = all.concat(data.value || []);
-      url = data['@odata.nextLink']
-        ? data['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0','')
-        : null;
-    }
-    // Debug: log first item's field names to console
-    if(all.length > 0){
-      console.log('[MDR] SharePoint field names:', Object.keys(all[0].fields || {}));
-      console.log('[MDR] First item fields:', all[0].fields);
-    }
-    const spRecords = all.map(spToRec);
-    // Only replace local data if SharePoint returned real records with patient names
-    const validRecords = spRecords.filter(r => r.patientName && r.patientName.trim());
-    if(validRecords.length > 0){
-      records = spRecords;
-      localStorage.setItem('mdr_v5', JSON.stringify(records));
-      buildChips(); renderTable(); renderStats();
-      toast('Loaded ' + validRecords.length + ' records from SharePoint', 's');
-    } else if(spRecords.length > 0){
-      // SharePoint has records but none have patient names — field mapping issue
-      console.warn('[MDR] SharePoint returned ' + spRecords.length + ' records but none have patient names');
-      console.log('[MDR] Sample SP record:', spRecords[0]);
-      toast('SharePoint data missing — keeping local data. Check console.', 'e');
-      // Keep existing local data
-      buildChips(); renderTable(); renderStats();
-    } else {
-      // SharePoint is empty — keep local data, offer to sync up
-      toast('SharePoint is empty — use Load Historic to populate it', 'i');
-      buildChips(); renderTable(); renderStats();
-    }
-  } catch(e) {
-    console.error('SP load error:', e);
-    loadStorageLocal();
-    buildChips(); renderTable(); renderStats();
-    toast('SharePoint unavailable — showing local cache', 'i');
-  }
-}
-
-async function setupSPList(){
-  if(!confirm('This will create all required columns in the ExchangeRecords SharePoint list.\nMake sure the list is empty first. Continue?')) return;
-  try {
-    await ensureSPIds();
-    toast('Creating SharePoint columns…', 'i');
-    const base = '/sites/' + spSiteId + '/lists/' + spListId + '/columns';
-
-    const textCols = ['PatientName','PatientId','JobNum','SoIds','EntryId','Source','LockedFields'];
-    const noteCols = ['SgiNotes','MdrNotes','Pieces'];
-    const dateCols = ['PickupDate','DropOffBy','DateReturned'];
-    const boolCols = ['JobClosed','Verified','Confirmed','Sealed'];
-
-    let created = 0, skipped = 0;
-
-    for(const name of textCols){
-      try {
-        await gPost(base, {name, text:{}, hidden:false});
-        created++;
-      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
-    }
-    for(const name of noteCols){
-      try {
-        await gPost(base, {name, text:{allowMultipleLines:true}, hidden:false});
-        created++;
-      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
-    }
-    for(const name of dateCols){
-      try {
-        await gPost(base, {name, dateTime:{displayAs:"standard"}, hidden:false});
-        created++;
-      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
-    }
-    for(const name of boolCols){
-      try {
-        await gPost(base, {name, boolean:{}, hidden:false});
-        created++;
-      } catch(e) { skipped++; console.log('Skip/exists:', name, e.message); }
-    }
-
-    toast(`Created ${created} columns (${skipped} skipped). Now click Sync to SP.`, 's');
-    console.log('[MDR] Column setup complete:', created, 'created,', skipped, 'skipped');
-  } catch(e) {
-    console.error('Setup error:', e);
-    toast('Setup failed: ' + e.message, 'e');
-  }
-}
-
-async function diagSPColumns(){
-  try {
-    await ensureSPIds();
-    const data = await gGet('/sites/' + spSiteId + '/lists/' + spListId + '/columns');
-    const cols = data.value.map(c => ({name: c.name, displayName: c.displayName}));
-    console.log('[MDR] SP columns:', JSON.stringify(cols, null, 2));
-    toast('Column names logged to console — press F12', 's');
-  } catch(e) { console.error(e); toast('Error: ' + e.message, 'e'); }
-}
-
-async function syncAllToSharePoint(){
-  if(!spSiteId || !spListId || !records.length) return;
-  toast('Syncing ' + records.length + ' records to SharePoint…', 'i');
-  let success = 0, failed = 0;
-  for(const rec of records){
-    try{
-      const fields = recToSP(rec);
-      if(rec._spId){
-        await gPatch('/sites/' + spSiteId + '/lists/' + spListId + '/items/' + rec._spId + '/fields', fields);
-      } else {
-        const created = await gPost('/sites/' + spSiteId + '/lists/' + spListId + '/items', {fields});
-        rec._spId = created.id;
-      }
-      success++;
-    } catch(e){
-      console.error('Sync failed for', rec.patientName, e);
-      failed++;
-    }
-  }
-  localStorage.setItem('mdr_v5', JSON.stringify(records));
-  toast('Synced ' + success + ' records' + (failed?' (' + failed + ' failed)':'') + ' to SharePoint', success > 0 ? 's' : 'e');
-}
-
-async function syncRecordToSP(rec){
-  if(!spSiteId || !spListId || !rec) return;
-  try {
-    const fields = recToSP(rec);
-    if(rec._spId){
-      await gPatch('/sites/' + spSiteId + '/lists/' + spListId + '/items/' + rec._spId + '/fields', fields);
-    } else {
-      const created = await gPost('/sites/' + spSiteId + '/lists/' + spListId + '/items', {fields});
-      rec._spId = created.id;
-    }
-  } catch(e) { console.error('SP sync error:', e); }
-}
-
-async function spRefresh(){
-  if(!spSiteId) { await loadFromSharePoint(); return; }
-  await loadFromSharePoint();
-}
-
+// ─────────────────────────────────────
+// SECTION 6: PERSISTENCE
+// ─────────────────────────────────────
 function saveRecs(recToSync){
   localStorage.setItem('mdr_v5', JSON.stringify(records));
   // Only sync to SharePoint if signed in AND a specific record is being saved
@@ -2086,7 +1648,19 @@ function loadStorageLocal(){
   if(s){ records = JSON.parse(s); return true; }
   return false;
 }
-function loadStorage(){ return loadStorageLocal(); }
+
+function showAuthOverlay(){
+  const o = document.getElementById('authOverlay');
+  if(o) o.style.display = 'flex';
+}
+
+function hideAuthOverlay(){
+  const o = document.getElementById('authOverlay');
+  if(o) o.style.display = 'none';
+}
+
+function isMDR(){ return userRole === 'mdr'; }
+function isSGI(){ return userRole === 'sgi'; }
 
 async function initMSAL(){
   try {
