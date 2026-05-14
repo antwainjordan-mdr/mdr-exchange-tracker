@@ -952,20 +952,20 @@ function renderJobLink(jobNum){
 
 function renderRefLinks(soIds){
   if(!soIds||!soIds.trim())return'<span class="refplain">—</span>';
-  // Split on comma or whitespace separators
   const tokens=soIds.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
   const parts=tokens.map(t=>{
-    // 6-digit number starting with 1 → SO Order
+    // SGI sees plain text — no Brightree links
+    if(isSGI()) return`<span class="refplain">${esc(t)}</span>`;
+    // MDR: 6-digit number starting with 1 → SO Order
     if(/^1\d{5}$/.test(t)){
       const url=`https://brightree.net/F1/0351/MedRes/OrderEntry/frmSOOrder.aspx?SalesOrderKey=${t}&Edit=1`;
       return`<a class="reflink" href="${esc(url)}" target="_blank" rel="noopener" title="SO Order ${t}">${t}</a>`;
     }
-    // 5-digit number starting with 3 → PuEx
+    // MDR: 5-digit number starting with 3 → PuEx
     if(/^3\d{4}$/.test(t)){
       const url=`https://brightree.net/F1/0351/MedRes/OrderEntry/frmPuExPopup.aspx?PuExKey=${t}`;
       return`<a class="reflink" href="${esc(url)}" target="_blank" rel="noopener" title="PuEx ${t}">${t}</a>`;
     }
-    // Not linkable (PURL, other text, etc.)
     return`<span class="refplain">${esc(t)}</span>`;
   });
   return`<div class="reflinks">${parts.join('')}</div>`;
@@ -1376,7 +1376,7 @@ function openAddModal(){
 }
 
 function openEditModal(id){
-  document.querySelector('.modal')?.classList.toggle('sgi-modal', isSGI());
+  document.querySelector('.modal')?.classList.remove('sgi-modal'); // Full view for everyone on Edit
   const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
   editId=id;
   document.getElementById('mtitle').textContent='Edit Record';
