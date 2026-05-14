@@ -1854,7 +1854,7 @@ function spToRec(item){
   let locked = {};
   try { locked = JSON.parse(fv('LockedFields','lockedFields','Lockedfields') || '{}'); } catch(e) {}
   return {
-    id: fv('AppRecordId','appRecordId','Apprecordid') || String(item.id),
+    id: String(item.id),
     _spId: item.id,
     source: fv('Source','source') || 'daily',
     sealed: fbool('Sealed','sealed'),
@@ -1877,7 +1877,7 @@ function spToRec(item){
 }
 function recToSP(r){
   return {
-    Title: r.patientName || 'Unknown', AppRecordId: r.id,
+    Title: r.patientName || 'Unknown',
     PatientName: r.patientName || '', PatientId: r.patientId || '',
     JobNum: r.jobNum || '', SoIds: r.soIds || '',
     PickupDate: r.pickupDate || null, DropOffBy: r.dropOffBy || null,
