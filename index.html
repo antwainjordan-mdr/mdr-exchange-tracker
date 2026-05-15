@@ -2415,38 +2415,51 @@ let presencePoll = null;
 async function ensurePresenceListId(){
   if(presenceListId) return;
   if(!spSiteId) await ensureSPIds();
-  const lists = await gGet(`/sites/${spSiteId}/lists?$filter=displayName eq 'Presence'`);
-  presenceListId = lists.value[0]?.id;
-  if(!presenceListId) throw new Error('Presence list not found');
+  // Get all lists and find Presence by name
+  const lists = await gGet(`/sites/${spSiteId}/lists?$top=50`);
+  const found = (lists.value||[]).find(l=>l.displayName==='Presence'||l.name==='Presence');
+  if(!found) throw new Error('Presence list not found in SharePoint');
+  presenceListId = found.id;
+  console.log('[Presence] List ID found:', presenceListId);
 }
 
 async function presenceJoin(){
-  if(!spSiteId||!spListId||!currentUser) return;
+  if(!currentUser) return;
   try{
+    // Wait for SP IDs to be ready
+    await ensureSPIds();
     await ensurePresenceListId();
-    const email = currentUser.username;
-    const displayName = currentUser.name || email.split('@')[0];
 
-    // Try to get Microsoft profile photo
+    const email = currentUser.username || localStorage.getItem('mdr_user_email') || '';
+    const displayName = email.split('@')[0];
+    console.log('[Presence] Joining as:', email);
+
+    // Try Microsoft profile photo
     let photoUrl = '';
     try{
-      const photoResp = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value',
-        {headers:{'Authorization':'Bearer '+await getToken()}});
-      if(photoResp.ok){
-        const blob = await photoResp.blob();
-        photoUrl = URL.createObjectURL(blob);
+      const tok = await getToken();
+      if(tok){
+        const photoResp = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value',
+          {headers:{'Authorization':'Bearer '+tok}});
+        if(photoResp.ok){
+          const blob = await photoResp.blob();
+          photoUrl = URL.createObjectURL(blob);
+        }
       }
-    } catch(e){ /* no photo — use initials */ }
+    } catch(e){ console.log('[Presence] No profile photo'); }
 
-    // Check if we already have an entry (e.g. page refresh)
-    const existing = await gGet(`/sites/${spSiteId}/lists/${presenceListId}/items?$expand=fields&$filter=fields/Title eq '${encodeURIComponent(email)}'`);
-    if(existing.value.length > 0){
-      presenceItemId = existing.value[0].id;
+    // Fetch all presence items and find ours by email
+    const allItems = await gGet(`/sites/${spSiteId}/lists/${presenceListId}/items?$expand=fields&$top=50`);
+    const mine = (allItems.value||[]).find(i=>(i.fields?.Title||'').toLowerCase()===email.toLowerCase());
+
+    if(mine){
+      presenceItemId = mine.id;
       await gPatch(`/sites/${spSiteId}/lists/${presenceListId}/items/${presenceItemId}/fields`,{
         LastSeen: new Date().toISOString(),
         DisplayName: displayName,
         PhotoUrl: photoUrl
       });
+      console.log('[Presence] Updated existing entry');
     } else {
       const created = await gPost(`/sites/${spSiteId}/lists/${presenceListId}/items`,{fields:{
         Title: email,
@@ -2454,10 +2467,12 @@ async function presenceJoin(){
         DisplayName: displayName,
         PhotoUrl: photoUrl
       }});
-      presenceItemId = created.id;
+      presenceItemId = created?.id;
+      console.log('[Presence] Created new entry, id:', presenceItemId);
     }
 
-    // Start heartbeat every 30 seconds
+    // Heartbeat every 30s
+    if(presenceHeartbeat) clearInterval(presenceHeartbeat);
     presenceHeartbeat = setInterval(async()=>{
       if(!presenceItemId) return;
       try{
@@ -2466,13 +2481,16 @@ async function presenceJoin(){
       } catch(e){}
     }, 30000);
 
-    // Start polling every 10 seconds
-    presencePoll = setInterval(renderPresence, 10000);
+    // Poll every 15s
+    if(presencePoll) clearInterval(presencePoll);
+    presencePoll = setInterval(renderPresence, 15000);
     await renderPresence();
 
-    // Clean up on page unload
     window.addEventListener('beforeunload', presenceLeave);
-  } catch(e){ console.warn('Presence join error:', e.message||e); }
+    console.log('[Presence] Joined successfully');
+  } catch(e){
+    console.warn('[Presence] Join error:', e.message||e);
+  }
 }
 
 async function presenceLeave(){
