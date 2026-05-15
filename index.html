@@ -393,9 +393,6 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
     </button>
-    <button class="btn btn-pdf btn-sm" onclick="exportPDF()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Export PDF
-    </button>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Patient
     </button>
@@ -468,7 +465,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
         <th class="srt" onclick="sortBy('dateReturned')" style="min-width:120px">Date Returned ↕</th>
         <th class="ctr" style="min-width:80px">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
         <th style="min-width:160px">SGI Notes</th>
-        <th class="th-mdr-only" style="min-width:160px">MDR Notes</th>
+        <th style="min-width:160px">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
         <th class="ctr th-mdr-only" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
         <th class="ctr th-mdr-only" style="min-width:80px">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
@@ -523,7 +520,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
       </div>
       <div class="frow">
         <div class="fg"><label class="flabel">SGI Notes <span style="color:var(--green);font-size:9px">(editable)</span></label><textarea class="finput ntxt" id="m-sgiNotes" rows="2" placeholder="SGI notes…"></textarea></div>
-        <div class="fg mdr-modal-only"><label class="flabel">MDR Notes <span style="color:var(--green);font-size:9px">(editable)</span></label><textarea class="finput ntxt" id="m-mdrNotes" rows="2" placeholder="MDR notes…"></textarea></div>
+        <div class="fg"><label class="flabel">MDR Notes <span id="m-mdrNotes-lbl" style="color:var(--green);font-size:9px">(editable)</span></label><textarea class="finput ntxt" id="m-mdrNotes" rows="2" placeholder="MDR notes…"></textarea></div>
       </div>
     </div>
     <div class="mftr">
@@ -1011,12 +1008,28 @@ function normDate(s){
 }
 
 function rowStatus(rec){
-  if(!rec.pieces||!rec.pieces.length)return'pending';
+  if(!rec.pieces||!rec.pieces.length){
+    // No pieces — base completion on role gate only
+    if(isMDR()) return rec.confirmed ? 'complete' : 'pending';
+    return rec.jobClosed ? 'complete' : 'pending';
+  }
   const chk=rec.pieces.filter(p=>p.checked);
   if(!chk.length)return'pending';
-  const mis=chk.some(p=>p.receivedQty!==null&&p.receivedQty!==p.expectedQty);
-  if(mis||chk.length<rec.pieces.length)return'partial';
-  return'complete';
+  if(chk.length<rec.pieces.length)return'partial'; // not all items checked
+  // All items checked — check qty variances
+  const hasShortage=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
+  const hasOverage=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
+  if(hasShortage||hasOverage)return'partial'; // qty mismatch
+  // All items checked and qty matches — now check role gate
+  if(isMDR()) return rec.confirmed ? 'complete' : 'partial';
+  return rec.jobClosed ? 'complete' : 'partial';
+}
+function pieceVariance(p){
+  // Returns: 'shortage' | 'overage' | 'match' | 'uncounted'
+  if(p.receivedQty===null||p.receivedQty===undefined)return'uncounted';
+  if(p.receivedQty<p.expectedQty)return'shortage';
+  if(p.receivedQty>p.expectedQty)return'overage';
+  return'match';
 }
 function rowType(rec){
   const t=[...new Set((rec.pieces||[]).map(p=>p.type))];
@@ -1198,7 +1211,19 @@ function renderRow(r){
     onclick="openCal(this)"
     onchange="updateF('${r.id}','dropOffBy',this.value)">`;
 
-  const chipHtml=`<span class="schip c-${status}"><span class="cdot"></span>${status.charAt(0).toUpperCase()+status.slice(1)}</span>`;
+  // Determine chip label — Shortage/Overage when all checked but qty mismatch
+  let chipStatus = status;
+  let chipLabel = status.charAt(0).toUpperCase() + status.slice(1);
+  if(status === 'partial'){
+    const allChkd = r.pieces && r.pieces.length && r.pieces.every(p=>p.checked);
+    if(allChkd){
+      const hasOver = r.pieces.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
+      const hasShort = r.pieces.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
+      if(hasOver){ chipLabel='Overage'; }
+      else if(hasShort){ chipLabel='Shortage'; }
+    }
+  }
+  const chipHtml=`<span class="schip c-${chipStatus}"><span class="cdot"></span>${chipLabel}</span>`;
 
   return`<tr class="${cls} clickable-row" data-id="${r.id}" onclick="rowClick(event,'${r.id}')">
     <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;">${pickupHtml}</td>
@@ -1224,9 +1249,10 @@ function renderRow(r){
     <td style="min-width:160px"><textarea class="ntxt${r.sgiNotes?' hv':''}" rows="2" placeholder="SGI notes…"
       onchange="updateF('${r.id}','sgiNotes',this.value)"
       oninput="this.classList.toggle('hv',this.value.length>0)">${esc(r.sgiNotes)}</textarea></td>
-    <td style="min-width:160px" class="col-mdr-only"><textarea class="ntxt${r.mdrNotes?' hv':''}" rows="2" placeholder="MDR notes…"
+    <td style="min-width:160px"><textarea class="ntxt${r.mdrNotes?' hv':''}" rows="2" placeholder="MDR notes…"
       onchange="updateF('${r.id}','mdrNotes',this.value)"
-      oninput="this.classList.toggle('hv',this.value.length>0)">${esc(r.mdrNotes)}</textarea></td>
+      oninput="this.classList.toggle('hv',this.value.length>0)"
+      ${isSGI()?'readonly style="opacity:.75;cursor:default"':''}>${esc(r.mdrNotes)}</textarea></td>
     <td>${lateHtml}</td>
     <td class="ctr col-mdr-only">
       <div class="cbwrap">
@@ -1285,13 +1311,20 @@ function renderPcell(r){
     const delBtn=!p.fromSource
       ?`<button class="prmbtn" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove">✕</button>`
       :'';
+    const variance=pieceVariance(p);
+    const varLabel=p.fromSource&&rcv!==''&&variance!=='match'&&variance!=='uncounted'
+      ?`<span style="font-size:9px;font-weight:700;color:${variance==='shortage'?'var(--red)':'var(--green)'};">${variance==='shortage'?'SHORT':'OVER'}</span>`
+      :'';
+    // Show expected qty in name only for source items with a qty
+    const qtyTag=p.fromSource&&p.expectedQty?`<span style="font-size:9px;color:var(--text3);"> ×${p.expectedQty}</span>`:'';
     return`<div class="${cls.trim()}">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       ${badge}${lock}
-      <span class="pname2">${esc(p.name)}</span>
+      <span class="pname2">${esc(p.name)}${qtyTag}</span>
+      ${varLabel}
       <div class="qwrap">
         <input type="number" class="qrcv${m?' qmatch':''}${mm?' qmis':''}" value="${rcv}" min="0"
-          placeholder="${p.expectedQty}"
+          placeholder="${p.fromSource?p.expectedQty:''}"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">
       </div>
       ${delBtn}
@@ -1426,7 +1459,18 @@ function refreshRowStatus(rec){
   const st=rowStatus(rec);
   tr.classList.toggle('r-complete',st==='complete');
   const chip=tr.querySelector('.schip');
-  if(chip){chip.className=`schip c-${st}`;chip.innerHTML=`<span class="cdot"></span>${st.charAt(0).toUpperCase()+st.slice(1)}`;}
+  if(chip){
+    let lbl = st.charAt(0).toUpperCase()+st.slice(1);
+    if(st==='partial'){
+      const allChkd=rec.pieces&&rec.pieces.every(p=>p.checked);
+      if(allChkd){
+        const hasOver=rec.pieces.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
+        const hasShort=rec.pieces.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
+        if(hasOver) lbl='Overage'; else if(hasShort) lbl='Shortage';
+      }
+    }
+    chip.className=`schip c-${st}`;chip.innerHTML=`<span class="cdot"></span>${lbl}`;
+  }
   const sa=tr.querySelector('.sabtn');
   if(sa)sa.textContent=rec.pieces.every(p=>p.checked)?'☐ Deselect All':'☑ Select All';
 }
@@ -1679,9 +1723,14 @@ function popupAddToLib(){
 }
 
 function openEditModal(id){
-  document.querySelector('.modal')?.classList.remove('sgi-modal'); // Full view for everyone on Edit
+  document.querySelector('.modal')?.classList.remove('sgi-modal');
   const db = document.getElementById('m-delete-btn');
-  if(db) db.style.display = isMDR() ? '' : 'none'; // MDR only
+  if(db) db.style.display = isMDR() ? '' : 'none';
+  // MDR Notes: readonly for SGI
+  const mn = document.getElementById('m-mdrNotes');
+  const mnl = document.getElementById('m-mdrNotes-lbl');
+  if(mn){ mn.readOnly = isSGI(); mn.style.opacity = isSGI()?'.7':''; mn.style.cursor = isSGI()?'default':''; }
+  if(mnl){ mnl.textContent = isSGI()?'(read only)':'(editable)'; mnl.style.color = isSGI()?'var(--text3)':'var(--green)'; }
   const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
   editId=id;
   document.getElementById('mtitle').textContent='Edit Record';
@@ -2422,7 +2471,7 @@ async function presenceJoin(){
 
     // Clean up on page unload
     window.addEventListener('beforeunload', presenceLeave);
-  } catch(e){ console.warn('Presence error:', e); }
+  } catch(e){ console.warn('Presence join error:', e.message||e); }
 }
 
 async function presenceLeave(){
