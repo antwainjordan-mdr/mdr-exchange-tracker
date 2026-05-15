@@ -282,7 +282,11 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
 .toast.i{border-color:var(--accent);color:var(--accent);}
 
 /* PRESENCE AVATARS */
-.presence-bar{display:flex;align-items:center;gap:4px;margin-left:8px;}
+.user-chip{display:none;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;}
+.user-chip:hover{border-color:var(--red);color:var(--red);}
+.role-mdr{background:rgba(79,142,247,.2);color:#4f8ef7;padding:2px 6px;border-radius:10px;font-size:9px;font-weight:700;}
+.role-sgi{background:rgba(247,201,72,.2);color:#f7c948;padding:2px 6px;border-radius:10px;font-size:9px;font-weight:700;}
+.presence-bar{display:flex;align-items:center;gap:4px;}
 .presence-avatar{
   width:30px;height:30px;border-radius:50%;border:2px solid var(--green);
   display:flex;align-items:center;justify-content:center;
@@ -375,6 +379,11 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
     <div><div class="apptitle">Exchange Tracker</div><div class="appsub">Pickup &amp; Exchange Management</div></div>
   </div>
   <div class="hacts">
+    <div id="presenceBar" class="presence-bar" style="display:none"></div>
+    <div id="userChip" class="user-chip" onclick="signOut()" style="display:none" title="Click to sign out">
+      <span id="userEmail" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <span id="roleBadge" class="role-badge"></span>
+    </div>
     <button class="themetog" onclick="toggleTheme()"><span id="tIcon">☀️</span><span id="tLbl">Light Mode</span></button>
     <button class="btn btn-primary btn-sm" onclick="spRefresh()" id="btnRefresh" title="Refresh data from SharePoint">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -2376,30 +2385,22 @@ async function showSignedIn(email){
   }
   userRole = domain === MDR_DOMAIN ? 'mdr' : 'sgi';
   applyBranding(userRole);
-  let chip = document.getElementById('userChip');
-  if(!chip){
-    chip = document.createElement('div');
-    chip.id = 'userChip';
-    chip.style.cssText = 'display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;';
-    chip.title = 'Click to sign out';
-    chip.onclick = signOut;
-    chip.innerHTML = `<span style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${email}</span>
-      <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:${userRole==='mdr'?'rgba(79,142,247,.2)':'rgba(247,201,72,.2)'};color:${userRole==='mdr'?'#4f8ef7':'#f7c948'}">${userRole==='mdr'?'MDR':'SGI'}</span>`;
-    document.querySelector('.hacts')?.prepend(chip);
+
+  // Populate static user chip
+  const chip = document.getElementById('userChip');
+  document.getElementById('userEmail').textContent = email;
+  const badge = document.getElementById('roleBadge');
+  if(badge){
+    badge.textContent = userRole === 'mdr' ? 'MDR' : 'SGI';
+    badge.className = 'role-badge ' + (userRole==='mdr'?'role-mdr':'role-sgi');
   }
-  chip.style.display = 'flex';
-  // Add presence bar to header if not already there
-  if(!document.getElementById('presenceBar')){
-    const pb = document.createElement('div');
-    pb.id = 'presenceBar';
-    pb.className = 'presence-bar';
-    pb.style.display = 'none';
-    chip.parentNode.insertBefore(pb, chip.nextSibling);
-  }
+  if(chip) chip.style.display = 'flex';
   document.getElementById('presenceBar').style.display = 'flex';
+
   hideAuthOverlay();
   applyRoleUI();
   await loadFromSharePoint();
+  presenceJoin().catch(e=>console.warn('Presence join failed:',e));
 }
 
 // ─────────────────────────────────────
