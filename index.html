@@ -2384,6 +2384,7 @@ async function showSignedIn(email){
     return;
   }
   userRole = domain === MDR_DOMAIN ? 'mdr' : 'sgi';
+  currentUser = {username: email, name: email.split('@')[0]};
   applyBranding(userRole);
 
   // Populate static user chip
