@@ -120,6 +120,9 @@ tbody tr.t-exchange{border-left:3px solid var(--blue);}
 tbody tr.t-pickup{border-left:3px solid var(--purple);}
 tbody tr.t-mixed{border-left:3px solid var(--yellow);}
 tbody tr.r-complete{background:rgba(56,217,169,.06);}
+.r-overdue{background:rgba(244,22,23,.07) !important;}
+.r-overdue td{border-top:1px solid rgba(244,22,23,.2) !important;border-bottom:1px solid rgba(244,22,23,.2) !important;}
+[data-theme="light"] .r-overdue{background:rgba(244,22,23,.09) !important;}
 tbody tr.r-sealed{background:var(--sealed-bg) !important;border-left:3px solid var(--surface3) !important;opacity:.8;}
 tbody tr.r-sealed:hover{opacity:1;background:var(--surface) !important;}
 tbody td{padding:7px 10px;vertical-align:middle;font-size:12px;border-bottom:1px solid var(--border);}
@@ -405,9 +408,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
     </button>
-    <button class="btn btn-sm" onclick="clearAllData()" style="background:transparent;color:var(--red);border:1px solid var(--red);opacity:.8;" title="Wipe all records from this browser and start fresh">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>Clear Data
-    </button>
+    
     <button class="btn btn-sm" onclick="clearSiteCache()" style="background:transparent;color:var(--text3);border:1px solid var(--border);" title="Clear all browser cache, tokens and reload — fixes most issues">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Clear Cache
     </button>
@@ -434,7 +435,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
   <div class="li"><div class="lbar" style="background:var(--yellow)"></div>Mixed</div>
   <div class="li"><span style="width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block"></span>All Done</div>
   <div class="li"><span style="width:7px;height:7px;background:var(--sealed-text);border-radius:50%;display:inline-block"></span>Sealed</div>
-  <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Confirmed (Portal)</div>
+  <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Confirmed (Portal) &nbsp;<span style="color:#f41617">■</span> Overdue</div>
 </div>
 
 <!-- TOOLBAR -->
@@ -1185,6 +1186,10 @@ function renderRow(r){
 
   let cls=`t-${rt}`;
   if(status==='complete')cls+=' r-complete';
+  // Red highlight if late by date has passed and record not complete
+  if(r.dropOffBy && status !== 'complete' && !isSealed(r)){
+    if(r.dropOffBy <= tod()) cls += ' r-overdue';
+  }
 
   // Helper: locked display OR editable input
   function lockedOrInput(field,val,type='text',ph='',extraStyle=''){
@@ -1577,7 +1582,7 @@ function setModalField(fname,rec){
 }
 
 function openAddModal(){
-  document.querySelector('.modal')?.classList.toggle('sgi-modal', isSGI());
+  document.querySelector('.modal')?.classList.remove('sgi-modal'); // Full modal for new records
   const db = document.getElementById('m-delete-btn');
   if(db) db.style.display = 'none'; // no delete on new records
   editId=null;
