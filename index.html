@@ -116,6 +116,8 @@ thead th.ctr{text-align:center;}
 thead th:first-child{text-align:left;}
 tbody tr{background:var(--surface);transition:background .1s;}
 tbody tr:hover{background:var(--surface2);}
+/* Only show hover highlight when no row is selected */
+body:not(.has-selection) tr.clickable-row:hover td{background:rgba(79,142,247,.05);}
 tbody tr.t-exchange{border-left:3px solid var(--blue);}
 tbody tr.t-pickup{border-left:3px solid var(--purple);}
 tbody tr.t-mixed{border-left:3px solid var(--yellow);}
@@ -244,7 +246,9 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 
 /* Row click target */
 tr.clickable-row{cursor:pointer;}
-tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
+body:not(.has-selection) tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
+tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-shadow:inset 2px 0 0 var(--accent);}
+[data-theme="light"] tr.clickable-row.r-selected td{background:rgba(35,17,140,.08) !important;}
 
 .moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
 .moverlay.open{display:flex;}
@@ -681,6 +685,7 @@ function ensureLib(name){if(!LIB.find(x=>x.name===name)){LIB.push({name,isFromDa
 // SECTION 5: STATE
 // ─────────────────────────────────────
 let records=[];
+let selectedRowId = null; // currently selected/locked row
 let sortCol='pickupDate',sortDir=1;
 let activeMon='all',rangeS='',rangeE='';
 let editId=null;
@@ -1177,6 +1182,12 @@ function renderTable(){
   renderStats();
   // Re-apply role UI after DOM rebuild so hidden columns stay hidden
   if(userRole) applyRoleUI();
+  // Restore selected row highlight after DOM rebuild
+  if(selectedRowId){
+    const tr = document.querySelector(`tr[data-id="${selectedRowId}"]`);
+    if(tr) tr.classList.add('r-selected');
+    document.body.classList.add('has-selection');
+  }
 }
 
 function renderRow(r){
@@ -1617,12 +1628,43 @@ let popupRecId = null;
 let popupSrcPieces = [], popupAddPieces = [];
 
 function rowClick(event, id){
-  // Don't open edit modal if clicking on interactive elements
   const tag = event.target.tagName.toLowerCase();
   const interactive = ['input','textarea','select','button','a','label'];
-  if(interactive.includes(tag)) return;
-  if(event.target.closest('button,a,input,textarea,select,label,.addpbtn,.delbtn,.bigcb,.cbwrap,.schip,.pname-link')) return;
-  openEditModal(id);
+  const isInteractive = interactive.includes(tag) ||
+    event.target.closest('button,a,input,textarea,select,label,.addpbtn,.delbtn,.bigcb,.cbwrap,.pname-link');
+
+  // Select/lock this row
+  selectRow(id);
+
+  // Only open edit modal if clicking non-interactive area
+  if(!isInteractive) openEditModal(id);
+}
+
+function selectRow(id){
+  // Deselect previous
+  if(selectedRowId){
+    const prev = document.querySelector(`tr[data-id="${selectedRowId}"]`);
+    if(prev) prev.classList.remove('r-selected');
+  }
+  // Select new (toggle off if same row clicked twice)
+  if(selectedRowId === id){
+    selectedRowId = null;
+    document.body.classList.remove('has-selection');
+  } else {
+    selectedRowId = id;
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    if(tr) tr.classList.add('r-selected');
+    document.body.classList.add('has-selection');
+  }
+}
+
+function clearSelection(){
+  if(selectedRowId){
+    const tr = document.querySelector(`tr[data-id="${selectedRowId}"]`);
+    if(tr) tr.classList.remove('r-selected');
+    selectedRowId = null;
+    document.body.classList.remove('has-selection');
+  }
 }
 
 function openPopup(event, id){
@@ -2597,6 +2639,12 @@ function updateStickyHeight(){
 
 window.addEventListener('DOMContentLoaded', () => {
   initTheme(); initLib();
+  // Click on empty table area clears selection
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('tr[data-id]') && !e.target.closest('.modal') && !e.target.closest('.popup-modal')){
+      clearSelection();
+    }
+  });
   // Set thead sticky top to match sticky-top wrapper height
   setTimeout(updateStickyHeight, 100);
   window.addEventListener('resize', updateStickyHeight);
