@@ -408,6 +408,9 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
     <button class="btn btn-sm" onclick="clearAllData()" style="background:transparent;color:var(--red);border:1px solid var(--red);opacity:.8;" title="Wipe all records from this browser and start fresh">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>Clear Data
     </button>
+    <button class="btn btn-sm" onclick="clearSiteCache()" style="background:transparent;color:var(--text3);border:1px solid var(--border);" title="Clear all browser cache, tokens and reload — fixes most issues">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Clear Cache
+    </button>
   </div>
 </header>
 
@@ -1971,6 +1974,26 @@ function clearAllData(){
   saveLib();
   buildChips();renderTable();renderStats();
   toast('All data cleared — ready for a fresh load','i');
+}
+
+async function clearSiteCache(){
+  if(!confirm('This will clear ALL cached site data — auth tokens, records, settings — and reload the page.\n\nYou will need to sign in again.\n\nContinue?')) return;
+  // Clear all localStorage
+  localStorage.clear();
+  // Clear all sessionStorage
+  sessionStorage.clear();
+  // Clear service worker caches if any
+  if('caches' in window){
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k=>caches.delete(k)));
+  }
+  // Unregister service workers
+  if('serviceWorker' in navigator){
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r=>r.unregister()));
+  }
+  toast('Cache cleared — reloading…','i');
+  setTimeout(()=>window.location.reload(true), 800);
 }
 
 function openCfgModal(){
