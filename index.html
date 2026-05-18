@@ -397,7 +397,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
       👁 SGI View
     </button>
 
-    <label class="btn btn-historic btn-sm" title="Load full historic CSV (app export)">📂 Load Historic<input type="file" id="fi-historic" accept=".csv" onchange="loadCSV(event,'historic')"></label>
+    
     <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="loadCSV(event,'daily')"></label>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
@@ -2049,8 +2049,7 @@ function applyRoleUI(){
     // Hide MDR-only buttons — SGI keeps Refresh and Role Toggle
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
       const t = b.textContent.trim();
-      if(['Load Historic','Load Daily','Export CSV',
-          'Clear Data'].some(s=>t.includes(s))){
+      if(['Load Historic','Load Daily','Export CSV'].some(s=>t.includes(s))){
         b.style.display = 'none';
       }
     });
