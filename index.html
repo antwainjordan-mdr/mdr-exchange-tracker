@@ -1187,7 +1187,7 @@ function renderRow(r){
   let cls=`t-${rt}`;
   if(status==='complete')cls+=' r-complete';
   // Red highlight if late by date has passed and record not complete
-  if(r.dropOffBy && status !== 'complete' && !isSealed(r)){
+  if(r.dropOffBy && status !== 'complete' && !r.jobClosed && !isSealed(r)){
     if(r.dropOffBy <= tod()) cls += ' r-overdue';
   }
 
