@@ -283,9 +283,14 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 /* MISC */
 .empty{text-align:center;padding:50px 20px;color:var(--text2);}
 .tcontainer{position:fixed;bottom:18px;right:18px;z-index:300;display:flex;flex-direction:column;gap:7px;}
-.sync-toast{position:fixed;bottom:18px;left:18px;z-index:300;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:8px;padding:5px 10px;font-size:10px;color:var(--text2);display:flex;align-items:center;gap:5px;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;}
-.sync-toast.show{opacity:1;transform:translateY(0);}
-.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;}
+/* Sync status pill in header */
+.sync-status{display:none;align-items:center;gap:4px;font-size:10px;padding:3px 8px;border-radius:20px;border:1px solid var(--border);color:var(--text2);white-space:nowrap;transition:all .3s;}
+.sync-status.syncing{display:flex;border-color:var(--accent);color:var(--accent);}
+.sync-status.synced{display:flex;border-color:var(--green);color:var(--green);}
+.sync-status.error{display:flex;border-color:var(--red);color:var(--red);}
+.sync-pulse{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.sync-status.syncing .sync-pulse{animation:pulse .8s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 .toast{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 14px;font-size:12px;box-shadow:0 6px 24px rgba(0,0,0,.4);display:flex;align-items:center;gap:7px;animation:sIn .2s ease;max-width:280px;}
 .toast.s{border-color:var(--green);color:var(--green);}
 .toast.e{border-color:var(--red);color:var(--red);}
@@ -390,6 +395,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   </div>
   <div class="hacts">
     <div id="presenceBar" class="presence-bar" style="display:none"></div>
+    <div id="syncStatus" class="sync-status"><div class="sync-pulse"></div><span id="syncStatusMsg">Saved</span></div>
     <div id="userChip" class="user-chip" onclick="signOut()" style="display:none" title="Click to sign out">
       <span id="userEmail" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <span id="roleBadge" class="role-badge"></span>
@@ -2127,13 +2133,37 @@ function applyRoleUI(){
 }
 
 // ─────────────────────────────────────
-// SECTION 6: PERSISTENCE
+// ─────────────────────────────────────
+// SYNC STATUS INDICATOR
+// ─────────────────────────────────────
+let syncStatusTimer = null;
+function setSyncStatus(state, msg){
+  const el = document.getElementById('syncStatus');
+  const msgEl = document.getElementById('syncStatusMsg');
+  if(!el||!msgEl) return;
+  el.className = 'sync-status ' + state;
+  msgEl.textContent = msg;
+  clearTimeout(syncStatusTimer);
+  if(state === 'synced'){
+    syncStatusTimer = setTimeout(()=>{ el.className = 'sync-status'; }, 3000);
+  }
+}
+function toastSync(msg){ setSyncStatus('synced', msg); }
+
+// ─────────────────────────────────────
+// PERSISTENCE
 // ─────────────────────────────────────
 function saveRecs(recToSync){
   localStorage.setItem('mdr_v5', JSON.stringify(records));
-  // Only sync to SharePoint if signed in AND a specific record is being saved
   if(recToSync && userRole && spSiteId && spListId){
-    syncRecordToSP(recToSync).catch(e => console.error('sync:', e));
+    // Connected — sync to SharePoint
+    syncRecordToSP(recToSync).catch(e=>{
+      console.error('sync:', e);
+      setSyncStatus('error','✗ Sync failed');
+    });
+  } else if(recToSync && userRole && (!spSiteId || !spListId)){
+    // Not connected to SharePoint — local only
+    setSyncStatus('error','⚠ Saved locally only (not connected to SharePoint)');
   }
 }
 function loadStorageLocal(){
@@ -2276,6 +2306,8 @@ async function loadFromSharePoint(){
 
 async function syncRecordToSP(rec){
   if(!spSiteId||!spListId||!rec) return;
+  const name = rec.patientName ? rec.patientName.split(',')[0] : 'Record';
+  setSyncStatus('syncing', 'Syncing '+name+'…');
   try{
     const fields = recToSP(rec);
     if(rec._spId){
@@ -2284,9 +2316,11 @@ async function syncRecordToSP(rec){
       const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
       if(created) rec._spId = created.id;
     }
-    const name = rec.patientName ? rec.patientName.split(',')[0] : 'Record';
-    toastSync('Synced: '+name);
-  } catch(e){ console.error('SP sync error:',e); toast('Sync failed','e'); }
+    setSyncStatus('synced', '✓ Synced: '+name);
+  } catch(e){
+    console.error('SP sync error:',e);
+    setSyncStatus('error', '✗ Sync failed — '+( e.message?.slice(0,30)||'check connection'));
+  }
 }
 
 async function syncAllToSharePoint(){
