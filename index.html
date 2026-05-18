@@ -508,8 +508,8 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
         <div class="fg"><label class="flabel">Patient ID</label><div id="m-patientId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientId-lockval"></span></div><input type="text" class="finput" id="m-patientId" placeholder="e.g. 18366"></div>
       </div>
       <div class="frow mdr-modal-only">
-        <div class="fg"><label class="flabel">Job #</label><div id="m-jobNum-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-jobNum-lockval"></span></div><input type="text" class="finput" id="m-jobNum" placeholder="e.g. 3946548"></div>
-        <div class="fg"><label class="flabel">Reference</label><div id="m-soIds-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-soIds-lockval"></span></div><input type="text" class="finput" id="m-soIds" placeholder="e.g. 122682, 34952"></div>
+        <div class="fg"><label class="flabel">Job # <span style="color:var(--red);font-size:9px">*required</span></label><div id="m-jobNum-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-jobNum-lockval"></span></div><input type="text" class="finput" id="m-jobNum" placeholder="e.g. 3946548"></div>
+        <div class="fg"><label class="flabel">Reference <span style="color:var(--red);font-size:9px">*required</span></label><div id="m-soIds-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-soIds-lockval"></span></div><input type="text" class="finput" id="m-soIds" placeholder="e.g. 122682, 34952"></div>
       </div>
       <div class="frow mdr-modal-only">
         <div class="fg"><label class="flabel">Entry ID</label><div id="m-entryId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-entryId-lockval"></span></div><input type="text" class="finput" id="m-entryId" placeholder="e.g. 19491"></div>
@@ -521,7 +521,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
       </div>
       <!-- Pieces -->
       <div class="fg">
-        <label class="flabel">Pieces / Items <span style="color:var(--text3);font-size:9px">(🔒 = source, ✏ = added by you)</span></label>
+        <label class="flabel">Pieces / Items <span style="color:var(--red);font-size:9px">*required</span> <span style="color:var(--text3);font-size:9px">(🔒 = source, ✏ = added by you)</span></label>
         <div id="m-cur-pieces" style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;"></div>
         <input type="text" class="psearch" id="m-psearch" placeholder="Search library to add…" oninput="renderPselList()">
         <div class="psel-list" id="m-psel"></div>
@@ -1857,9 +1857,18 @@ function saveModal(){
   };
 
   const patientName=isNew?gv('m-patientName'):(getLocked('patientName')||gv('m-patientName'));
-  if(!patientName){toast('Patient name required','e');return;}
-
   const allPieces=[...mSrcPieces,...mAddPieces];
+
+  // Validation for new records only
+  if(isNew){
+    const jobNum=gv('m-jobNum');
+    const soIds=gv('m-soIds');
+    const errors=[];
+    if(!jobNum) errors.push('Job #');
+    if(!soIds) errors.push('Reference');
+    if(!allPieces.length) errors.push('at least one Piece/Item');
+    if(errors.length){toast(`Required: ${errors.join(', ')}`, 'e'); return;}
+  }
 
   if(isNew){
     const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=gv('m-soIds'),pi=gv('m-patientId'),db=gv('m-dropOffBy');
@@ -1869,7 +1878,7 @@ function saveModal(){
       dateReturned:'',sgiNotes:gv('m-sgiNotes'),mdrNotes:gv('m-mdrNotes'),
       jobClosed:false,confirmed:false,verified:false,entryId:'',locked:{},pieces:allPieces
     });
-    toast('Patient added','s');
+    toast('Record added','s');
   } else {
     const rec=records.find(r=>r.id===editId);
     if(rec){
