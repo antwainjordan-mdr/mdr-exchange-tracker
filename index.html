@@ -604,6 +604,7 @@ tr.clickable-row:hover td:not(.no-click){background:rgba(79,142,247,.05);}
 // SECTION 1: CONFIG & AUTH CONSTANTS
 // ─────────────────────────────────────
 const MDR_CLIENT_ID = 'cad58e24-70d1-4d46-8556-cc68ffe4a31c';
+const MDR_TENANT_ID = '23b12ec3-2d17-40b7-8299-410b458fa90e';
 const MDR_DOMAIN    = 'mdr.net';
 const SGI_DOMAIN    = 'sgi-solutions.com';
 
@@ -2090,7 +2091,7 @@ async function getToken(){
   if(stored) return stored;
   const nonce = Math.random().toString(36).slice(2);
   const redirectUri = window.location.origin + window.location.pathname;
-  window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+  window.location.href = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
     + '?client_id=' + MDR_CLIENT_ID
     + '&response_type=token+id_token'
     + '&redirect_uri=' + encodeURIComponent(redirectUri)
@@ -2256,7 +2257,9 @@ async function msalSignIn(){
   const redirectUri = window.location.origin + window.location.pathname;
   const nonce = Math.random().toString(36).slice(2);
   localStorage.setItem('mdr_nonce', nonce);
-  window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+  // Use MDR tenant ID (not /common) so guest tokens are scoped to MDR tenant
+  // This ensures SGI guest users get a token that can access MDR SharePoint
+  window.location.href = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
     + '?client_id=' + MDR_CLIENT_ID
     + '&response_type=token+id_token'
     + '&redirect_uri=' + encodeURIComponent(redirectUri)
@@ -2305,7 +2308,7 @@ async function initMSAL(){
     msalApp = new msal.PublicClientApplication({
       auth: {
         clientId: MDR_CLIENT_ID,
-        authority: 'https://login.microsoftonline.com/common',
+        authority: 'https://login.microsoftonline.com/' + MDR_TENANT_ID,
         redirectUri: window.location.origin + window.location.pathname
       },
       cache: {cacheLocation: 'localStorage'}, // localStorage persists across redirects
