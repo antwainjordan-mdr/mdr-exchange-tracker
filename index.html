@@ -450,6 +450,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <button class="btn btn-sm" onclick="clearSiteCache()" style="background:transparent;color:var(--text3);border:1px solid var(--border);" title="Clear all browser cache, tokens and reload — fixes most issues">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Clear Cache
     </button>
+    <button class="btn btn-sm mdr-only" onclick="openAppAuditLog(event)" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="View app activity log">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>App Log
+    </button>
   </div>
 </header>
 
@@ -642,6 +645,15 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div id="auditBody"><div class="audit-loading">Loading activity…</div></div>
 </div>
 
+<!-- APP AUDIT LOG POPUP (MDR only) -->
+<div class="audit-popup" id="appAuditPopup" style="width:420px;">
+  <div class="mhdr">
+    <span style="font-size:12px;font-weight:700;color:var(--text)">📋 App Activity Log</span>
+    <button class="closebtn" onclick="closeAppAuditLog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div id="appAuditBody"><div class="audit-loading">No activity recorded yet.</div></div>
+</div>
+
 <!-- PRINT-ONLY OUTPUT — built by exportPDF() -->
 <!-- SESSION EXPIRED OVERLAY -->
 <div id="sessionExpiredOverlay">
@@ -670,6 +682,7 @@ let msalApp     = null;
 let currentUser = null;
 let userRole    = null;
 let spSiteId    = null;
+let appAuditListId = null;
 let spListId    = null;
 
 // ══════════════════════════════════
@@ -680,6 +693,7 @@ function toggleTheme(){
   h.setAttribute('data-theme',n);localStorage.setItem('mdr_theme',n);
   document.getElementById('tIcon').textContent=n==='dark'?'☀️':'🌙';
   document.getElementById('tLbl').textContent=n==='dark'?'Light Mode':'Dark Mode';
+  logAppAction('Theme',`Switched to ${n} mode`);
 }
 function initTheme(){
   const s=localStorage.getItem('mdr_theme')||'dark';
@@ -832,6 +846,7 @@ function parsePiecesDaily(raw){
 }
 
 function exportCSV(){
+  logAppAction('Export CSV','Exported records to CSV');
   if(!records.length){toast('No records to export','e');return;}
   const rows=[HCOLS.join(',')];
   records.forEach(r=>{
@@ -1042,6 +1057,7 @@ function loadDaily(text){
 }
 
 function loadCSV(e,mode){
+  if(mode==='daily') logAppAction('Load Daily','Loaded daily CSV file');
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
   r.onload=ev=>{
@@ -1653,6 +1669,7 @@ function setModalField(fname,rec){
 }
 
 function openAddModal(){
+  logAppAction('Add Record','Opened Add Record form');
   document.querySelector('.modal')?.classList.remove('sgi-modal'); // Full modal for new records
   const db = document.getElementById('m-delete-btn');
   if(db) db.style.display = 'none'; // no delete on new records
@@ -1762,6 +1779,95 @@ function openPopup(event, id){
 }
 
 // ─────────────────────────────────────
+// ─────────────────────────────────────
+// APP ACTIVITY LOG (SharePoint AppAudit list)
+// ─────────────────────────────────────
+const APP_AUDIT_KEY = 'mdr_app_audit';
+const APP_AUDIT_PAGE = 5;
+let appAuditAllItems = [];
+let appAuditPage = 1;
+
+async function logAppAction(action, detail){
+  if(!currentUser) return;
+  const email = currentUser.username||'';
+  const userName = email.split('@')[0];
+  const ts = new Date().toISOString();
+  try{
+    const log = JSON.parse(localStorage.getItem(APP_AUDIT_KEY)||'[]');
+    log.unshift({action,detail,user:email,ts});
+    if(log.length>200) log.length=200;
+    localStorage.setItem(APP_AUDIT_KEY,JSON.stringify(log));
+  }catch(e){}
+  try{
+    await ensureAppAuditListId();
+    await gPost(`/sites/${spSiteId}/lists/${appAuditListId}/items`,{fields:{
+      Title:email, Action:action, Detail:detail||'', UserName:userName, Timestamp:ts
+    }});
+  }catch(e){ console.warn('[AppAudit] Log failed:',e.message||e); }
+}
+
+function openAppAuditLog(event){
+  event.stopPropagation();
+  const popup = document.getElementById('appAuditPopup');
+  const vw=window.innerWidth,vh=window.innerHeight;
+  let x=event.clientX,y=event.clientY;
+  popup.style.display='block';
+  const pw=popup.offsetWidth||420,ph=popup.offsetHeight||400;
+  if(x+pw>vw-10) x=vw-pw-10;
+  if(y+ph>vh-10) y=vh-ph-10;
+  if(y<10) y=10;
+  popup.style.left=x+'px'; popup.style.top=y+'px';
+  popup.classList.add('open');
+  appAuditPage=1; appAuditAllItems=[];
+  fetchAppAuditLog();
+}
+
+async function fetchAppAuditLog(){
+  const body=document.getElementById('appAuditBody');
+  body.innerHTML='<div class="audit-loading">Loading activity…</div>';
+  try{
+    await ensureAppAuditListId();
+    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=100&$orderby=fields/Timestamp desc`);
+    appAuditAllItems=(data?.value||[]).map(i=>({
+      action:i.fields?.Action||'', detail:i.fields?.Detail||'',
+      user:i.fields?.Title||i.fields?.UserName||'', ts:i.fields?.Timestamp||i.fields?.Modified||''
+    }));
+    renderAppAuditLog();
+  }catch(e){
+    appAuditAllItems=JSON.parse(localStorage.getItem(APP_AUDIT_KEY)||'[]');
+    appAuditAllItems.length ? renderAppAuditLog() :
+      (body.innerHTML=`<div class="audit-loading">Error: ${esc(e.message||'Could not load')}</div>`);
+  }
+}
+
+function renderAppAuditLog(){
+  const body=document.getElementById('appAuditBody');
+  if(!appAuditAllItems.length){body.innerHTML='<div class="audit-loading">No activity recorded yet.</div>';return;}
+  const shown=appAuditAllItems.slice(0,appAuditPage*APP_AUDIT_PAGE);
+  const hasMore=appAuditAllItems.length>shown.length;
+  body.innerHTML=shown.map(e=>{
+    const who=(e.user||'').split('@')[0];
+    const when=e.ts?new Date(e.ts).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+    return`<div class="audit-entry">
+      <div class="audit-who">${esc(who)}</div>
+      <div class="audit-when">${esc(when)}</div>
+      <div class="audit-changes"><div class="audit-field">
+        <span class="audit-fname">${esc(e.action)}</span>
+        <span class="audit-fval">${esc(e.detail||'')}</span>
+      </div></div>
+    </div>`;
+  }).join('')+(hasMore?`<div style="padding:10px 14px;text-align:center;">
+    <button class="audit-btn" onclick="appAuditPage++;renderAppAuditLog()" style="width:100%;justify-content:center;">
+      Load more (${appAuditAllItems.length-shown.length} remaining)
+    </button></div>`:'');
+}
+
+function closeAppAuditLog(){
+  const p=document.getElementById('appAuditPopup');
+  if(p){p.classList.remove('open');p.style.display='none';}
+}
+
+// ─────────────────────────────────────
 // AUDIT LOG POPUP
 // ─────────────────────────────────────
 const AUDIT_FIELD_LABELS = {
@@ -1820,47 +1926,9 @@ async function openAuditPopup(event, recId){
       return;
     }
 
-    let html='';
-    for(let i=0;i<versions.length;i++){
-      const v=versions[i];
-      const prev=versions[i+1];
-      const who = v.lastModifiedBy?.user?.displayName || v.lastModifiedBy?.user?.email || 'Unknown';
-      const when = new Date(v.lastModifiedDateTime).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
-      const fields = v.fields||{};
-      const prevFields = prev?.fields||{};
-
-      // Compute diffs
-      const diffs=[];
-      if(i===versions.length-1){
-        // First version — show as "Created"
-        diffs.push({label:'Record created',val:''});
-      } else {
-        for(const [k,val] of Object.entries(fields)){
-          if(AUDIT_IGNORE.has(k)) continue;
-          const label=AUDIT_FIELD_LABELS[k]||k;
-          const prevVal=prevFields[k];
-          const curStr=JSON.stringify(val), prevStr=JSON.stringify(prevVal);
-          if(curStr!==prevStr){
-            diffs.push({label, val:auditFmtVal(k,val), prev:auditFmtVal(k,prevVal)});
-          }
-        }
-      }
-
-      if(!diffs.length) continue; // skip no-change versions
-
-      html+=`<div class="audit-entry">
-        <div class="audit-who">${esc(who)}</div>
-        <div class="audit-when">${esc(when)}</div>
-        <div class="audit-changes">
-          ${diffs.map(d=>d.label==='Record created'
-            ?`<div class="audit-field"><span class="audit-fname">Created</span><span class="audit-fval" style="color:var(--green)">New record</span></div>`
-            :`<div class="audit-field"><span class="audit-fname">${esc(d.label)}</span><span class="audit-fval">${esc(d.val)}${d.prev&&d.prev!=='(empty)'?` <span style="color:var(--text3);font-size:9px">(was: ${esc(d.prev)})</span>`:''}</span></div>`
-          ).join('')}
-        </div>
-      </div>`;
-    }
-
-    body.innerHTML = html || '<div class="audit-loading">No changes recorded.</div>';
+    // Store versions and lazy load first page
+    document.getElementById('auditPopup')._versions = versions;
+    renderAuditVersions(versions, body, 0);
   } catch(e){
     body.innerHTML=`<div class="audit-loading">Error loading activity: ${esc(e.message||'Unknown error')}</div>`;
     console.error('Audit error:',e);
@@ -2129,6 +2197,7 @@ function saveModal(){
 function exportPDF(){
   const rows=filtered();
   if(!rows.length){toast('No records to export','e');return;}
+  logAppAction('Export PDF',`Exported ${rows.length} records to PDF`);
 
   const dates=rows.map(r=>r.pickupDate).filter(Boolean).sort();
   const label=dates.length
@@ -2213,6 +2282,7 @@ function clearAllData(){
 }
 
 async function clearSiteCache(){
+  logAppAction('Clear Cache','Cleared site cache');
   if(!confirm('This will clear ALL cached site data — auth tokens, records, settings — and reload the page.\n\nYou will need to sign in again.\n\nContinue?')) return;
   // Clear all localStorage
   localStorage.clear();
@@ -2528,6 +2598,7 @@ async function syncAllToSharePoint(){
 }
 
 async function spRefresh(){
+  logAppAction('Refresh','Refreshed data from SharePoint');
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
 }
@@ -2718,6 +2789,16 @@ let presenceListId = null;
 let presenceItemId = null; // our own SP item ID
 let presenceHeartbeat = null;
 let presencePoll = null;
+
+async function ensureAppAuditListId(){
+  if(appAuditListId) return;
+  if(!spSiteId) await ensureSPIds();
+  const lists = await gGet(`/sites/${spSiteId}/lists?$top=50`);
+  const found = (lists.value||[]).find(l=>l.displayName==='AppAudit'||l.name==='AppAudit');
+  if(!found) throw new Error('AppAudit list not found');
+  appAuditListId = found.id;
+  console.log('[AppAudit] List ID found:', appAuditListId);
+}
 
 async function ensurePresenceListId(){
   if(presenceListId) return;
