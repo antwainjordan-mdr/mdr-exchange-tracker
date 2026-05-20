@@ -1827,11 +1827,11 @@ async function fetchAppAuditLog(){
   body.innerHTML='<div class="audit-loading">Loading activity…</div>';
   try{
     await ensureAppAuditListId();
-    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=100&$orderby=fields/Timestamp desc`);
+    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=100`);
     appAuditAllItems=(data?.value||[]).map(i=>({
       action:i.fields?.Action||'', detail:i.fields?.Detail||'',
-      user:i.fields?.Title||i.fields?.UserName||'', ts:i.fields?.Timestamp||i.fields?.Modified||''
-    }));
+      user:i.fields?.Title||i.fields?.UserName||'', ts:i.fields?.Timestamp||i.fields?.Modified||i.fields?.Created||''
+    })).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
     renderAppAuditLog();
   }catch(e){
     appAuditAllItems=JSON.parse(localStorage.getItem(APP_AUDIT_KEY)||'[]');
