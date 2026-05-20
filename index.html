@@ -1935,6 +1935,50 @@ async function openAuditPopup(event, recId){
   }
 }
 
+const RECORD_AUDIT_PAGE = 5;
+
+function renderAuditVersions(versions, body, startPage){
+  const entries=[];
+  for(let i=0;i<versions.length;i++){
+    const v=versions[i],prev=versions[i+1];
+    const who=v.lastModifiedBy?.user?.displayName||v.lastModifiedBy?.user?.email||'Unknown';
+    const when=new Date(v.lastModifiedDateTime).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+    const fields=v.fields||{},prevFields=prev?.fields||{};
+    const diffs=[];
+    if(i===versions.length-1){
+      diffs.push({label:'Record created',val:''});
+    } else {
+      for(const [k,val] of Object.entries(fields)){
+        if(AUDIT_IGNORE.has(k)) continue;
+        const label=AUDIT_FIELD_LABELS[k]||k;
+        const curStr=JSON.stringify(val),prevStr=JSON.stringify(prevFields[k]);
+        if(curStr!==prevStr) diffs.push({label,val:auditFmtVal(k,val),prev:auditFmtVal(k,prevFields[k])});
+      }
+    }
+    if(!diffs.length) continue;
+    entries.push({who,when,diffs});
+  }
+  if(!entries.length){body.innerHTML='<div class="audit-loading">No changes recorded.</div>';return;}
+  const shown=entries.slice(0,(startPage+1)*RECORD_AUDIT_PAGE);
+  const hasMore=entries.length>shown.length;
+  const existing=startPage>0?body.innerHTML.replace(/<div[^>]*style[^>]*padding:10px[^>]*>[\s\S]*?<\/div>/,''):'';
+  body.innerHTML=existing+shown.slice(startPage*RECORD_AUDIT_PAGE).map(e=>`
+    <div class="audit-entry">
+      <div class="audit-who">${esc(e.who)}</div>
+      <div class="audit-when">${esc(e.when)}</div>
+      <div class="audit-changes">
+        ${e.diffs.map(d=>d.label==='Record created'
+          ?`<div class="audit-field"><span class="audit-fname">Created</span><span class="audit-fval" style="color:var(--green)">New record</span></div>`
+          :`<div class="audit-field"><span class="audit-fname">${esc(d.label)}</span><span class="audit-fval">${esc(d.val)}${d.prev&&d.prev!=='(empty)'?` <span style="color:var(--text3);font-size:9px">(was: ${esc(d.prev)})</span>`:''}</span></div>`
+        ).join('')}
+      </div>
+    </div>`).join('')+
+  (hasMore?`<div style="padding:10px 14px;text-align:center;">
+    <button class="audit-btn" onclick="renderAuditVersions(document.getElementById('auditPopup')._versions,document.getElementById('auditBody'),${startPage+1})" style="width:100%;justify-content:center;">
+      Load more (${entries.length-shown.length} remaining)
+    </button></div>`:'');
+}
+
 function closeAuditPopup(){
   const popup=document.getElementById('auditPopup');
   if(popup){ popup.classList.remove('open'); popup.style.display='none'; }
