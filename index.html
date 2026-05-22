@@ -1119,7 +1119,7 @@ function rowStatus(rec){
   const pieces=rec.pieces||[];
   if(pieces.length){
     const chk=pieces.filter(p=>p.checked);
-    if(chk.length<pieces.length) return 'partial';
+    if(chk.length<pieces.length) return 'pending'; // pieces not done yet
     const hasShortage=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
     const hasOverage=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
     if(hasShortage||hasOverage) return 'partial';
