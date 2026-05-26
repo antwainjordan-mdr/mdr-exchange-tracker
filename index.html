@@ -488,7 +488,6 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <select class="fsel" id="statusF" onchange="renderTable()">
     <option value="all">All Active</option>
     <option value="pending" selected>Pending</option>
-    <option value="partial">Partial</option>
     <option value="complete">Complete</option>
     <option value="sealed">Sealed / Historic</option>
   </select>
@@ -1113,18 +1112,20 @@ function rowStatus(rec){
     return hasVar?'partial':'complete';
   }
 
-  // MDR
-  if(!rec.jobClosed||!rec.verified) return 'pending';
-  // Job Closed & Verified — check qty
+  // MDR — Confirmed drives complete/pending. Partial is a sub-indicator only.
+  if(rec.confirmed) return 'complete';
+  // Not confirmed = pending (regardless of jobClosed/verified/pieces)
+  // Check for partial indicator (qty mismatch) — still shows as pending in filter
   const pieces=rec.pieces||[];
   if(pieces.length){
     const chk=pieces.filter(p=>p.checked);
-    if(chk.length<pieces.length) return 'pending'; // pieces not done yet
-    const hasShortage=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
-    const hasOverage=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
-    if(hasShortage||hasOverage) return 'partial';
+    if(chk.length===pieces.length){
+      const hasShortage=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
+      const hasOverage=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
+      if(hasShortage||hasOverage) return 'partial'; // visual indicator only
+    }
   }
-  return rec.confirmed?'complete':'pending';
+  return 'pending';
 }
 function pieceVariance(p){
   // Returns: 'shortage' | 'overage' | 'match' | 'uncounted'
@@ -1152,7 +1153,10 @@ function filtered(){
   return records.filter(r=>{
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds}`.toLowerCase().includes(q))return false;
     if(sf!=='all'){
-      if(rowStatus(r)!==sf)return false;
+      const st=rowStatus(r);
+      // MDR: pending filter shows all unconfirmed (pending + partial)
+      if(sf==='pending'&&isMDR()) return st==='pending'||st==='partial';
+      if(st!==sf)return false;
     }
     if(tf!=='all'&&rowType(r)!==tf)return false;
     const pd=r.pickupDate||'';
