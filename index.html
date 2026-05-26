@@ -16,7 +16,7 @@
   --border:#2e3350;--text:#e8eaf6;--text2:#8892b0;--text3:#5a6480;
   --accent:#4f8ef7;--purple:#a78bfa;--green:#38d9a9;--yellow:#f7c948;
   --red:#f25c5c;--blue:#4f8ef7;
-  --sealed-bg:#13151f;--sealed-text:#3d4460;
+  
   --lock-bg:rgba(255,255,255,.025);--lock-icon:#3a4060;
   --hbg:linear-gradient(135deg,#1a1d27,#12152a);--cal:invert(.6);
 }
@@ -26,7 +26,7 @@
   --border:#d0d0d0;--text:#2a2a2a;--text2:#555555;--text3:#999999;
   --accent:#cc1f24;--purple:#8a1a1e;--green:#2d7a2d;--yellow:#b85c00;
   --red:#cc1f24;--blue:#cc1f24;
-  --sealed-bg:#f8f8f8;--sealed-text:#bbbbbb;
+  
   --lock-bg:rgba(0,0,0,.03);--lock-icon:#cccccc;
   --hbg:linear-gradient(135deg,#ffffff,#f0f0f0);--cal:invert(.3);
 }
@@ -36,7 +36,7 @@
   --border:#444444;--text:#f0f0f0;--text2:#aaaaaa;--text3:#666666;
   --accent:#cc1f24;--purple:#8a1a1e;--green:#3a9a3a;--yellow:#c87800;
   --red:#cc1f24;--blue:#cc1f24;
-  --sealed-bg:#1e1e1e;--sealed-text:#555555;
+  
   --lock-bg:rgba(255,255,255,.03);--lock-icon:#555555;
   --hbg:linear-gradient(135deg,#252525,#1a1a1a);--cal:invert(.5);
 }
@@ -45,7 +45,7 @@
   --border:#c8c3e8;--text:#12076e;--text2:#4a3f9e;--text3:#8b82c4;
   --accent:#23118c;--purple:#4a2db5;--green:#059669;--yellow:#d97706;
   --red:#f41617;--blue:#23118c;
-  --sealed-bg:#f8f8fc;--sealed-text:#b0acd4;
+  
   --lock-bg:rgba(35,17,140,.04);--lock-icon:#c0bce8;
   --hbg:linear-gradient(135deg,#ffffff,#eceaf8);--cal:invert(.2);
 }
@@ -68,7 +68,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .btn-primary:hover{filter:brightness(1.1);}
 .btn-success{background:var(--green);color:#fff;}
 .btn-success:hover{filter:brightness(1.1);}
-.btn-historic{background:linear-gradient(135deg,#5b2d8a,#3d1a6e);color:#fff;}
+
 .btn-daily{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;}
 .btn-pdf{background:linear-gradient(135deg,#c62828,#b71c1c);color:#fff;}
 .btn-sm{padding:5px 10px;font-size:11px;border-radius:6px;}
@@ -130,7 +130,7 @@ tbody td{padding:7px 10px;vertical-align:middle;font-size:12px;border-bottom:1px
 tbody td:first-child{border-radius:7px 0 0 7px;padding-left:12px;}
 tbody td:last-child{border-radius:0 7px 7px 0;}
 
-.seal-badge{display:inline-flex;align-items:center;gap:3px;background:rgba(90,100,128,.2);color:var(--text3);border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;letter-spacing:.3px;margin-top:2px;}
+/* .seal-badge-removed{display:inline-flex;align-items:center;gap:3px;background:rgba(90,100,128,.2);color:var(--text3);border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;letter-spacing:.3px;margin-top:2px;}
 
 /* LOCKED FIELD */
 .flock{background:var(--lock-bg);border-radius:5px;padding:4px 7px;color:var(--text);font-size:12px;display:flex;align-items:flex-start;gap:5px;min-height:28px;line-height:1.4;}
@@ -352,7 +352,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
-#fi-historic,#fi-daily{display:none;}
+#fi-daily{display:none;}
 @media(max-width:700px){.hdr{padding:8px 12px;}.toolbar{padding:7px 12px;}.twrap{padding:8px 6px;}table{min-width:900px;}.frow{grid-template-columns:1fr;}.spills{display:none;}}
 
 /* ══ PRINT ══ */
@@ -388,7 +388,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   .pr-exchange td{background:#dce8fd !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-pickup   td{background:#ede7f6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-mixed    td{background:#fff9e6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  .pr-sealed   td{background:#f5f5f5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
   /* Column widths */
   .pc-pickup   {width:9%;}
   .pc-patient  {width:12%;}
@@ -489,7 +489,6 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <option value="all">All Active</option>
     <option value="pending" selected>Pending</option>
     <option value="complete">Complete</option>
-    <option value="sealed">Sealed / Historic</option>
   </select>
   <span class="flbl">Type:</span>
   <select class="fsel" id="typeF" onchange="renderTable()">
@@ -768,11 +767,6 @@ function isLocked(rec,field){
   if(rec.source==='manual')return false;
   return !!(rec.locked&&rec.locked[field]);
 }
-function isSealed(rec){return rec.sealed===true;}
-function checkSeal(rec){
-  // Seal when loaded from historic with Job Closed + Verified checked (Confirmed optional)
-  return rec.source==='historic'&&rec.jobClosed&&rec.verified;
-}
 function makeLockMap(obj){
   const F=['patientName','patientId','pickupDate','entryId']; // jobNum + soIds kept editable
   const m={};F.forEach(f=>{if(obj[f]&&String(obj[f]).trim())m[f]=true;});return m;
@@ -790,7 +784,7 @@ function makeLockMap(obj){
 // ─────────────────────────────────────
 // SECTION 7: CSV IMPORT / EXPORT
 // ─────────────────────────────────────
-const HCOLS=['id','source','sealed','patientName','patientId','jobNum','soIds',
+const HCOLS=['id','source','patientName','patientId','jobNum','soIds',
   'pickupDate','dropOffBy','dateReturned','sgiNotes','mdrNotes',
   'jobClosed','confirmed','verified','pieces','lockedFields','entryId'];
 
@@ -849,7 +843,7 @@ function exportCSV(){
   const rows=[HCOLS.join(',')];
   records.forEach(r=>{
     const row=[
-      r.id,r.source||'manual',r.sealed?1:0,
+      r.id,r.source||'manual',
       r.patientName,r.patientId,r.jobNum,r.soIds,
       r.pickupDate,r.dropOffBy,r.dateReturned,
       r.sgiNotes,r.mdrNotes,
@@ -910,47 +904,6 @@ function parseCSV(text){
   return rows;
 }
 
-function loadHistoric(text){
-  const rows=parseCSV(text);if(!rows.length){toast('Historic CSV empty','e');return 0;}
-  if(!('id' in rows[0])){toast('Use "Load Historic" for app exports only. Use "Load Daily" for PowerBI files.','e');return 0;}
-  const ids=new Set(records.map(r=>r.id));
-  let added=0;
-  rows.forEach(row=>{
-    if(ids.has(row.id)){
-      // Update operational fields only for existing records that aren't sealed
-      const ex=records.find(r=>r.id===row.id);
-      if(ex&&!isSealed(ex)){
-        // Absorb any changes made elsewhere (notes, checkboxes)
-        ex.sgiNotes=row.sgiNotes||ex.sgiNotes;
-        ex.mdrNotes=row.mdrNotes||ex.mdrNotes;
-        ex.dateReturned=row.dateReturned||ex.dateReturned;
-        ex.jobClosed=row.jobClosed==='1';
-        ex.confirmed=row.confirmed==='1';
-        ex.verified=row.verified==='1';
-        ex.dropOffBy=row.dropOffBy||ex.dropOffBy;
-        // Re-check seal
-        if(checkSeal(ex))ex.sealed=true;
-      }
-      return;
-    }
-    let locked={};try{locked=JSON.parse(row.lockedFields||'{}');}catch(e){}
-    const pieces=parsePiecesRich(row.pieces||'');
-    const rec={
-      id:row.id||gid(),source:'historic',sealed:false,
-      patientName:row.patientName||'',patientId:row.patientId||'',
-      jobNum:row.jobNum||'',soIds:row.soIds||'',
-      pickupDate:row.pickupDate||'',dropOffBy:row.dropOffBy||'',
-      dateReturned:row.dateReturned||'',
-      sgiNotes:row.sgiNotes||'',mdrNotes:row.mdrNotes||'',
-      jobClosed:row.jobClosed==='1',confirmed:row.confirmed==='1',verified:row.verified==='1',
-      entryId:row.entryId||'',
-      locked,pieces
-    };
-    rec.sealed=checkSeal(rec);
-    records.push(rec);ids.add(rec.id);added++;
-  });
-  saveRecs();return added;
-}
 
 function loadDaily(text){
   const rows=parseCSV(text);if(!rows.length){toast('Daily CSV empty','e');return 0;}
@@ -1033,7 +986,7 @@ function loadDaily(text){
     const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
     const locked=makeLockMap(obj);
     const rec={
-      id:gid(),source:'daily',sealed:false,
+      id:gid(),source:'daily',
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
       dateReturned:'',sgiNotes:'',mdrNotes:'',
       jobClosed:false,confirmed:false,verified:false,
@@ -1059,9 +1012,9 @@ function loadCSV(e,mode){
   const r=new FileReader();
   r.onload=ev=>{
     const t=ev.target.result;
-    const added=mode==='historic'?loadHistoric(t):loadDaily(t);
+    const added=loadDaily(t);
     buildChips();renderTable();renderStats();
-    toast(`${mode==='historic'?'Historic':'Daily'} loaded — ${added} new record${added!==1?'s':''}`,added>0?'s':'i');
+    toast(`Daily loaded — ${added} new record${added!==1?'s':''}`,added>0?'s':'i');
     // Auto-sync new records to SharePoint if connected
     if(added > 0 && spSiteId && spListId){
       syncAllToSharePoint();
@@ -1270,7 +1223,6 @@ function renderTable(){
 }
 
 function renderRow(r){
-  const sealed=isSealed(r);
   const status=rowStatus(r);
   const rt=rowType(r);
 
@@ -1391,25 +1343,6 @@ function renderRow(r){
   </tr>`;
 }
 
-function renderSealedRow(r){
-  const pieces=(r.pieces||[]).map(p=>`${p.type} -- ${p.name} ×${p.expectedQty}`).join(', ');
-  return`<tr class="r-sealed t-${rowType(r)}" data-id="${r.id}">
-    <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;"><div class="sealed-val">${fmtDate(r.pickupDate)}</div></td>
-    <td><div class="sealed-val">${esc(r.patientName)}</div><div class="pid" style="color:var(--sealed-text)">${esc(r.patientId)}</div><span class="seal-badge">🔒 SEALED</span></td>
-    <td>${renderJobLink(r.jobNum)}</td>
-    <td><div class="sealed-val" style="font-size:10px;max-width:250px">${esc(pieces)||'—'}</div></td>
-    <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
-    <td><div class="sealed-val">${fmtDate(r.dateReturned)}</div></td>
-    <td class="ctr"><span style="font-size:14px">${r.jobClosed?'✅':''}</span></td>
-    <td><div class="sealed-val" style="font-size:10px">${esc(r.sgiNotes)||''}</div></td>
-    <td><div class="sealed-val" style="font-size:10px">${esc(r.mdrNotes)||''}</div></td>
-    <td><div class="sealed-val">${fmtDate(r.dropOffBy)}</div></td>
-    <td class="ctr"><span style="font-size:14px">${r.verified?'✅':''}</span></td>
-    <td class="ctr"><span style="font-size:14px">${r.confirmed?'✅':''}</span></td>
-    <td style="text-align:center;padding:6px 4px;"><button class="audit-btn" onclick="event.stopPropagation();openAuditPopup(event,'${r.id}')" title="View activity log"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Log</button></td>
-    <td></td>
-  </tr>`;
-}
 
 function renderPcell(r){
   if(!r.pieces||!r.pieces.length){
@@ -1468,7 +1401,7 @@ function openCal(input){
 // SECTION 11: MUTATIONS
 // ─────────────────────────────────────
 function dateRetChanged(id, val){
-  const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===id);if(!rec)return;
   rec.dateReturned=val;
   // Auto-check Job Closed when date is set, auto-uncheck when cleared
   rec.jobClosed=!!val;
@@ -1485,7 +1418,7 @@ function dateRetChanged(id, val){
 }
 
 function jobClosedChanged(id, checked){
-  const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===id);if(!rec)return;
   rec.jobClosed=checked;
   // Auto-fill Date Returned with today when checked, clear when unchecked
   if(checked&&!rec.dateReturned){
@@ -1514,7 +1447,7 @@ function jobClosedChanged(id, checked){
 //  MUTATIONS
 // ══════════════════════════════════
 function updateF(id,field,value){
-  const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===id);if(!rec)return;
   if(isLocked(rec,field)){toast('Field is locked (from source data)','e');return;}
   rec[field]=value;
   saveRecs(rec);
@@ -1523,7 +1456,7 @@ function updateF(id,field,value){
 }
 
 function togglePiece(rid,pid,checked){
-  const rec=records.find(r=>r.id===rid);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===rid);if(!rec)return;
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
   p.checked=checked;
   // Auto-fill rcv qty when PIECE checkbox checked
@@ -1552,7 +1485,7 @@ function togglePiece(rid,pid,checked){
 }
 
 function updatePieceQty(rid,pid,val){
-  const rec=records.find(r=>r.id===rid);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===rid);if(!rec)return;
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
   p.receivedQty=val===''?null:parseInt(val);
   saveRecs(rec);refreshPiece(rec,p);refreshRowStatus(rec);renderStats();
@@ -1592,7 +1525,7 @@ function refreshRowStatus(rec){
 }
 
 function toggleAll(rid){
-  const rec=records.find(r=>r.id===rid);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===rid);if(!rec)return;
   const allChk=rec.pieces.every(p=>p.checked);
   const nowSelectingAll=!allChk;
   rec.pieces.forEach(p=>{
@@ -1644,7 +1577,7 @@ function delRec(id){
 }
 
 function removePieceInline(rid,pid){
-  const rec=records.find(r=>r.id===rid);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===rid);if(!rec)return;
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
   if(p.fromSource){toast('Cannot remove source items','e');return;}
   rec.pieces=rec.pieces.filter(p=>p.id!==pid);
@@ -1756,7 +1689,7 @@ function clearSelection(){
 function openPopup(event, id){
   event.stopPropagation();
   const rec = records.find(r=>r.id===id);
-  if(!rec||isSealed(rec)) return;
+  if(!rec) return;
   popupRecId = id;
   popupSrcPieces = (rec.pieces||[]).filter(p=>p.fromSource).map(p=>({...p}));
   popupAddPieces = (rec.pieces||[]).filter(p=>!p.fromSource).map(p=>({...p}));
@@ -2093,7 +2026,7 @@ function openEditModal(id){
   const mnl = document.getElementById('m-mdrNotes-lbl');
   if(mn){ mn.readOnly = isSGI(); mn.style.opacity = isSGI()?'.7':''; mn.style.cursor = isSGI()?'default':''; }
   if(mnl){ mnl.textContent = isSGI()?'(read only)':'(editable)'; mnl.style.color = isSGI()?'var(--text3)':'var(--green)'; }
-  const rec=records.find(r=>r.id===id);if(!rec||isSealed(rec))return;
+  const rec=records.find(r=>r.id===id);if(!rec)return;
   editId=id;
   document.getElementById('mtitle').textContent='Edit Record';
   LOCKABLE.forEach(f=>setModalField(f,rec));
@@ -2217,7 +2150,7 @@ function saveModal(){
   if(isNew){
     const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=gv('m-soIds'),pi=gv('m-patientId'),db=gv('m-dropOffBy');
     records.unshift({
-      id:gid(),source:'manual',sealed:false,
+      id:gid(),source:'manual',
       patientName,patientId:pi,jobNum:jn,soIds:si,pickupDate:pd,dropOffBy:db,
       dateReturned:'',sgiNotes:gv('m-sgiNotes'),mdrNotes:gv('m-mdrNotes'),
       jobClosed:false,confirmed:false,verified:false,entryId:'',locked:{},pieces:allPieces
@@ -2272,7 +2205,7 @@ function exportPDF(){
 
   function buildRow(r){
     const rt=rowType(r);
-    const cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':r.sealed?'pr-sealed':'';
+    const cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':'';
     const piecesHtml=(r.pieces||[]).map(p=>
       `<div class="pt-piece">${esc(p.type==='Pickup'?'PKP':'EXC')} ${esc(p.name)} ×${p.expectedQty}</div>`
     ).join('');
