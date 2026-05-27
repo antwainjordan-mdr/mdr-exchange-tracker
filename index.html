@@ -914,39 +914,28 @@ function loadDaily(text){
   function matchKey(row){
     const j=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
     if(j) return `j:${j}`;
-    // No job# — match on patient name only (normalized, lowercase, trimmed)
+    // No job# on incoming row — match on patient name only
     const name = col(row,'patient name','patientname').split('\n')[0].trim().toLowerCase();
     return `n:${name}`;
   }
 
-  // Build lookup: job# takes priority, then patient name
+  // Build lookup: job# takes priority
+  // Name-based index ONLY for existing records that have NO job# themselves
+  // This prevents matching a new job for the same patient to an old different job
   const existMap={};
   records.forEach(r=>{
-    if(r.jobNum) existMap[`j:${r.jobNum}`] = r;
-    // Also index by name for no-jobnum matching
-    const name = (r.patientName||'').trim().toLowerCase();
-    if(name && !existMap[`n:${name}`]) existMap[`n:${name}`] = r;
+    if(r.jobNum){
+      existMap[`j:${r.jobNum}`] = r;
+    } else {
+      // No job# on existing record — index by name so incoming can match or adopt
+      const name = (r.patientName||'').trim().toLowerCase();
+      if(name && !existMap[`n:${name}`]) existMap[`n:${name}`] = r;
+    }
   });
 
   let added=0,merged=0,skipped=0;
 
-  rows.forEach(row=>{
-    const key=matchKey(row);
-    let rawName=col(row,'patient name','patientname');
-    let patientName=rawName,patientId='';
-    const nl=rawName.indexOf('\n');
-    if(nl>-1){patientName=rawName.slice(0,nl).trim();patientId=rawName.slice(nl+1).trim();}
-    const pieces=parsePiecesDaily(col(row,'pieces'));
-    const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
-    const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
-    const pickupDate=normDate(col(row,'pickup date','pickupdate'));
-    const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
-    const entryId=col(row,'entry id','entryid','entry_id','EntryID');
-
-    if(existMap[key]){
-      // ── Record already exists — smart merge ──
-      const ex=existMap[key];
-
+  function doMerge(ex){
       let changed=false;
 
       // Merge source data fields — take incoming if existing is empty
@@ -969,7 +958,7 @@ function loadDaily(text){
       // If existing had no jobNum but incoming has one, adopt it and re-index
       if(!ex.jobNum&&jobNum){
         ex.jobNum=jobNum;
-        existMap[`j:${jobNum}`]=ex; // index by jobNum for subsequent rows
+        existMap[`j:${jobNum}`]=ex;
         changed=true;
       }
 
@@ -979,7 +968,40 @@ function loadDaily(text){
 
       if(changed){saveRecs(ex);merged++;}
       else{skipped++;}
-      return;
+  }
+
+  rows.forEach(row=>{
+    const key=matchKey(row);
+    let rawName=col(row,'patient name','patientname');
+    let patientName=rawName,patientId='';
+    const nl=rawName.indexOf('\n');
+    if(nl>-1){patientName=rawName.slice(0,nl).trim();patientId=rawName.slice(nl+1).trim();}
+    const pieces=parsePiecesDaily(col(row,'pieces'));
+    const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
+    const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
+    const pickupDate=normDate(col(row,'pickup date','pickupdate'));
+    const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
+    const entryId=col(row,'entry id','entryid','entry_id','EntryID');
+
+    if(existMap[key]){
+      // ── Record already exists — verify it's actually the same patient ──
+      const ex=existMap[key];
+
+      // If matched by job# but names are completely different, treat as new record
+      // (prevents wrong job# assigned to different patient from merging)
+      if(key.startsWith('j:')){
+        const exName=(ex.patientName||'').trim().toLowerCase().split(',')[0];
+        const inName=patientName.trim().toLowerCase().split(',')[0];
+        if(exName && inName && exName!==inName){
+          console.warn(`[MDR] Job# ${jobNum} matched but names differ: "${ex.patientName}" vs "${patientName}" — creating new record`);
+          // Fall through to new record creation
+        } else {
+          // Names match (or one is empty) — safe to merge
+          return doMerge(ex);
+        }
+      } else {
+        return doMerge(ex);
+      }
     }
 
     // ── New record ──
