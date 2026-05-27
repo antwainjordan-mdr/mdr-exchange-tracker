@@ -935,37 +935,25 @@ function loadDaily(text){
 
   let added=0,merged=0,skipped=0;
 
-  function doMerge(ex){
+  function doMerge(ex, pieces, jobNum, soIds, pickupDate, dropOffBy, patientId, entryId){
       let changed=false;
-
-      // Merge source data fields — take incoming if existing is empty
       if(!ex.soIds&&soIds){ex.soIds=soIds;changed=true;}
       if(!ex.pickupDate&&pickupDate){ex.pickupDate=pickupDate;changed=true;}
       if(!ex.dropOffBy&&dropOffBy){ex.dropOffBy=dropOffBy;changed=true;}
       if(!ex.patientId&&patientId){ex.patientId=patientId;changed=true;}
       if(!ex.entryId&&entryId){ex.entryId=entryId;changed=true;}
-
-      // Merge pieces — add any new pieces from incoming that don't exist
       if(pieces.length){
         const existPieceNames=new Set((ex.pieces||[]).map(p=>p.name.toLowerCase()));
         const newPieces=pieces.filter(p=>!existPieceNames.has(p.name.toLowerCase()));
-        if(newPieces.length){
-          ex.pieces=[...(ex.pieces||[]),...newPieces];
-          changed=true;
-        }
+        if(newPieces.length){ex.pieces=[...(ex.pieces||[]),...newPieces];changed=true;}
       }
-
-      // If existing had no jobNum but incoming has one, adopt it and re-index
       if(!ex.jobNum&&jobNum){
         ex.jobNum=jobNum;
         existMap[`j:${jobNum}`]=ex;
         changed=true;
       }
-
-      // Update locked fields map with latest source data
       const obj={patientName:ex.patientName,patientId:ex.patientId,jobNum:ex.jobNum,soIds:ex.soIds,pickupDate:ex.pickupDate,entryId:ex.entryId};
       ex.locked=makeLockMap(obj);
-
       if(changed){saveRecs(ex);merged++;}
       else{skipped++;}
   }
@@ -984,23 +972,19 @@ function loadDaily(text){
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
 
     if(existMap[key]){
-      // ── Record already exists — verify it's actually the same patient ──
       const ex=existMap[key];
-
-      // If matched by job# but names are completely different, treat as new record
-      // (prevents wrong job# assigned to different patient from merging)
       if(key.startsWith('j:')){
         const exName=(ex.patientName||'').trim().toLowerCase().split(',')[0];
         const inName=patientName.trim().toLowerCase().split(',')[0];
         if(exName && inName && exName!==inName){
           console.warn(`[MDR] Job# ${jobNum} matched but names differ: "${ex.patientName}" vs "${patientName}" — creating new record`);
-          // Fall through to new record creation
         } else {
-          // Names match (or one is empty) — safe to merge
-          return doMerge(ex);
+          doMerge(ex, pieces, jobNum, soIds, pickupDate, dropOffBy, patientId, entryId);
+          return;
         }
       } else {
-        return doMerge(ex);
+        doMerge(ex, pieces, jobNum, soIds, pickupDate, dropOffBy, patientId, entryId);
+        return;
       }
     }
 
