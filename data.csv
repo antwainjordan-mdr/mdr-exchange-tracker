@@ -1,0 +1,251 @@
+﻿Patient Name,Job #,Pieces,OtherIDs,DropOff By,Pickup Date,Entry ID
+"Seprodi, Maddison
+17131",3945349.00,Exchange -- E Cylinder  → 4,"122642, 34948",2026-05-12 00:00:00,2026-05-07 00:00:00,19898
+" Pearl, Hazel
+18366",3946548.00,Exchange -- D Cylinder  → 4,"122682, 122683, 34952",2026-05-13 00:00:00,2026-05-08 00:00:00,19924
+"Crawford, Laniyah
+17459",3946181.00,"Exchange -- D Cylinder  → 3,
+Exchange -- E Cylinder  → 3","122620, 34939",2026-05-13 00:00:00,2026-05-08 00:00:00,19880
+"Doss, Zion
+15213",3946854.00,Exchange -- D Cylinder  → 3,"122712, 122713, 34956",2026-05-13 00:00:00,2026-05-08 00:00:00,19939
+"Gunter, Rolyns & Gunter, Renley
+18250",3947200.00,Exchange -- D Cylinder  → 4,"122601, 122613, 34933",2026-05-13 00:00:00,2026-05-08 00:00:00,19862
+"Johnson, Jalaina
+18425",3947257.00,,"122729, PURL, 122730, 122730",2026-05-13 00:00:00,2026-05-08 00:00:00,19949
+"Kahli, Rowan
+17796",3947230.00,"Exchange -- E Cylinder  → 4,
+Exchange -- D Cylinder  → 1","122702, PURL, 122707, 34955",2026-05-13 00:00:00,2026-05-08 00:00:00,19936
+"Nathaniel, Carter
+18121",3947083.00,"Pickup -- Concentrator 1074345 → 1,
+Pickup -- Nellcor Oximeter Patient Cable  → 1,
+Pickup -- B Cylinder  → 4,
+Pickup -- Oximeter Bag  → 1,
+Pickup -- D Cylinder  → 1,
+Pickup -- Ped Reg Drive MAX4LPM  → 1,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- Oximeter MBH2307122 → 1,
+Pickup -- B Cylinder Bag  → 1",34957,2026-05-13 00:00:00,2026-05-08 00:00:00,19942
+"Rhodes, A'variouz
+18420",3947247.00,Exchange -- D Cylinder  → 4,"122689, 34953",2026-05-13 00:00:00,2026-05-08 00:00:00,19928
+"Robertson, Ryland
+18241",3946202.00,Exchange -- D Cylinder  → 1,"122492, 34911",2026-05-13 00:00:00,2026-05-08 00:00:00,19779
+"Cooper, Miracle
+13401",3948515.00,"Pickup -- D Cylinder  → 4,
+Pickup -- Concentrator 24211521 → 1,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- Precision Medical Regulator  → 1",34972,2026-05-14 00:00:00,2026-05-11 00:00:00,19997
+"Creamer, Louis
+15564",3948342.00,Exchange -- E Cylinder  → 3,"122748, 34965",2026-05-14 00:00:00,2026-05-11 00:00:00,19962
+"Fox, Maverick
+18398",3946695.00,Exchange -- D Cylinder  → 5,"122631, 34944",2026-05-14 00:00:00,2026-05-11 00:00:00,19890
+"Hartfield, Samueal
+18441",3948027.00,,"122758, PURL, 122759, 122759",2026-05-14 00:00:00,2026-05-11 00:00:00,19970
+"Heideman, William
+18210",3947507.00,"Exchange -- B Cylinder  → 3,
+Exchange -- D Cylinder  → 1","122745, 122746, 34962",2026-05-14 00:00:00,2026-05-11 00:00:00,19961
+"Shaver, Liam
+18177",3947804.00,Exchange -- E Cylinder  → 5,"122757, 34966",2026-05-14 00:00:00,2026-05-11 00:00:00,19969
+"Wilson, Nandi
+18418",3946652.00,"Exchange -- E Cylinder  → 0,
+Exchange -- D Cylinder  → 0","122599, 34932",2026-05-14 00:00:00,2026-05-11 00:00:00,19861
+"Zampella, Alijah
+18255",3947190.00,"Exchange -- D Cylinder  → 5,
+Exchange -- E Cylinder  → 1","122493, 34910",2026-05-14 00:00:00,2026-05-11 00:00:00,19781
+"Garrison, John
+17436",3949512.00,"Exchange -- E Cylinder  → 2,
+Exchange -- D Cylinder  → 1","122771, 122772, 34969",2026-05-15 00:00:00,2026-05-12 00:00:00,19979
+"Jernigan, Jack
+17670",3949860.00,Exchange -- Concentrator B247220115DS → 1,34978,2026-05-15 00:00:00,2026-05-12 00:00:00,20020
+"Williams, Jeylon
+15814",3948478.00,Exchange -- E Cylinder  → 1,"122773, 34970",2026-05-15 00:00:00,2026-05-12 00:00:00,19980
+"Barnes, Barrett
+18254",3950533.00,Exchange -- E Cylinder  → 1,"122778, 122870, 34988",2026-05-18 00:00:00,2026-05-13 00:00:00,20041
+"Brewer, Hannah
+18310",3950485.00,Exchange -- D Cylinder  → 1,"122735, 34960",2026-05-18 00:00:00,2026-05-13 00:00:00,19954
+"Dees, Rhiley
+15484",3949811.00,"Exchange -- E Cylinder  → 10,
+Exchange -- D Cylinder  → 5","122824, 34979",2026-05-18 00:00:00,2026-05-13 00:00:00,20022
+"Harris, Kylan",3950707.00,,34992,2026-05-18 00:00:00,2026-05-13 00:00:00,20064
+"Marchbanks, Claire
+18349",3950440.00,Exchange -- D Cylinder  → 3,"122817, 122816, 34977",2026-05-18 00:00:00,2026-05-13 00:00:00,20017
+"Santoyo-Garcia, Marali 
+12602",3949914.00,Pickup -- E Cylinder  → 0,"122794, 34973",2026-05-18 00:00:00,2026-05-13 00:00:00,20001
+"Williams, Winnie
+18134",3949519.00,"Exchange -- D Cylinder  → 5,
+Exchange -- E Cylinder  → 2,
+Pickup -- E Cylinder  → 2,
+Pickup -- D Cylinder  → 3","122787, 34971",2026-05-18 00:00:00,2026-05-13 00:00:00,19993
+"Yaronczyk, Bellamy
+18280",3949557.00,"Pickup -- D/E Cylinder Cart wheeled  → 1,
+Exchange -- D Cylinder  → 4,
+Pickup -- Ped Reg Drive MAX4LPM  → 1,
+Exchange -- E Cylinder  → 1","122804, 34975",2026-05-18 00:00:00,2026-05-13 00:00:00,20010
+"Anglin, Dominic
+13951",3951575.00,Exchange -- E Cylinder  → 2,"122739, 122740, 34961",2026-05-19 00:00:00,2026-05-14 00:00:00,19958
+"Clark, Janie",3951548.00,,"122903, 122904, 34996",2026-05-19 00:00:00,2026-05-14 00:00:00,20073
+"Clayton, Hattie
+18324",3950580.00,Exchange -- B Cylinder  → 3,"122834, 122835, 34983",2026-05-19 00:00:00,2026-05-14 00:00:00,20026
+"Davis, Lucas
+16485",3950953.00,Exchange -- D Cylinder  → 3,"122864, 122866, 122867, PURL, 122868, 34986",2026-05-19 00:00:00,2026-05-14 00:00:00,20043
+"Eddins-Agee, Darien
+16264",3950498.00,Exchange -- D Cylinder  → 4,"122854, 34985",2026-05-19 00:00:00,2026-05-14 00:00:00,20039
+"Entrekin, Addie
+17927",3950648.00,"Exchange -- D Cylinder  → 6,
+Exchange -- E Cylinder  → 2","122830, 34981",2026-05-19 00:00:00,2026-05-14 00:00:00,20023
+"Fields, Brooklyn
+17914",3950588.00,"Pickup -- Concentrator 24210099 → 1,
+Pickup -- D/E Cylinder Cart wheeled  → 1,
+Pickup -- AC Suction Machine 211E2201002062 → 1,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- E Cylinder  → 8,
+Pickup -- Ped Reg Drive MAX4LPM  → 1,
+Pickup -- Nebulizer Compressor 1415010039 → 1,
+Pickup -- Nebulizer Compressor 211E2201003412 → 1,
+Pickup -- D Cylinder  → 6",34850,2026-05-19 00:00:00,2026-05-14 00:00:00,19780
+"Graves, Reya
+18063",3951543.00,Exchange -- D Cylinder  → 2,"122894, 34994",2026-05-19 00:00:00,2026-05-14 00:00:00,20067
+"Hardin, Malaiya",3951560.00,,"122893, 34993",2026-05-19 00:00:00,2026-05-14 00:00:00,20065
+"Poague-Bowden, Ansleigh
+14689",3950667.00,"Exchange -- D Cylinder  → 5,
+Exchange -- E Cylinder  → 1","122869, 34987",2026-05-19 00:00:00,2026-05-14 00:00:00,20044
+"Stewart, Hazel
+17097",3951722.00,,"122928, PURL, 122927, 122927",2026-05-19 00:00:00,2026-05-14 00:00:00,20089
+"Summerville, Nicholas
+15880",3950997.00,"Exchange -- E Cylinder  → 2,
+Pickup -- E Cylinder  → 1,
+Pickup -- D Cylinder  → 1","122899, 122900, 34995",2026-05-19 00:00:00,2026-05-14 00:00:00,20070
+"Thomas, Deacon
+17974",3951591.00,"Pickup -- D Cylinder  → 9,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- Ped Reg Drive MAX4LPM  → 1,
+Pickup -- Concentrator 25201602 → 1",34991,2026-05-19 00:00:00,2026-05-14 00:00:00,20063
+"Calaway, Jace
+13264",,Exchange -- D Cylinder  → 1,"122907, 34997",2026-05-20 00:00:00,2026-05-15 00:00:00,20077
+"Dial, James
+18426",3951845.00,Exchange -- D Cylinder  → 2,"122918, 122919, 34999",2026-05-20 00:00:00,2026-05-15 00:00:00,20087
+"Gomez-Acosta, Aryanna
+14461",3951765.00,Exchange -- E Cylinder  → 1,"122884, 34990",2026-05-20 00:00:00,2026-05-15 00:00:00,20057
+"Mendoza, Samuel
+17488",3952668.00,"Pickup -- E Cylinder  → 1,
+Pickup -- Precision Medical Regulator  → 1,
+Pickup -- Ped Reg Drive MAX4LPM  → 1,
+Pickup -- Concentrator 26200029 → 1,
+Pickup -- D/E Cylinder Cart wheeled  → 1",34984,2026-05-20 00:00:00,2026-05-15 00:00:00,20030
+"Phillips, Brayden
+16871",3951870.00,Exchange -- D Cylinder  → 4,"122908, 34998",2026-05-20 00:00:00,2026-05-15 00:00:00,20078
+"Ramos, Daniel 
+11312",3952740.00,Exchange -- E Cylinder  → 6,"122975, 35008",2026-05-20 00:00:00,2026-05-15 00:00:00,20125
+"Haskew, Ivy
+17977",3953636.00,Exchange -- D Cylinder  → 3,"122967, 122968, 35005",2026-05-21 00:00:00,2026-05-18 00:00:00,20118
+"Jackson, Sam 
+15902",3953810.00,Exchange -- D Cylinder  → 1,"122969, 122970, 35006",2026-05-21 00:00:00,2026-05-18 00:00:00,20119
+"Rainer, Taylor
+13496",3953739.00,Exchange -- E Cylinder  → 7,"122948, 35003",2026-05-21 00:00:00,2026-05-18 00:00:00,20105
+"Strong, Vera
+18131",3953980.00,"Pickup -- D Cylinder  → 1,
+Exchange -- D Cylinder  → 2","122832, 122833, 34982",2026-05-21 00:00:00,2026-05-18 00:00:00,20025
+"Thomas, Lyndon
+17679",3953651.00,Exchange -- D Cylinder  → 0,"122960, 122961, 35004",2026-05-21 00:00:00,2026-05-18 00:00:00,20112
+"Everette, Palmer
+18082",3954865.00,"Exchange -- E Cylinder  → 1,
+Exchange -- D Cylinder  → 2","122840, 123053, PURL, 123054, 35013",2026-05-22 00:00:00,2026-05-19 00:00:00,20028
+"Mims, Hayden
+18202",3955125.00,"Exchange -- D Cylinder  → 6,
+Exchange -- E Cylinder  → 1","123041, 35010",2026-05-22 00:00:00,2026-05-19 00:00:00,20171
+"Smith, Kristopher
+16407",3954887.00,Pickup -- Concentrator 2266352 → 1,35014,2026-05-22 00:00:00,2026-05-19 00:00:00,20182
+"Coolidge, Mary Grace
+11626",3955823.00,Exchange -- E Cylinder  → 5,"123075, 35018",2026-05-25 00:00:00,2026-05-20 00:00:00,20194
+"Craddieth, Jaelan
+18326",3955090.00,"Exchange -- B Cylinder  → 0,
+Exchange -- D Cylinder  → 0","123059, 123060, 35015",2026-05-25 00:00:00,2026-05-20 00:00:00,20183
+"Jordan, Skye
+18035",3955497.00,"Pickup -- Precision Medical Regulator  → 1,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- B Cylinder Bag  → 1,
+Pickup -- D Cylinder  → 2,
+Pickup -- Concentrator 2403296 → 1,
+Pickup -- B Cylinder  → 4",34829,2026-05-25 00:00:00,2026-05-20 00:00:00,20192
+"Smith, River
+18139",3955473.00,"Pickup -- B Cylinder  → 2,
+Pickup -- D Cylinder  → 1",35011,2026-05-25 00:00:00,2026-05-20 00:00:00,20177
+"Baxley, Liam
+17898",3958091.00,,"PURL, 123132, 123132",2026-05-26 00:00:00,2026-05-21 00:00:00,20242
+"Burt, Finley
+18437",3956712.00,Exchange -- B Cylinder  → 1,"123049, 35012",2026-05-26 00:00:00,2026-05-21 00:00:00,20178
+"Ford, Ashe
+17593",3956541.00,"Exchange -- D Cylinder  → 2,
+Exchange -- E Cylinder  → 1","123087, 35022",2026-05-26 00:00:00,2026-05-21 00:00:00,20205
+"Glenn, Caden
+14799",3956762.00,"Exchange -- E Cylinder  → 2,
+Exchange -- D Cylinder  → 1","123083, 123084, 35021",2026-05-26 00:00:00,2026-05-21 00:00:00,20202
+"Grayson, A'Blessing
+18285",3956755.00,Exchange -- Apnea Monitor 2017103 → 1,"123096, 35026",2026-05-26 00:00:00,2026-05-21 00:00:00,20211
+"Jernigan, Jack
+17670",3956673.00,"Exchange -- E Cylinder  → 2,
+Exchange -- D Cylinder  → 5","123093, 35025",2026-05-26 00:00:00,2026-05-21 00:00:00,20209
+"Lane, Lakelyn
+16322",3960007.00,Exchange -- Concentrator B21B170744DS → 1,"123149, 35033",2026-05-26 00:00:00,2026-05-21 00:00:00,20254
+"McCain, Tierney
+16226",3956772.00,Exchange -- D Cylinder  → 4,"123090, 35023",2026-05-26 00:00:00,2026-05-21 00:00:00,20208
+"Pimentel Maldon, Nazly
+18421",3957020.00,"Exchange -- E Cylinder  → 4,
+Exchange -- D Cylinder  → 1","123123, 35030",2026-05-26 00:00:00,2026-05-21 00:00:00,20235
+"Travis, Briella
+15066",3956959.00,"Exchange -- E Cylinder  → 2,
+Exchange -- D Cylinder  → 1","123121, 35034",2026-05-26 00:00:00,2026-05-21 00:00:00,20233
+"Whitlow, Caylee
+18246",3956706.00,"Exchange -- B Cylinder  → 1,
+Exchange -- D Cylinder  → 1","123119, 35028",2026-05-26 00:00:00,2026-05-21 00:00:00,20232
+"Williamson, Hailey
+17777",3956584.00,Exchange -- E Cylinder  → 2,"123100, 123101, 35027",2026-05-26 00:00:00,2026-05-21 00:00:00,20214
+" Coleman, Makenli
+17856",3958141.00,"Pickup -- D/E Cylinder Cart wheeled  → 1,
+Pickup -- Precision Medical Regulator  → 1,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- B Cylinder  → 3,
+Pickup -- E Cylinder  → 1,
+Pickup -- D Cylinder  → 4,
+Pickup -- B Cylinder Bag  → 1,
+Pickup -- Concentrator 24211267 → 1",35031,2026-05-27 00:00:00,2026-05-22 00:00:00,20246
+"Fox, Ava
+15393",3957619.00,"Pickup -- Precision Medical Regulator  → 1,
+Pickup -- Concentrator 0536792 → 1,
+Pickup -- Nellcor Oximeter Patient Cable  → 1,
+Pickup -- Oximeter Bag  → 1,
+Pickup -- D/E Cylinder Cart wheeled  → 1,
+Pickup -- E Cylinder  → 4",35019,2026-05-27 00:00:00,2026-05-22 00:00:00,20196
+"Marbury, Kenai
+18024",3958823.00,Exchange -- D Cylinder  → 2,"123020, 35047",2026-05-27 00:00:00,2026-05-22 00:00:00,20156
+"Mckee, Liam
+17906",3958086.00,"Exchange -- E Cylinder  → 1,
+Exchange -- D Cylinder  → 3","123170, 35038",2026-05-27 00:00:00,2026-05-22 00:00:00,20270
+"Rogers, Janaree
+17293",3957062.00,Exchange -- D Cylinder  → 2,"123156, 35035",2026-05-27 00:00:00,2026-05-22 00:00:00,20257
+"Sigman, Olivia
+15755",3958144.00,Exchange -- D Cylinder  → 2,"123141, 123142, 35032",2026-05-27 00:00:00,2026-05-22 00:00:00,20248
+"Smith, Olivia
+18346",3957599.00,Exchange -- D Cylinder  → 2,"123175, 35039",2026-05-27 00:00:00,2026-05-22 00:00:00,20274
+"White, Gracie
+18228",3957519.00,Exchange -- B Cylinder  → 4,"123166, 123167, 35037",2026-05-27 00:00:00,2026-05-22 00:00:00,20267
+"Abrams, Joseph
+12311",3958832.00,Exchange -- D Cylinder  → 2,"123184, 35042",2026-05-29 00:00:00,2026-05-26 00:00:00,20281
+"Adkins, Grayson
+18229",3959639.00,Exchange -- D Cylinder  → 2,"123202, 35046",2026-05-29 00:00:00,2026-05-26 00:00:00,20294
+"Fox, Axel
+16581",3960053.00,"Pickup -- B Cylinder  → 4,
+Pickup -- D Cylinder Bag  → 1,
+Pickup -- Concentrator 2405717 → 1,
+Pickup -- B Cylinder Bag  → 1,
+Pickup -- Precision Medical Regulator  → 1,
+Pickup -- D Cylinder  → 2",35048,2026-05-29 00:00:00,2026-05-26 00:00:00,20332
+"Hartley, Zosiah
+17776",3958172.00,"Exchange -- B Cylinder  → 3,
+Exchange -- D Cylinder  → 1","123193, 35044",2026-05-29 00:00:00,2026-05-26 00:00:00,20288
+"Sanders, Kerstin
+13187",3958200.00,Exchange -- E Cylinder  → 3,"123187, 35043",2026-05-29 00:00:00,2026-05-26 00:00:00,20284
+"Ginco, Francine
+17535",3959982.00,Exchange -- E Cylinder  → 2,"123249, 123250, 35053",2026-06-01 00:00:00,2026-05-27 00:00:00,20330
+"Sanders, Kerstin
+13187",,"Exchange -- Concentrator 25201641 → 1,
+Exchange -- E Cylinder  → 2","123259, 123261, 35058",2026-06-01 00:00:00,2026-05-27 00:00:00,20339
