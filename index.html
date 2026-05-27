@@ -438,7 +438,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     </button>
 
     
-    <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="loadCSV(event,'daily')"></label>
+    <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="handleLoadDaily(event)"></label>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
     </button>
@@ -1021,28 +1021,36 @@ function loadDaily(text){
 
   saveRecs();
   const parts=[];
-  if(added)parts.push(`${added} new`);
-  if(merged)parts.push(`${merged} merged`);
-  if(skipped)parts.push(`${skipped} unchanged`);
-  toast('Daily loaded — '+parts.join(', '),added||merged?'s':'i');
+  if(added) parts.push(`${added} new`);
+  if(merged) parts.push(`${merged} merged`);
+  if(skipped) parts.push(`${skipped} unchanged`);
+  const msg = parts.length ? `✓ Daily loaded — ${parts.join(', ')}` : '⚪ Daily loaded — no changes';
+  toast(msg, added||merged?'s':'i');
+  console.log('[MDR] Daily load complete:', msg);
   return added+merged;
 }
 
-function loadCSV(e,mode){
-  if(mode==='daily') logAppAction('Load Daily','Loaded daily CSV file');
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    const t=ev.target.result;
-    const added=loadDaily(t);
-    buildChips();renderTable();renderStats();
-    toast(`Daily loaded — ${added} new record${added!==1?'s':''}`,added>0?'s':'i');
-    // Auto-sync new records to SharePoint if connected
-    if(added > 0 && spSiteId && spListId){
-      syncAllToSharePoint();
+function handleLoadDaily(e){
+  const f=e.target.files[0];
+  if(!f){ toast('No file selected','e'); return; }
+  logAppAction('Load Daily', `Loaded file: ${f.name}`);
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const text=ev.target.result;
+      const result=loadDaily(text);
+      buildChips();renderTable();renderStats();
+      if(result > 0 && spSiteId && spListId){
+        syncAllToSharePoint();
+      }
+    } catch(err){
+      toast('Error reading file: '+err.message,'e');
+      console.error('handleLoadDaily error:',err);
     }
   };
-  r.readAsText(f);e.target.value='';
+  reader.onerror=()=>toast('Failed to read file','e');
+  reader.readAsText(f);
+  e.target.value='';
 }
 
 // ══════════════════════════════════
