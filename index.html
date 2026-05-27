@@ -2218,12 +2218,12 @@ function exportPDF(){
       return p.receivedQty !== p.expectedQty;
     }).map(p=>{
       const diff=p.receivedQty-p.expectedQty;
-      const label=diff<0?'SHORT':'OVER';
-      return`${p.name}: requested ×${p.expectedQty}, received ×${p.receivedQty} (${label} ${Math.abs(diff)})`;
+      const label=diff>0?`${Math.abs(diff)} Over`:`${Math.abs(diff)} Under`;
+      return`${p.name} ×${p.receivedQty} (${label})`;
     });
 
-    const sgi=r.sgiNotes?`SGI: ${r.sgiNotes}`:'';
-    const sgiVar=variances.length?`SGI: ${variances.join('; ')}`:'';
+    const sgi=r.sgiNotes?`SGI:\n ${r.sgiNotes}`:'';
+    const sgiVar=variances.length?`SGI:\n ${variances.join('\n ')}`:'';
     const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
     const notes=[sgi,sgiVar,mdr].filter(Boolean).join('\n');
     const ref=r.soIds||'—';
