@@ -1869,8 +1869,9 @@ async function fetchAppAuditLog(){
   body.innerHTML='<div class="audit-loading">Loading activity…</div>';
   try{
     await ensureAppAuditListId();
-    // Note: $orderby with $expand=fields causes a 400 on SharePoint Graph API — sort in memory instead
-    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=100`);
+    // $orderby=ID desc tells SP to return newest items first before applying $top cap.
+    // Using ID (not Timestamp field) avoids the 400 that $orderby+$expand=fields causes on column-based sorts.
+    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=200&$orderby=ID desc`);
     appAuditAllItems=(data?.value||[]).map(i=>({
       action:i.fields?.Action||'', detail:i.fields?.Detail||'',
       user:i.fields?.Title||i.fields?.UserName||'', ts:i.fields?.Timestamp||i.fields?.Modified||i.fields?.Created||''
@@ -2967,7 +2968,7 @@ async function renderPresence(){
   if(!bar||!presenceListId||!spSiteId){ _presenceRendering = false; return; }
   try{
     const data = await gGet(`/sites/${spSiteId}/lists/${presenceListId}/items?$expand=fields&$top=50`);
-    const cutoff = Date.now() - 90000; // 90 seconds — active threshold
+    const cutoff = Date.now() - 90000;
     const active = (data.value||[]).filter(item=>{
       const ls = new Date(item.fields?.LastSeen).getTime();
       return ls > cutoff;
