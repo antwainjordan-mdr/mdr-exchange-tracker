@@ -1017,13 +1017,14 @@ function handleLoadDaily(e){
   }
   logAppAction('Load Daily', `Loaded file: ${f.name}`);
   const reader=new FileReader();
-  reader.onload=ev=>{
+  reader.onload=async ev=>{
     try{
       const text=ev.target.result;
       const result=loadDaily(text);
       buildChips();renderTable();renderStats();
       if(result > 0 && spSiteId && spListId){
-        syncAllToSharePoint().then(()=>_flushAuditQueue());
+        await syncAllToSharePoint();
+        await _flushAuditQueue();
       } else {
         _flushAuditQueue();
       }
@@ -1814,14 +1815,14 @@ async function logAppAction(action, detail){
 let _auditFlushing = false;
 async function _flushAuditQueue(){
   if(_auditFlushing || !_auditQueue.length) return;
-  if(!spSiteId || !spListId) return; // SP not ready yet
+  if(!spSiteId || !spListId) return;
   _auditFlushing = true;
   try{
     if(!appAuditListId){
       try{ await ensureAppAuditListId(); } catch(e){
         console.warn('[AppAudit] Could not find AppAudit list:', e.message);
         _auditFlushing = false;
-        return; // will retry on next flush call
+        return;
       }
     }
     while(_auditQueue.length){
@@ -1835,7 +1836,7 @@ async function _flushAuditQueue(){
         console.log('[AppAudit] Logged:', e.action, 'for', e.userName);
       } catch(err){
         console.warn('[AppAudit] Write failed, will retry on next flush:', err.message||err);
-        break; // leave entry in queue, retry later
+        break;
       }
     }
   } catch(e){
@@ -1844,7 +1845,7 @@ async function _flushAuditQueue(){
   _auditFlushing = false;
 }
 
-function openAppAuditLog(event){
+async function openAppAuditLog(event){
   event.stopPropagation();
   logAppAction('App Log', 'Opened app activity log');
   const popup = document.getElementById('appAuditPopup');
@@ -1858,8 +1859,9 @@ function openAppAuditLog(event){
   popup.style.left=x+'px'; popup.style.top=y+'px';
   popup.classList.add('open');
   appAuditPage=1; appAuditAllItems=[];
-  // Flush pending queue first, then fetch
-  _flushAuditQueue().then(()=>fetchAppAuditLog());
+  // Flush any pending queue entries first, THEN fetch — must await so SP writes land before we read
+  await _flushAuditQueue();
+  fetchAppAuditLog();
 }
 
 async function fetchAppAuditLog(){
@@ -1874,9 +1876,8 @@ async function fetchAppAuditLog(){
     })).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
     renderAppAuditLog();
   }catch(e){
-    appAuditAllItems=JSON.parse(localStorage.getItem(APP_AUDIT_KEY)||'[]');
-    appAuditAllItems.length ? renderAppAuditLog() :
-      (body.innerHTML=`<div class="audit-loading">Error: ${esc(e.message||'Could not load')}</div>`);
+    console.error('[AppAudit] Failed to load from SharePoint:', e);
+    body.innerHTML=`<div class="audit-loading" style="color:var(--red)">⚠ Could not load from SharePoint: ${esc(e.message||'Unknown error')}<br><span style="color:var(--text3);font-size:10px;margin-top:4px;display:block">Check console for details.</span></div>`;
   }
 }
 
@@ -2378,9 +2379,7 @@ function toast(msg,t='i'){
 // ─────────────────────────────────────
 async function clearSiteCache(){
   if(!confirm('This will clear ALL cached site data — auth tokens, records, settings — and reload the page.\n\nYou will need to sign in again.\n\nContinue?')) return;
-  // Log BEFORE wiping localStorage — otherwise the local audit entry is erased immediately
   logAppAction('Clear Cache','Cleared site cache');
-  // Clear all localStorage
   localStorage.clear();
   // Clear all sessionStorage
   sessionStorage.clear();
@@ -2833,8 +2832,10 @@ async function showSignedIn(email){
   applyRoleUI();
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
-  // Flush any queued audit entries every 60s
-  setInterval(_flushAuditQueue, 60000);
+  // Flush any queued audit entries every 60s — guard so only one interval runs even if showSignedIn is called again
+  if(!window._auditFlushInterval){
+    window._auditFlushInterval = setInterval(_flushAuditQueue, 60000);
+  }
 }
 
 // ─────────────────────────────────────
@@ -2849,7 +2850,6 @@ let presencePoll = null;
 async function ensureAppAuditListId(){
   if(appAuditListId) return;
   if(!spSiteId) await ensureSPIds();
-  // Use $filter directly so we never miss it due to a $top page boundary
   const lists = await gGet(`/sites/${spSiteId}/lists?$filter=displayName eq 'AppAudit'`);
   const found = (lists.value||[])[0];
   if(!found) throw new Error('AppAudit list not found');
@@ -2958,9 +2958,12 @@ async function presenceLeave(){
   presenceItemId = null;
 }
 
+let _presenceRendering = false;
 async function renderPresence(){
+  if(_presenceRendering) return;
+  _presenceRendering = true;
   const bar = document.getElementById('presenceBar');
-  if(!bar||!presenceListId||!spSiteId) return;
+  if(!bar||!presenceListId||!spSiteId){ _presenceRendering = false; return; }
   try{
     const data = await gGet(`/sites/${spSiteId}/lists/${presenceListId}/items?$expand=fields&$top=50`);
     const cutoff = Date.now() - 90000; // 90 seconds — active threshold
@@ -2969,7 +2972,7 @@ async function renderPresence(){
       return ls > cutoff;
     });
 
-    if(active.length === 0){ bar.style.display='none'; return; }
+    if(active.length === 0){ bar.style.display='none'; _presenceRendering = false; return; }
     bar.style.display = 'flex';
 
     const myEmail = currentUser?.username?.toLowerCase();
@@ -2997,6 +3000,7 @@ async function renderPresence(){
       </div>`;
     }).join('') + (extra>0?`<span class="presence-count">+${extra}</span>`:'');
   } catch(e){ console.warn('Presence poll error:', e); }
+  _presenceRendering = false;
 }
 
 function autoSize(el){
