@@ -129,8 +129,6 @@ tbody td{padding:7px 10px;vertical-align:middle;font-size:12px;border-bottom:1px
 tbody td:first-child{border-radius:7px 0 0 7px;padding-left:12px;}
 tbody td:last-child{border-radius:0 7px 7px 0;}
 
-/* .seal-badge-removed{display:inline-flex;align-items:center;gap:3px;background:rgba(90,100,128,.2);color:var(--text3);border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;letter-spacing:.3px;margin-top:2px;}
-
 /* LOCKED FIELD */
 .flock{background:var(--lock-bg);border-radius:5px;padding:4px 7px;color:var(--text);font-size:12px;display:flex;align-items:flex-start;gap:5px;min-height:28px;line-height:1.4;}
 .flock .li2{color:var(--lock-icon);font-size:10px;flex-shrink:0;margin-top:1px;}
@@ -1279,7 +1277,7 @@ function renderRow(r){
   let cls=`t-${rt}`;
   if(status==='complete')cls+=' r-complete';
   // Red highlight if late by date has passed and record not complete
-  if(r.dropOffBy && status !== 'complete' && !r.jobClosed){
+  if(r.dropOffBy && status !== 'complete'){
     if(r.dropOffBy <= tod()) cls += ' r-overdue';
   }
 
@@ -2399,34 +2397,6 @@ async function clearSiteCache(){
   setTimeout(()=>window.location.reload(true), 800);
 }
 
-function openCfgModal(){
-  document.getElementById('cfg-historic-url').value = OD_HISTORIC_URL || '';
-  document.getElementById('cfg-daily-url').value    = OD_DAILY_URL    || '';
-  document.getElementById('cfg-historic-status').textContent = '';
-  document.getElementById('cfg-daily-status').textContent    = '';
-  document.getElementById('cfgOverlay').classList.add('open');
-}
-function closeCfgModal(){ document.getElementById('cfgOverlay').classList.remove('open'); }
-function cfgOverlayClick(e){ if(e.target===document.getElementById('cfgOverlay')) closeCfgModal(); }
-
-function saveCfgLinks(){
-  const h = document.getElementById('cfg-historic-url').value.trim();
-  const d = document.getElementById('cfg-daily-url').value.trim();
-  OD_HISTORIC_URL = h;
-  OD_DAILY_URL    = d;
-  // Rewrite the HTML file with updated URL vars so the link persists for everyone
-  const html = document.documentElement.outerHTML;
-  const updated = html
-    .replace(/let OD_HISTORIC_URL\s*=\s*'[^']*'/, `let OD_HISTORIC_URL = 'https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCggNdhQBwfSrtLL96tia_8ARDIOb1NkuNe48M-yVR8P_U?download=1'/g,"\'")}'`)
-    .replace(/let OD_DAILY_URL\s*=\s*'[^']*'/,    `let OD_DAILY_URL    = 'https://mdrnet-my.sharepoint.com/:x:/g/personal/antwainjordan_mdr_net/IQCTpUaxwb1vRoPaPgWlcXMsAQrftKYIQ27G38BRhlh65-U?download=1'/g,"\'")}'`);
-  const blob = new Blob(['<!DOCTYPE html>'+updated], {type:'text/html'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'MDR_Exchange_Tracker.html';
-  a.click();
-  closeCfgModal();
-  toast('Links saved — replace the file on OneDrive with the downloaded copy','s');
-}
 
 function toggleRoleView(){
   const btn = document.getElementById('btnRoleToggle');
@@ -2828,8 +2798,8 @@ function applyBranding(role){
     if(title) title.textContent = 'SGI Logistics Portal';
     if(sub) sub.textContent = 'Exchange & Pickup Tracker';
     html.setAttribute('data-brand','sgi');
-    // Apply SGI light theme if in light mode
-    if(html.getAttribute('data-theme')==='light') html.setAttribute('data-theme','light');
+    // Ensure theme attribute is set (triggers SGI CSS vars)
+    if(!html.getAttribute('data-theme')) html.setAttribute('data-theme','dark');
   } else {
     // MDR branding — logo already set as SVG in HTML
     if(title) title.textContent = 'Exchange Tracker';
@@ -2961,7 +2931,18 @@ async function presenceJoin(){
     presencePoll = setInterval(renderPresence, 15000);
     await renderPresence();
 
-    window.addEventListener('beforeunload', presenceLeave);
+    window.addEventListener('beforeunload', ()=>{
+      // Use sendBeacon for reliable cleanup on page close
+      if(presenceItemId && spSiteId && presenceListId){
+        const token = localStorage.getItem('mdr_access_token');
+        if(token){
+          // Best-effort DELETE via fetch with keepalive
+          fetch(`https://graph.microsoft.com/v1.0/sites/${spSiteId}/lists/${presenceListId}/items/${presenceItemId}`,
+            {method:'DELETE', headers:{'Authorization':'Bearer '+token}, keepalive:true}
+          ).catch(()=>{});
+        }
+      }
+    });
     console.log('[Presence] Joined successfully');
   } catch(e){
     console.warn('[Presence] Join error:', e.message||e);
@@ -3010,7 +2991,7 @@ async function renderPresence(){
       const colorIdx = email.charCodeAt(0) % colors.length;
       const bg = photo ? 'transparent' : colors[colorIdx];
 
-      return`<div class="presence-avatar ${roleClass}" style="background:${bg}" title="">
+      return`<div class="presence-avatar ${roleClass}" style="background:${bg}">
         ${photo?`<img src="${photo}" alt="${initials}" onerror="this.style.display='none'">`:
           `<span>${initials}</span>`}
         <div class="presence-tooltip">${name}${isMe?' (you)':''}</div>
