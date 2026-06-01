@@ -1028,7 +1028,9 @@ function handleLoadDaily(e){
       const result=loadDaily(text);
       buildChips();renderTable();renderStats();
       if(result > 0 && spSiteId && spListId){
-        syncAllToSharePoint();
+        syncAllToSharePoint().then(()=>_flushAuditQueue());
+      } else {
+        _flushAuditQueue();
       }
       // Auto-save a timestamped copy to SharePoint Documents
       saveCSVToDocuments(text);
@@ -1808,13 +1810,17 @@ async function logAppAction(action, detail){
 let _auditFlushing = false;
 async function _flushAuditQueue(){
   if(_auditFlushing || !_auditQueue.length) return;
-  if(!spSiteId || !spListId){
-    // SP not ready yet — will retry when ready
-    return;
-  }
+  if(!spSiteId || !spListId) return; // SP not ready
   _auditFlushing = true;
   try{
-    await ensureAppAuditListId();
+    // Ensure AppAudit list ID is fetched — don't let it throw and kill the flush
+    if(!appAuditListId){
+      try{ await ensureAppAuditListId(); } catch(e){
+        console.warn('[AppAudit] List not found yet:', e.message);
+        _auditFlushing = false;
+        return;
+      }
+    }
     while(_auditQueue.length){
       const e = _auditQueue[0];
       try{
@@ -1822,14 +1828,14 @@ async function _flushAuditQueue(){
           Title:e.email, Action:e.action, Detail:e.detail,
           UserName:e.userName, Timestamp:e.ts
         }});
-        _auditQueue.shift(); // only remove if succeeded
+        _auditQueue.shift();
       } catch(err){
         console.warn('[AppAudit] Write failed, will retry:',err.message||err);
-        break; // stop flushing on error, retry next time
+        break;
       }
     }
   } catch(e){
-    console.warn('[AppAudit] Flush failed:',e.message||e);
+    console.warn('[AppAudit] Flush error:',e.message||e);
   }
   _auditFlushing = false;
 }
@@ -1848,7 +1854,8 @@ function openAppAuditLog(event){
   popup.style.left=x+'px'; popup.style.top=y+'px';
   popup.classList.add('open');
   appAuditPage=1; appAuditAllItems=[];
-  fetchAppAuditLog();
+  // Flush pending queue first, then fetch
+  _flushAuditQueue().then(()=>fetchAppAuditLog());
 }
 
 async function fetchAppAuditLog(){
@@ -2857,6 +2864,8 @@ async function showSignedIn(email){
   applyRoleUI();
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
+  // Flush any queued audit entries every 60s
+  setInterval(_flushAuditQueue, 60000);
 }
 
 // ─────────────────────────────────────
