@@ -146,7 +146,6 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .refplain{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);}
 .tag-new{font-size:9px;background:rgba(56,217,169,.15);color:var(--green);border-radius:3px;padding:1px 4px;font-weight:600;}
 .tag-csv{font-size:9px;background:rgba(79,142,247,.15);color:var(--blue);border-radius:3px;padding:1px 4px;font-weight:600;}
-.tag-hist{font-size:9px;background:rgba(167,139,250,.15);color:var(--purple);border-radius:3px;padding:1px 4px;font-weight:600;}
 
 /* REFERENCE */
 .refcell{min-width:120px;max-width:160px;word-wrap:break-word;white-space:normal;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);line-height:1.6;text-align:center;}
@@ -405,8 +404,6 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 </style>
 </head>
 <body>
-<div class="print-hdr" id="printHdr"></div>
-
 <div class="sticky-top">
 <!-- HEADER -->
 <header class="hdr">
@@ -1606,7 +1603,16 @@ function toggleAll(rid){
 function delRecFromModal(){
   if(!editId) return;
   if(!confirm('Permanently delete this record?\n\nThis cannot be undone.')) return;
-  delRec(editId);
+  const rec=records.find(r=>r.id===editId);
+  records=records.filter(r=>r.id!==editId);
+  localStorage.setItem('mdr_v5',JSON.stringify(records));
+  if(rec&&rec._spId&&spSiteId&&spListId){
+    setSyncStatus('syncing','Deleting record…');
+    gDelete('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId)
+      .then(()=>setSyncStatus('synced','✓ Record deleted'))
+      .catch(e=>{ console.error('SP delete error:',e); setSyncStatus('error','✗ Delete failed on SharePoint'); });
+  }
+  renderTable();toast('Record deleted','i');
   closeModal();
 }
 
@@ -2365,17 +2371,6 @@ function toast(msg,t='i'){
 // ─────────────────────────────────────
 // SECTION 14: ADMIN TOOLS
 // ─────────────────────────────────────
-function clearAllData(){
-  if(!confirm('This will permanently clear ALL records and data from this browser.\n\nMake sure you have exported your CSV first if you need to keep anything.\n\nContinue?'))return;
-  localStorage.removeItem('mdr_v5');
-  localStorage.removeItem('mdr_lib');localStorage.removeItem('mdr_lib_v2');
-  records=[];
-  LIB=SEEDS.map(n=>({name:n,isFromData:true}));
-  saveLib();
-  buildChips();renderTable();renderStats();
-  toast('All data cleared — ready for a fresh load','i');
-}
-
 async function clearSiteCache(){
   logAppAction('Clear Cache','Cleared site cache');
   if(!confirm('This will clear ALL cached site data — auth tokens, records, settings — and reload the page.\n\nYou will need to sign in again.\n\nContinue?')) return;
@@ -2421,17 +2416,19 @@ function applyRoleUI(){
     // Hide MDR-only buttons — SGI keeps Refresh and Role Toggle
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
       const t = b.textContent.trim();
-      if(['Load Historic','Load Daily','Export CSV'].some(s=>t.includes(s))){
+      if(['Load Daily','Export CSV'].some(s=>t.includes(s))){
         b.style.display = 'none';
       }
     });
-    // Hide MDR-only table columns
+    // Hide MDR-only table columns and buttons
     document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
+    document.querySelectorAll('.mdr-only').forEach(el=>el.style.display='none');
   } else {
     // MDR — restore everything
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
+    document.querySelectorAll('.mdr-only').forEach(el=>el.style.display='');
   }
   // Recalculate sticky header height after role UI changes
   setTimeout(updateStickyHeight, 50);
@@ -2490,8 +2487,7 @@ function handleSessionExpired(){
   // Clear tokens and sign in fresh
   localStorage.removeItem('mdr_access_token');
   localStorage.removeItem('mdr_id_token');
-  localStorage.removeItem('mdr_nonce');
-  signIn();
+  msalSignIn();
 }
 
 async function getToken(){
@@ -2566,7 +2562,7 @@ function spToRec(item){
   try{ locked=JSON.parse(fv('LockedFields')||'{}'); }catch(e){}
   return {
     id: fv('AppRecordId') || String(item.id), _spId: item.id,
-    source: fv('Source')||'daily', sealed: fbool('Sealed'),
+    source: fv('Source')||'daily',
     patientName: fv('PatientName')||f.Title||'', patientId: fv('PatientId'),
     jobNum: fv('JobNum'), soIds: fv('SoIds'),
     pickupDate: fdate('PickupDate'), dropOffBy: fdate('DropOffBy'),
@@ -2586,7 +2582,7 @@ function recToSP(r){
     DateReturned: r.dateReturned||null, SgiNotes: r.sgiNotes||'',
     MdrNotes: r.mdrNotes||'', JobClosed: !!r.jobClosed,
     Verified: !!r.verified, Confirmed: !!r.confirmed,
-    EntryId: r.entryId||'', Source: r.source||'daily', Sealed: !!r.sealed,
+    EntryId: r.entryId||'', Source: r.source||'daily',
     Pieces: serPieces(r.pieces||[]), LockedFields: JSON.stringify(r.locked||{})
   };
 }
@@ -2617,7 +2613,7 @@ async function loadFromSharePoint(){
       toast('SharePoint data issue \u2014 keeping local data','e');
       buildChips(); renderTable(); renderStats();
     } else {
-      toast('SharePoint is empty \u2014 use Load Historic to populate','i');
+      toast('SharePoint is empty — load a daily CSV to get started','i');
       buildChips(); renderTable(); renderStats();
     }
   } catch(e){
@@ -2674,14 +2670,14 @@ async function syncAllToSharePoint(){
 async function spRefresh(){
   await logAppAction('Refresh','Refreshed data from SharePoint');
   await loadFromSharePoint();
-  presenceJoin().catch(e=>console.warn('Presence join failed:',e));
+  // Only update presence display — no need to re-register on refresh
+  renderPresence().catch(e=>console.warn('Presence render failed:',e));
 }
 
 async function msalSignIn(){
   document.getElementById('authErrMsg').textContent = '';
   const redirectUri = window.location.origin + window.location.pathname;
   const nonce = Math.random().toString(36).slice(2);
-  localStorage.setItem('mdr_nonce', nonce);
   // Use MDR tenant ID (not /common) so guest tokens are scoped to MDR tenant
   // This ensures SGI guest users get a token that can access MDR SharePoint
   window.location.href = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
@@ -2713,7 +2709,7 @@ async function signOut(){
 
 function showAuthOverlay(){
   const o = document.getElementById('authOverlay');
-  if(o){ o.style.display = 'flex'; o.style.alignItems = 'center'; o.style.justifyContent = 'center'; }
+  if(o) o.style.display = 'flex';
 }
 
 function hideAuthOverlay(){
