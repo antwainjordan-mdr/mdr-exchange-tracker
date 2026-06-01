@@ -1859,7 +1859,7 @@ async function openAppAuditLog(event){
   popup.style.left=x+'px'; popup.style.top=y+'px';
   popup.classList.add('open');
   appAuditPage=1; appAuditAllItems=[];
-  // Flush any pending queue entries first, THEN fetch — must await so SP writes land before we read
+  // Flush pending queue first — await so SP writes land before we read
   await _flushAuditQueue();
   fetchAppAuditLog();
 }
@@ -1869,7 +1869,8 @@ async function fetchAppAuditLog(){
   body.innerHTML='<div class="audit-loading">Loading activity…</div>';
   try{
     await ensureAppAuditListId();
-    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=100&$orderby=Created desc`);
+    // Note: $orderby with $expand=fields causes a 400 on SharePoint Graph API — sort in memory instead
+    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=100`);
     appAuditAllItems=(data?.value||[]).map(i=>({
       action:i.fields?.Action||'', detail:i.fields?.Detail||'',
       user:i.fields?.Title||i.fields?.UserName||'', ts:i.fields?.Timestamp||i.fields?.Modified||i.fields?.Created||''
@@ -2832,7 +2833,7 @@ async function showSignedIn(email){
   applyRoleUI();
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
-  // Flush any queued audit entries every 60s — guard so only one interval runs even if showSignedIn is called again
+  // Flush queued audit entries every 60s — guarded so only one interval runs even on re-auth
   if(!window._auditFlushInterval){
     window._auditFlushInterval = setInterval(_flushAuditQueue, 60000);
   }
