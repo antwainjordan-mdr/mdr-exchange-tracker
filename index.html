@@ -1603,6 +1603,7 @@ function toggleAll(rid){
 function delRecFromModal(){
   if(!editId) return;
   if(!confirm('Permanently delete this record?\n\nThis cannot be undone.')) return;
+  // Call delRec but skip its own confirm since we already confirmed
   const rec=records.find(r=>r.id===editId);
   records=records.filter(r=>r.id!==editId);
   localStorage.setItem('mdr_v5',JSON.stringify(records));
@@ -1670,7 +1671,6 @@ function setModalField(fname,rec){
 }
 
 function openAddModal(){
-  logAppAction('Add Record','Opened Add Record form');
   document.querySelector('.modal')?.classList.remove('sgi-modal'); // Full modal for new records
   const db = document.getElementById('m-delete-btn');
   if(db) db.style.display = 'none'; // no delete on new records
@@ -2270,6 +2270,11 @@ function saveModal(){
   }
   if(recToSave){
     toast(isNew?'Record added':'Record updated','s');
+    if(isNew){
+      logAppAction('Add Record', `Added: ${recToSave.patientName||'Unknown'} (Job #${recToSave.jobNum||'—'})`);
+    } else {
+      logAppAction('Edit Record', `Edited: ${recToSave.patientName||'Unknown'} (Job #${recToSave.jobNum||'—'})`);
+    }
     saveRecs(recToSave); // saves locally + syncs to SP async
     buildChips();renderTable();closeModal();
   }
@@ -2372,8 +2377,9 @@ function toast(msg,t='i'){
 // SECTION 14: ADMIN TOOLS
 // ─────────────────────────────────────
 async function clearSiteCache(){
-  logAppAction('Clear Cache','Cleared site cache');
   if(!confirm('This will clear ALL cached site data — auth tokens, records, settings — and reload the page.\n\nYou will need to sign in again.\n\nContinue?')) return;
+  // Log BEFORE wiping localStorage — otherwise the local audit entry is erased immediately
+  logAppAction('Clear Cache','Cleared site cache');
   // Clear all localStorage
   localStorage.clear();
   // Clear all sessionStorage
@@ -2413,22 +2419,20 @@ function toggleRoleView(){
 
 function applyRoleUI(){
   if(isSGI()){
-    // Hide MDR-only buttons — SGI keeps Refresh and Role Toggle
+    // Hide MDR-only buttons by class — SGI keeps Refresh and Role Toggle
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
       const t = b.textContent.trim();
-      if(['Load Daily','Export CSV'].some(s=>t.includes(s))){
+      if(['Load Daily','Export CSV'].some(s=>t.includes(s)) || b.classList.contains('mdr-only')){
         b.style.display = 'none';
       }
     });
-    // Hide MDR-only table columns and buttons
+    // Hide MDR-only table columns
     document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
-    document.querySelectorAll('.mdr-only').forEach(el=>el.style.display='none');
   } else {
     // MDR — restore everything
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
-    document.querySelectorAll('.mdr-only').forEach(el=>el.style.display='');
   }
   // Recalculate sticky header height after role UI changes
   setTimeout(updateStickyHeight, 50);
@@ -2613,7 +2617,7 @@ async function loadFromSharePoint(){
       toast('SharePoint data issue \u2014 keeping local data','e');
       buildChips(); renderTable(); renderStats();
     } else {
-      toast('SharePoint is empty — load a daily CSV to get started','i');
+      toast('SharePoint is empty \u2014 use Load Historic to populate','i');
       buildChips(); renderTable(); renderStats();
     }
   } catch(e){
@@ -2670,8 +2674,7 @@ async function syncAllToSharePoint(){
 async function spRefresh(){
   await logAppAction('Refresh','Refreshed data from SharePoint');
   await loadFromSharePoint();
-  // Only update presence display — no need to re-register on refresh
-  renderPresence().catch(e=>console.warn('Presence render failed:',e));
+  presenceJoin().catch(e=>console.warn('Presence join failed:',e));
 }
 
 async function msalSignIn(){
