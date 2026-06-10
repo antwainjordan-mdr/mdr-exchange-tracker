@@ -207,6 +207,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .schip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
 .c-pending{background:rgba(90,100,128,.3);color:var(--text2);}
 .c-partial{background:rgba(247,201,72,.2);color:var(--yellow);}
+.c-processing{background:rgba(79,142,247,.2);color:var(--accent);}
 .c-complete{background:rgba(56,217,169,.2);color:var(--green);}
 .cdot{width:5px;height:5px;border-radius:50%;background:currentColor;}
 
@@ -482,6 +483,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <select class="fsel" id="statusF" onchange="renderTable()">
     <option value="all">All Active</option>
     <option value="pending" selected>Pending</option>
+    <option value="processing" class="mdr-only">Processing</option>
     <option value="complete">Complete</option>
   </select>
   <span class="flbl">Type:</span>
@@ -789,27 +791,26 @@ function csvEsc(v){
 }
 
 function serPieces(ps){
-  return(ps||[]).map(p=>`${p.type}--${p.name}→${p.expectedQty}|rcv:${p.receivedQty??''}|chk:${p.checked?1:0}|src:${p.fromSource?1:0}|sn:${p.serialNum||''}|id:${p.id}`).join(';;');
+  return(ps||[]).map(p=>`${p.type}--${p.name}→${p.expectedQty}|rcv:${p.receivedQty??''}|chk:${p.checked?1:0}|src:${p.fromSource?1:0}|id:${p.id}`).join(';;');
 }
 
 function parsePiecesRich(raw){
   if(!raw||!raw.trim())return[];
   return raw.split(';;').map(s=>{
-    // New rich format: "Type--Name→qty|rcv:N|chk:0|src:1|sn:SERIAL|id:abc"
-    // sn: field is optional for backward compatibility with older serialized records
-    const rich=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|(?:sn:([^|]*)\|)?id:(.+)$/i);
+    // New rich format: "Type--Name→qty|rcv:N|chk:0|src:1|id:abc"
+    const rich=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|id:(.+)$/i);
     if(rich){
       const name=rich[2].trim();
       ensureLib(name);
-      return{id:rich[8],name,type:rich[1],expectedQty:parseInt(rich[3]),
+      return{id:rich[7],name,type:rich[1],expectedQty:parseInt(rich[3]),
         receivedQty:rich[4]===''?null:parseInt(rich[4]),
-        checked:rich[5]==='1',fromSource:rich[6]==='1',serialNum:rich[7]||''};
+        checked:rich[5]==='1',fromSource:rich[6]==='1'};
     }
     // Legacy pipe format: "Exchange -- Name → qty"
     const leg=s.match(/^(Exchange|Pickup)\s*--\s*(.+?)\s*[→>]\s*(\d+)\s*$/i);
     if(leg){
       const name=leg[2].trim();ensureLib(name);
-      return{id:gid(),name,type:leg[1],expectedQty:parseInt(leg[3]),receivedQty:null,checked:false,fromSource:true,serialNum:''};
+      return{id:gid(),name,type:leg[1],expectedQty:parseInt(leg[3]),receivedQty:null,checked:false,fromSource:true};
     }
     return null;
   }).filter(Boolean);
@@ -1092,16 +1093,10 @@ function normDate(s){
 }
 
 function rowStatus(rec){
-  // MDR status logic:
-  // pending  = Job Closed=false OR Verified=false (not yet worked, OR work not verified)
-  // partial  = Job Closed=true AND Verified=true BUT qty mismatch (shortage/overage)
-  // complete = Job Closed=true AND Verified=true AND Confirmed=true AND no qty mismatch
-
-  // SGI status logic:
+  // SGI status logic — unchanged:
   // pending  = Job Closed=false
-  // complete = Job Closed=true AND all pieces checked with matching qty
   // partial  = Job Closed=true BUT qty mismatch
-
+  // complete = Job Closed=true AND all pieces checked with matching qty
   if(isSGI()){
     if(!rec.jobClosed) return 'pending';
     if(!rec.pieces||!rec.pieces.length) return 'complete';
@@ -1111,17 +1106,22 @@ function rowStatus(rec){
     return hasVar?'partial':'complete';
   }
 
-  // MDR — Confirmed drives complete/pending. Partial is a sub-indicator only.
+  // MDR status logic:
+  // complete    = Confirmed=true
+  // processing  = Job Closed=true AND Verified=true (but not confirmed)
+  // pending     = Job Closed=true AND Verified=false AND Confirmed=false
+  // partial     = visual indicator for qty mismatch (pending records with all pieces checked but mismatched qty)
   if(rec.confirmed) return 'complete';
-  // Not confirmed = pending (regardless of jobClosed/verified/pieces)
-  // Check for partial indicator (qty mismatch) — still shows as pending in filter
+  if(rec.jobClosed && rec.verified) return 'processing';
+
+  // Check for partial indicator (qty mismatch on a pending record)
   const pieces=rec.pieces||[];
   if(pieces.length){
     const chk=pieces.filter(p=>p.checked);
     if(chk.length===pieces.length){
       const hasShortage=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
       const hasOverage=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
-      if(hasShortage||hasOverage) return 'partial'; // visual indicator only
+      if(hasShortage||hasOverage) return 'partial';
     }
   }
   return 'pending';
@@ -1153,8 +1153,12 @@ function filtered(){
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
     if(sf!=='all'){
       const st=rowStatus(r);
-      // MDR: pending filter shows all unconfirmed (pending + partial)
-      if(sf==='pending'&&isMDR()) return st==='pending'||st==='partial';
+      if(isMDR()){
+        // MDR pending filter: jobClosed=true, verified=false, confirmed=false (plus partial as visual sub-state)
+        if(sf==='pending') return st==='pending'||st==='partial';
+        // MDR processing filter: jobClosed=true AND verified=true (not yet confirmed)
+        if(sf==='processing') return st==='processing';
+      }
       if(st!==sf)return false;
     }
     if(tf!=='all'&&rowType(r)!==tf)return false;
@@ -1204,10 +1208,12 @@ function clearRange(){
 function renderStats(){
   const pend=records.filter(r=>rowStatus(r)==='pending').length;
   const part=records.filter(r=>rowStatus(r)==='partial').length;
+  const proc=records.filter(r=>rowStatus(r)==='processing').length;
   const comp=records.filter(r=>rowStatus(r)==='complete').length;
   document.getElementById('spills').innerHTML=`
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
     <div class="spill"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial</div>
+    ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> Processing</div>`:''}
     <div class="spill"><div class="dot" style="background:var(--green)"></div><strong>${comp}</strong> Complete</div>`;
 }
 
@@ -1416,7 +1422,6 @@ function renderPcell(r){
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       ${badge}${lock}
       <span class="pname2">${esc(p.name)}${qtyTag}</span>
-      ${p.serialNum?`<span style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;margin-left:2px;">SN: ${esc(p.serialNum)}</span>`:''}
       ${varLabel}
       <div class="qwrap">
         <input type="number" class="qrcv${m?' qmatch':''}${mm?' qmis':''}" value="${rcv}" min="0"
@@ -1556,7 +1561,7 @@ function refreshRowStatus(rec){
   tr.classList.toggle('r-complete',st==='complete');
   const chip=tr.querySelector('.schip');
   if(chip){
-    let lbl = st.charAt(0).toUpperCase()+st.slice(1);
+    let lbl = st==='processing'?'Processing':st.charAt(0).toUpperCase()+st.slice(1);
     if(st==='partial'){
       const allChkd=rec.pieces&&rec.pieces.every(p=>p.checked);
       if(allChkd){
@@ -1926,7 +1931,15 @@ function auditFmtVal(key, val){
   if(val===null||val===undefined||val==='') return '(empty)';
   if(typeof val === 'boolean') return val ? '✓ Yes' : '✗ No';
   if(key==='Pieces'){
-    try{ const p=JSON.parse(val); return Array.isArray(p)?p.map(x=>x.name).join(', '):'(pieces)'; }catch(e){ return '(pieces)'; }
+    try{
+      const pieces = parsePiecesRich(val);
+      if(!pieces.length) return '(no items)';
+      return pieces.map(p=>{
+        const qty = p.receivedQty!==null ? `${p.receivedQty}/${p.expectedQty}` : `×${p.expectedQty}`;
+        const sn = p.serialNum ? ` [SN:${p.serialNum}]` : '';
+        return `${p.type==='Pickup'?'PKP':'EXC'} ${p.name} ${qty}${sn}`;
+      }).join('; ');
+    }catch(e){ return '(pieces)'; }
   }
   return String(val).slice(0,80)+(String(val).length>80?'…':'');
 }
@@ -2045,12 +2058,7 @@ function savePopup(){
   if(!popupRecId) return;
   const rec = records.find(r=>r.id===popupRecId);
   if(!rec) return;
-  // Collect serial numbers from popup inputs before saving
-  const snMap={};
-  document.querySelectorAll('#popup-cur-pieces input[data-sn]').forEach(el=>{
-    snMap[el.dataset.sn]=el.value.trim();
-  });
-  rec.pieces = [...popupSrcPieces, ...popupAddPieces].map(p=>({...p,serialNum:snMap[p.id]??p.serialNum??''}));
+  rec.pieces = [...popupSrcPieces, ...popupAddPieces];
   rec.sgiNotes = document.getElementById('popup-sgiNotes').value;
   if(isMDR()) rec.mdrNotes = document.getElementById('popup-mdrNotes').value;
   saveRecs(rec);
@@ -2071,17 +2079,10 @@ function renderPopupCurPieces(){
       :'<span class="ptbadge be" style="font-size:9px">EXC</span>';
     const lock = p._l?'🔒':'✏';
     const rm = p._l?'':`<button onclick="popupRmPiece('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0 2px;">✕</button>`;
-    return`<div style="display:flex;flex-direction:column;gap:3px;padding:2px 0;">
-      <div style="display:flex;align-items:center;gap:5px;font-size:11px;">
-        <span>${lock}</span>${badge}<span style="flex:1">${esc(p.name)}</span>
-        <input type="number" min="0" value="${p.receivedQty??p.expectedQty??1}" style="width:42px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;color:var(--text);"
-          onchange="popupQty('${p.id}',this.value)" ${p._l&&isSGI()?'':''}>${rm}
-      </div>
-      <div style="display:flex;align-items:center;gap:4px;padding-left:16px;">
-        <span style="font-size:9px;color:var(--text3);white-space:nowrap;">SN:</span>
-        <input type="text" data-sn="${p.id}" value="${esc(p.serialNum||'')}" placeholder="Serial # (optional)"
-          style="flex:1;font-size:10px;font-family:'DM Mono',monospace;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
-      </div>
+    return`<div style="display:flex;align-items:center;gap:5px;font-size:11px;padding:2px 0;">
+      <span>${lock}</span>${badge}<span style="flex:1">${esc(p.name)}</span>
+      <input type="number" min="0" value="${p.receivedQty??p.expectedQty??1}" style="width:42px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;color:var(--text);"
+        onchange="popupQty('${p.id}',this.value)" ${p._l&&isSGI()?'':''}>${rm}
     </div>`;
   }).join('');
 }
@@ -2167,19 +2168,12 @@ function renderCurPieces(){
     const badge=p.type==='Pickup'
       ?'<span class="ptbadge bp" style="font-size:9px">PKP</span>'
       :'<span class="ptbadge be" style="font-size:9px">EXC</span>';
-    return`<div class="cur-piece-row" style="flex-wrap:wrap;gap:3px;">
-      <div style="display:flex;align-items:center;gap:4px;width:100%;">
-        <span style="font-size:10px;flex-shrink:0">${p._l?'🔒':'✏️'}</span>
-        ${badge}
-        <span style="flex:1;font-size:11px;color:var(--text)">${esc(p.name)}</span>
-        <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">×${p.expectedQty}</span>
-        ${!p._l?`<button onclick="rmModalPiece('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 3px;line-height:1;" title="Remove">✕</button>`:''}
-      </div>
-      <div style="display:flex;align-items:center;gap:4px;padding-left:18px;width:100%;">
-        <span style="font-size:9px;color:var(--text3);white-space:nowrap;">SN:</span>
-        <input type="text" data-sn="${p.id}" value="${esc(p.serialNum||'')}" placeholder="Serial # (optional)"
-          style="flex:1;font-size:10px;font-family:'DM Mono',monospace;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
-      </div>
+    return`<div class="cur-piece-row">
+      <span style="font-size:10px;flex-shrink:0">${p._l?'🔒':'✏️'}</span>
+      ${badge}
+      <span style="flex:1;font-size:11px;color:var(--text)">${esc(p.name)}</span>
+      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">×${p.expectedQty}</span>
+      ${!p._l?`<button onclick="rmModalPiece('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 3px;line-height:1;" title="Remove">✕</button>`:''}
     </div>`;
   }).join('');
 }
@@ -2251,12 +2245,7 @@ function saveModal(){
   };
 
   const patientName=isNew?gv('m-patientName'):(getLocked('patientName')||gv('m-patientName'));
-  // Collect any serial numbers entered in the piece list before assembling
-  const snMap={};
-  document.querySelectorAll('#m-cur-pieces input[data-sn]').forEach(el=>{
-    snMap[el.dataset.sn]=el.value.trim();
-  });
-  const allPieces=[...mSrcPieces,...mAddPieces].map(p=>({...p,serialNum:snMap[p.id]??p.serialNum??''}));
+  const allPieces=[...mSrcPieces,...mAddPieces];
 
   // Validation for new records only
   if(isNew){
@@ -2453,10 +2442,16 @@ function applyRoleUI(){
     // Hide MDR-only table columns
     document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
+    // Hide MDR-only status filter options
+    document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='none');
+    // If SGI somehow has Processing selected, reset to all
+    const sf=document.getElementById('statusF');
+    if(sf&&sf.value==='processing') sf.value='all';
   } else {
     // MDR — restore everything
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
+    document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='');
   }
   // Recalculate sticky header height after role UI changes
   setTimeout(updateStickyHeight, 50);
