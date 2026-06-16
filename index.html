@@ -940,55 +940,107 @@ function loadDaily(text){
     for(const n of names){const k=Object.keys(row).find(k=>k.trim().toLowerCase()===n.toLowerCase());if(k&&row[k]!==undefined)return row[k].trim();}
     return'';
   }
-  function matchKey(row){
-    const j=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
-    if(j) return `j:${j}`;
-    // No job# on incoming row — match on patient name only
-    const name = col(row,'patient name','patientname').split('\n')[0].trim().toLowerCase();
-    return `n:${name}`;
+  // ── Identity helpers ──────────────────────────────────────────────
+  // A logical record is identified by PATIENT + at least one shared REFERENCE.
+  // Job#, Entry ID, and pieces are all filled in over time, so they are NOT
+  // required to match — they only ever serve as ADDITIONAL confirmation.
+
+  // Canonical name: lowercase, strip punctuation, sort tokens.
+  // "Smith, John" and "John Smith" both -> "john smith".
+  function normName(s){
+    return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+  }
+  // Split a reference string into a Set of normalized tokens.
+  function refTokens(s){
+    return new Set((s||'').toLowerCase().split(/[\s,;|\/]+/).map(t=>t.replace(/\.00$/,'').trim()).filter(Boolean));
+  }
+  // Same patient? IDs decide when both present; otherwise fall back to name.
+  function patientMatch(aName,aId,bName,bId){
+    const idA=(aId||'').trim(), idB=(bId||'').trim();
+    if(idA && idB) return idA===idB;
+    const nA=normName(aName);
+    return !!nA && nA===normName(bName);
+  }
+  // Any reference token in common?
+  function refOverlap(aSet,bSet){
+    if(!aSet.size||!bSet.size) return false;
+    for(const t of aSet) if(bSet.has(t)) return true;
+    return false;
+  }
+  // Union references onto the existing string, preserving order, appending only new tokens.
+  function mergeRefs(existing, incoming){
+    const have=new Set((existing||'').split(/[\s,;|\/]+/).map(t=>t.trim().toLowerCase()).filter(Boolean));
+    const add=[];
+    (incoming||'').split(/[\s,;|\/]+/).forEach(t=>{const v=t.trim();if(v&&!have.has(v.toLowerCase())){add.push(v);have.add(v.toLowerCase());}});
+    if(!add.length) return existing||'';
+    return existing ? existing+', '+add.join(', ') : add.join(', ');
   }
 
-  // Build lookup: job# takes priority
-  // Name-based index ONLY for existing records that have NO job# themselves
-  // This prevents matching a new job for the same patient to an old different job
-  const existMap={};
-  records.forEach(r=>{
-    if(r.jobNum){
-      existMap[`j:${r.jobNum}`] = r;
-    } else {
-      // No job# on existing record — index by name so incoming can match or adopt
-      const name = (r.patientName||'').trim().toLowerCase();
-      if(name && !existMap[`n:${name}`]) existMap[`n:${name}`] = r;
+  // Rebookings detected this load (same patient+ref but a different, non-blank job#)
+  const rebookings=[];
+
+  // Find an existing record that is the SAME logical record as the incoming row.
+  // Requires patient match AND one identity signal (ref overlap, same Entry ID, or same job#).
+  // HARD SEPARATOR: if both the incoming row and the candidate carry a DIFFERENT non-blank
+  // job#, they are different jobs (e.g. a rebooking) and must NOT merge — even if patient
+  // and reference match. A blank job# on either side still merges (job# gets filled in).
+  function findMatch(inc){
+    const incJob=(inc.jobNum||'').replace(/\.00$/,'').trim();
+    for(const r of records){
+      if(!patientMatch(inc.patientName, inc.patientId, r.patientName, r.patientId)) continue;
+      const exJob=String(r.jobNum||'').replace(/\.00$/,'').trim();
+      // Does any identity signal say "same record"?
+      const sameByRef   = refOverlap(inc.refSet, refTokens(r.soIds));
+      const sameByEntry = inc.entryId && r.entryId && inc.entryId.trim()===String(r.entryId).trim();
+      const sameByJob   = incJob && exJob && incJob===exJob;
+      if(!(sameByRef||sameByEntry||sameByJob)) continue;
+      // Conflicting non-blank job numbers => different jobs (rebooking). Keep separate + warn.
+      if(incJob && exJob && incJob!==exJob){
+        rebookings.push({patient:r.patientName||inc.patientName, oldJob:exJob, newJob:incJob, ref:inc.soIds||r.soIds||''});
+        continue; // do not treat as a match; keep scanning (won't match this candidate)
+      }
+      return r;
     }
-  });
+    return null;
+  }
 
   let added=0,merged=0,skipped=0;
 
-  function doMerge(ex, pieces, jobNum, soIds, pickupDate, dropOffBy, patientId, entryId){
+  function doMerge(ex, inc){
       let changed=false;
-      if(!ex.soIds&&soIds){ex.soIds=soIds;changed=true;}
-      if(!ex.pickupDate&&pickupDate){ex.pickupDate=pickupDate;changed=true;}
-      if(!ex.dropOffBy&&dropOffBy){ex.dropOffBy=dropOffBy;changed=true;}
-      if(!ex.patientId&&patientId){ex.patientId=patientId;changed=true;}
-      if(!ex.entryId&&entryId){ex.entryId=entryId;changed=true;}
-      if(pieces.length){
-        const existPieceNames=new Set((ex.pieces||[]).map(p=>p.name.toLowerCase()));
-        const newPieces=pieces.filter(p=>!existPieceNames.has(p.name.toLowerCase()));
-        if(newPieces.length){ex.pieces=[...(ex.pieces||[]),...newPieces];changed=true;}
-      }
-      if(!ex.jobNum&&jobNum){
-        ex.jobNum=jobNum;
-        existMap[`j:${jobNum}`]=ex;
-        changed=true;
+      // Union references (covers SGI 1-ref vs daily 3-refs scenario)
+      const newSo=mergeRefs(ex.soIds, inc.soIds);
+      if(newSo!==(ex.soIds||'')){ex.soIds=newSo;changed=true;}
+      // Fill blanks from the incoming row
+      if(!ex.pickupDate&&inc.pickupDate){ex.pickupDate=inc.pickupDate;changed=true;}
+      if(!ex.dropOffBy&&inc.dropOffBy){ex.dropOffBy=inc.dropOffBy;changed=true;}
+      if(!ex.patientId&&inc.patientId){ex.patientId=inc.patientId;changed=true;}
+      if(!ex.entryId&&inc.entryId){ex.entryId=inc.entryId;changed=true;}
+      if(!ex.jobNum&&inc.jobNum){ex.jobNum=inc.jobNum;changed=true;}
+      // Merge pieces: add new ones by name; update expected qty if it changed.
+      // Preserve checked / receivedQty / serialNum so MDR's existing work is never lost,
+      // and never DELETE a piece that's no longer in the daily.
+      if(inc.pieces.length){
+        const byName=new Map((ex.pieces||[]).map(p=>[p.name.toLowerCase(),p]));
+        inc.pieces.forEach(np=>{
+          const existP=byName.get(np.name.toLowerCase());
+          if(!existP){
+            ex.pieces=[...(ex.pieces||[]),np];
+            byName.set(np.name.toLowerCase(),np);
+            changed=true;
+          } else if(existP.expectedQty!==np.expectedQty){
+            existP.expectedQty=np.expectedQty; // qty changed on the source — reflect it
+            changed=true;
+          }
+        });
       }
       const obj={patientName:ex.patientName,patientId:ex.patientId,jobNum:ex.jobNum,soIds:ex.soIds,pickupDate:ex.pickupDate,entryId:ex.entryId};
       ex.locked=makeLockMap(obj);
-      if(changed){saveRecs(ex);merged++;}
+      if(changed){saveRecs(ex);merged++;console.log(`[MDR] Merged into ${ex.patientName} (job ${ex.jobNum||'—'}, refs ${ex.soIds||'—'})`);}
       else{skipped++;}
   }
 
   rows.forEach(row=>{
-    const key=matchKey(row);
     let rawName=col(row,'patient name','patientname');
     let patientName=rawName,patientId='';
     const nl=rawName.indexOf('\n');
@@ -1000,21 +1052,12 @@ function loadDaily(text){
     const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
 
-    if(existMap[key]){
-      const ex=existMap[key];
-      if(key.startsWith('j:')){
-        const exName=(ex.patientName||'').trim().toLowerCase().split(',')[0];
-        const inName=patientName.trim().toLowerCase().split(',')[0];
-        if(exName && inName && exName!==inName){
-          console.warn(`[MDR] Job# ${jobNum} matched but names differ: "${ex.patientName}" vs "${patientName}" — creating new record`);
-        } else {
-          doMerge(ex, pieces, jobNum, soIds, pickupDate, dropOffBy, patientId, entryId);
-          return;
-        }
-      } else {
-        doMerge(ex, pieces, jobNum, soIds, pickupDate, dropOffBy, patientId, entryId);
-        return;
-      }
+    const inc={patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,entryId,pieces,refSet:refTokens(soIds)};
+
+    const match=findMatch(inc);
+    if(match){
+      doMerge(match, inc);
+      return;
     }
 
     // ── New record ──
@@ -1028,7 +1071,6 @@ function loadDaily(text){
       entryId,locked,pieces
     };
     records.push(rec);
-    existMap[key]=rec;
     added++;
   });
 
@@ -1040,6 +1082,19 @@ function loadDaily(text){
   const msg = parts.length ? `✓ Daily loaded — ${parts.join(', ')}` : '⚪ Daily loaded — no changes';
   toast(msg, added||merged?'s':'i');
   console.log('[MDR] Daily load complete:', msg);
+
+  // Surface rebookings: same patient + shared ref but a different job# — kept separate on purpose.
+  if(rebookings.length){
+    rebookings.forEach(rb=>{
+      console.warn(`[MDR] Rebooking kept separate — ${rb.patient}: existing job ${rb.oldJob} vs new job ${rb.newJob} (ref ${rb.ref||'—'})`);
+      logAppAction('Rebooking', `Kept separate — ${rb.patient}: job ${rb.oldJob} → new job ${rb.newJob}`);
+    });
+    const detail = rebookings.length===1
+      ? `${rebookings[0].patient}: job ${rebookings[0].oldJob} vs ${rebookings[0].newJob}`
+      : `${rebookings.length} records`;
+    toast(`⚠ Possible rebooking kept separate — ${detail}. Review if these should be one record.`, 'e');
+  }
+
   return added+merged;
 }
 
@@ -2591,39 +2646,53 @@ async function getToken(){
   return null;
 }
 
-async function gGet(path){
-  const t = await getToken(); if(!t){ showSessionExpired(); return null; }
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {headers:{'Authorization':'Bearer ' + t}});
+// Core Graph fetch with automatic back-off on throttling (429) and transient 503s.
+// Honors the Retry-After header when present; otherwise uses exponential back-off.
+// Preserves prior behavior: 401 -> session expired; other non-OK -> throws.
+async function gFetchRaw(method, path, body, attempt=0){
+  const MAX_RETRIES=4;
+  const t = await getToken();
+  if(!t){ showSessionExpired(); return {token:null}; }
+  const opts={method,headers:{'Authorization':'Bearer '+t}};
+  if(body!==undefined){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path, opts);
   if(r.status===401){ showSessionExpired(); throw new Error('Session expired'); }
+  // Throttled or transient — back off and retry
+  if((r.status===429 || r.status===503) && attempt < MAX_RETRIES){
+    const ra = parseFloat(r.headers.get('Retry-After'));
+    const waitMs = (!isNaN(ra) ? ra : Math.pow(2,attempt)) * 1000 + Math.random()*250;
+    console.warn(`[Graph] ${r.status} throttled on ${method} ${path} — retry ${attempt+1}/${MAX_RETRIES} in ${Math.round(waitMs)}ms`);
+    setSyncStatus('syncing', `Rate-limited — retrying in ${Math.ceil(waitMs/1000)}s…`);
+    await new Promise(res=>setTimeout(res, waitMs));
+    return gFetchRaw(method, path, body, attempt+1);
+  }
+  return {res:r, token:t};
+}
+
+async function gGet(path){
+  const {res:r, token} = await gFetchRaw('GET', path);
+  if(token===null) return null;
   if(!r.ok) throw new Error('Graph GET ' + r.status + ' ' + path);
   return r.json();
 }
 
 async function gPost(path, body){
-  const t = await getToken(); if(!t){ showSessionExpired(); return null; }
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},
-     body:JSON.stringify(body)});
-  if(r.status===401){ showSessionExpired(); throw new Error('Session expired'); }
+  const {res:r, token} = await gFetchRaw('POST', path, body);
+  if(token===null) return null;
   if(!r.ok){const e=await r.text();throw new Error('POST '+r.status+' '+e);}
   return r.json();
 }
 
 async function gPatch(path, body){
-  const t = await getToken(); if(!t){ showSessionExpired(); return null; }
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {method:'PATCH',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},
-     body:JSON.stringify(body)});
-  if(r.status===401){ showSessionExpired(); throw new Error('Session expired'); }
+  const {res:r, token} = await gFetchRaw('PATCH', path, body);
+  if(token===null) return null;
   if(!r.ok){const e=await r.text();throw new Error('PATCH '+r.status+' '+e);}
   return r.json();
 }
 
 async function gDelete(path){
-  const t = await getToken(); if(!t){ showSessionExpired(); return; }
-  const r = await fetch('https://graph.microsoft.com/v1.0' + path,
-    {method:'DELETE',headers:{'Authorization':'Bearer '+t}});
+  const {res:r, token} = await gFetchRaw('DELETE', path);
+  if(token===null) return;
   if(!r.ok && r.status!==204){const e=await r.text();throw new Error('DELETE '+r.status+' '+e);}
 }
 
@@ -2729,8 +2798,14 @@ async function syncRecordToSP(rec){
     setSyncStatus('synced', '✓ Synced: '+name);
   } catch(e){
     console.error('SP sync error:',e);
-    setSyncStatus('error', '✗ Sync failed — '+( e.message?.slice(0,30)||'check connection'));
-    toast('Sync failed — changes saved locally only','e');
+    const msg=String(e.message||'');
+    if(/\b429\b/.test(msg)){
+      setSyncStatus('error','✗ Rate-limited by SharePoint — saved locally, will retry');
+      toast('SharePoint is rate-limiting — changes saved locally','e');
+    } else {
+      setSyncStatus('error', '✗ Sync failed — '+( msg.slice(0,30)||'check connection'));
+      toast('Sync failed — changes saved locally only','e');
+    }
   }
 }
 
@@ -2749,6 +2824,9 @@ async function syncAllToSharePoint(){
       }
       success++;
     } catch(e){ console.error('Sync failed for',rec.patientName,e); failed++; }
+    // Small gap between writes so a large batch doesn't burst into Graph's throttle limit.
+    // gFetchRaw still retries any 429 that slips through, but pacing avoids most of them.
+    await new Promise(res=>setTimeout(res, 120));
   }
   localStorage.setItem('mdr_v5',JSON.stringify(records));
   toast('Synced '+success+' records'+(failed?' ('+failed+' failed)':''),success>0?'s':'e');
