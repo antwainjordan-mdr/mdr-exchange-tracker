@@ -126,6 +126,9 @@ tbody tr.r-complete{background:rgba(56,217,169,.06);}
 [data-theme="light"] .r-overdue td{animation:overduePulseLight 3.5s ease-in-out infinite;}
 @keyframes overduePulseLight{0%,100%{background-color:rgba(244,22,23,.05);}50%{background-color:rgba(244,22,23,.22);}}
 @media(prefers-reduced-motion:reduce){.r-overdue td{animation:none;background-color:rgba(244,22,23,.07);}}
+/* Flash disabled by user — keep static red, no pulsing */
+body.flash-off .r-overdue td{animation:none !important;background-color:rgba(244,22,23,.1);}
+[data-theme="light"] body.flash-off .r-overdue td{background-color:rgba(244,22,23,.12);}
 
 tbody td{padding:7px 10px;vertical-align:middle;font-size:12px;border-bottom:1px solid var(--border);}
 tbody td:first-child{border-radius:7px 0 0 7px;padding-left:12px;}
@@ -422,6 +425,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
       <span id="roleBadge" class="role-badge"></span>
     </div>
     <button class="themetog" onclick="toggleTheme()"><span id="tIcon">☀️</span><span id="tLbl">Light Mode</span></button>
+    <button class="btn btn-sm" id="btnFlashTog" onclick="toggleFlash()" title="Turn the pulsing red flash on overdue rows on or off" style="background:transparent;color:var(--text2);border:1px solid var(--border);">
+      <span id="flashIcon">⚡</span><span id="flashLbl">Flash: On</span>
+    </button>
     <button class="btn btn-primary btn-sm" onclick="spRefresh()" id="btnRefresh" title="Refresh data from SharePoint">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
@@ -694,6 +700,23 @@ function initTheme(){
   document.documentElement.setAttribute('data-theme',s);
   document.getElementById('tIcon').textContent=s==='dark'?'☀️':'🌙';
   document.getElementById('tLbl').textContent=s==='dark'?'Light Mode':'Dark Mode';
+}
+
+function toggleFlash(){
+  const off=document.body.classList.toggle('flash-off');
+  localStorage.setItem('mdr_flash', off?'off':'on');
+  updateFlashBtn(off);
+  logAppAction('Flash', off?'Disabled overdue flash':'Enabled overdue flash');
+}
+function updateFlashBtn(off){
+  const icon=document.getElementById('flashIcon'), lbl=document.getElementById('flashLbl');
+  if(icon) icon.textContent=off?'🚫':'⚡';
+  if(lbl) lbl.textContent=off?'Flash: Off':'Flash: On';
+}
+function initFlash(){
+  const off=localStorage.getItem('mdr_flash')==='off';
+  document.body.classList.toggle('flash-off',off);
+  updateFlashBtn(off);
 }
 
 // ══════════════════════════════════
@@ -3081,7 +3104,7 @@ function updateStickyHeight(){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  initTheme(); initLib();
+  initTheme(); initLib(); initFlash();
   // Click on empty table area clears selection
   document.addEventListener('click', e=>{
     if(!e.target.closest('tr[data-id]') && !e.target.closest('.modal') && !e.target.closest('.popup-modal')){
