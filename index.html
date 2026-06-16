@@ -655,6 +655,25 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div id="appAuditBody"><div class="audit-loading">No activity recorded yet.</div></div>
 </div>
 
+<!-- REBOOKING / POSSIBLE-DUPLICATE MODAL (MDR view only) — must be dismissed -->
+<div class="moverlay" id="rebookOverlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="mhdr">
+      <span class="mtitle">⚠ Possible Rebookings Kept Separate</span>
+      <button class="closebtn" onclick="closeRebookModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--text2);line-height:1.5;">
+        These records share the same patient and a reference number but have <strong>different job numbers</strong>, so they were kept as separate records (a likely rebooking). Review them and merge manually if they should be one record.
+      </div>
+      <div id="rebookList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-primary" onclick="closeRebookModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRINT-ONLY OUTPUT — built by exportPDF() -->
 <!-- SESSION EXPIRED OVERLAY -->
 <div id="sessionExpiredOverlay">
@@ -1089,13 +1108,36 @@ function loadDaily(text){
       console.warn(`[MDR] Rebooking kept separate — ${rb.patient}: existing job ${rb.oldJob} vs new job ${rb.newJob} (ref ${rb.ref||'—'})`);
       logAppAction('Rebooking', `Kept separate — ${rb.patient}: job ${rb.oldJob} → new job ${rb.newJob}`);
     });
-    const detail = rebookings.length===1
-      ? `${rebookings[0].patient}: job ${rebookings[0].oldJob} vs ${rebookings[0].newJob}`
-      : `${rebookings.length} records`;
-    toast(`⚠ Possible rebooking kept separate — ${detail}. Review if these should be one record.`, 'e');
+    // MDR sees a modal that stays up until dismissed (detail can't be missed).
+    // SGI just gets a brief toast (they don't manage job numbers).
+    if(isMDR()){
+      showRebookModal(rebookings);
+    } else {
+      toast(`⚠ ${rebookings.length} possible rebooking${rebookings.length>1?'s':''} kept separate.`, 'e');
+    }
   }
 
   return added+merged;
+}
+
+function showRebookModal(list){
+  const body=document.getElementById('rebookList');
+  if(!body) return;
+  body.innerHTML = list.map(rb=>`
+    <div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--surface2);">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${esc(rb.patient||'Unknown patient')}</div>
+      <div style="font-size:11px;color:var(--text2);display:flex;flex-wrap:wrap;gap:10px;">
+        <span>Existing job: <strong style="color:var(--text)">${esc(rb.oldJob||'—')}</strong></span>
+        <span>New job: <strong style="color:var(--yellow)">${esc(rb.newJob||'—')}</strong></span>
+      </div>
+      ${rb.ref?`<div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:'DM Mono',monospace;">Ref: ${esc(rb.ref)}</div>`:''}
+    </div>`).join('');
+  const ov=document.getElementById('rebookOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeRebookModal(){
+  const ov=document.getElementById('rebookOverlay');
+  if(ov) ov.classList.remove('open');
 }
 
 function handleLoadDaily(e){
