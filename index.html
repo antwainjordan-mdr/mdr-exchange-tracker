@@ -2662,7 +2662,11 @@ async function gFetchRaw(method, path, body, attempt=0){
     const ra = parseFloat(r.headers.get('Retry-After'));
     const waitMs = (!isNaN(ra) ? ra : Math.pow(2,attempt)) * 1000 + Math.random()*250;
     console.warn(`[Graph] ${r.status} throttled on ${method} ${path} — retry ${attempt+1}/${MAX_RETRIES} in ${Math.round(waitMs)}ms`);
-    setSyncStatus('syncing', `Rate-limited — retrying in ${Math.ceil(waitMs/1000)}s…`);
+    // Only surface the banner for user-facing syncs — background presence polls retry silently.
+    const isPresenceCall = (typeof presenceListId!=='undefined' && presenceListId && path.includes(presenceListId));
+    if(!isPresenceCall){
+      setSyncStatus('syncing', `Rate-limited — retrying in ${Math.ceil(waitMs/1000)}s…`);
+    }
     await new Promise(res=>setTimeout(res, waitMs));
     return gFetchRaw(method, path, body, attempt+1);
   }
@@ -3076,20 +3080,37 @@ async function presenceJoin(){
       console.log('[Presence] Created new entry, id:', presenceItemId);
     }
 
-    // Heartbeat every 30s
+    // Heartbeat every 60s (stays well within the 90s "active" cutoff).
+    // Skipped while the tab is hidden — no need to announce presence no one is watching.
     if(presenceHeartbeat) clearInterval(presenceHeartbeat);
     presenceHeartbeat = setInterval(async()=>{
+      if(document.hidden) return;
       if(!presenceItemId) return;
       try{
         await gPatch(`/sites/${spSiteId}/lists/${presenceListId}/items/${presenceItemId}/fields`,
           {LastSeen: new Date().toISOString()});
       } catch(e){}
-    }, 30000);
+    }, 60000);
 
-    // Poll every 15s
+    // Poll every 45s. Skipped while the tab is hidden so an idle background tab
+    // makes zero SharePoint calls (this was the main source of rate-limit pressure).
     if(presencePoll) clearInterval(presencePoll);
-    presencePoll = setInterval(renderPresence, 15000);
+    presencePoll = setInterval(()=>{ if(!document.hidden) renderPresence(); }, 45000);
     await renderPresence();
+
+    // When the tab becomes visible again, refresh presence immediately and beat once,
+    // so coming back from a hidden tab feels live without waiting for the next interval.
+    if(!window._presenceVisHooked){
+      window._presenceVisHooked = true;
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.hidden) return;
+        renderPresence();
+        if(presenceItemId && spSiteId && presenceListId){
+          gPatch(`/sites/${spSiteId}/lists/${presenceListId}/items/${presenceItemId}/fields`,
+            {LastSeen: new Date().toISOString()}).catch(()=>{});
+        }
+      });
+    }
 
     window.addEventListener('beforeunload', ()=>{
       // Use sendBeacon for reliable cleanup on page close
