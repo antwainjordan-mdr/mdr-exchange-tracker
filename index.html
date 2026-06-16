@@ -121,9 +121,11 @@ tbody tr.t-exchange{border-left:3px solid var(--blue);}
 tbody tr.t-pickup{border-left:3px solid var(--purple);}
 tbody tr.t-mixed{border-left:3px solid var(--yellow);}
 tbody tr.r-complete{background:rgba(56,217,169,.06);}
-.r-overdue{background:rgba(244,22,23,.07) !important;}
-.r-overdue td{border-top:1px solid rgba(244,22,23,.2) !important;border-bottom:1px solid rgba(244,22,23,.2) !important;}
-[data-theme="light"] .r-overdue{background:rgba(244,22,23,.09) !important;}
+.r-overdue td{border-top:1px solid rgba(244,22,23,.2) !important;border-bottom:1px solid rgba(244,22,23,.2) !important;animation:overduePulse 3.5s ease-in-out infinite;}
+@keyframes overduePulse{0%,100%{background-color:rgba(244,22,23,.04);}50%{background-color:rgba(244,22,23,.16);}}
+[data-theme="light"] .r-overdue td{animation:overduePulseLight 3.5s ease-in-out infinite;}
+@keyframes overduePulseLight{0%,100%{background-color:rgba(244,22,23,.05);}50%{background-color:rgba(244,22,23,.22);}}
+@media(prefers-reduced-motion:reduce){.r-overdue td{animation:none;background-color:rgba(244,22,23,.07);}}
 
 tbody td{padding:7px 10px;vertical-align:middle;font-size:12px;border-bottom:1px solid var(--border);}
 tbody td:first-child{border-radius:7px 0 0 7px;padding-left:12px;}
@@ -1277,8 +1279,9 @@ function renderRow(r){
 
   let cls=`t-${rt}`;
   if(status==='complete')cls+=' r-complete';
-  // Red highlight if late by date has passed and record not complete
-  if(r.dropOffBy && status !== 'complete'){
+  // Red highlight if late by date has passed AND record is neither complete nor job-closed.
+  // A closed job can never be "late" — closing it stops the overdue state regardless of the late-by date.
+  if(r.dropOffBy && status !== 'complete' && !r.jobClosed){
     if(r.dropOffBy <= tod()) cls += ' r-overdue';
   }
 
@@ -1507,15 +1510,19 @@ function updateF(id,field,value){
 function togglePiece(rid,pid,checked){
   const rec=records.find(r=>r.id===rid);if(!rec)return;
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
+  const wasAllChecked=rec.pieces.length>0&&rec.pieces.every(p2=>p2.checked);
   p.checked=checked;
   // Auto-fill rcv qty when PIECE checkbox checked
   if(checked&&p.receivedQty===null)p.receivedQty=p.expectedQty;
   if(!checked)p.receivedQty=null;
   saveRecs(rec);
-  // If ALL pieces are now checked, auto-set Date Returned + Job Closed
-  const allNowChecked=rec.pieces.every(p2=>p2.checked);
-  if(allNowChecked){
-    if(!rec.dateReturned)rec.dateReturned=tod();
+  // If ALL pieces are now checked, auto-close the job and stamp the completion date.
+  // Per spec: the Date Returned is the date the FINAL piece was checked (i.e. today, the
+  // moment the set becomes fully checked). Set unconditionally on the transition into
+  // "all checked" so a re-completion reflects the true latest completion date.
+  const allNowChecked=rec.pieces.length>0&&rec.pieces.every(p2=>p2.checked);
+  if(allNowChecked && !wasAllChecked){
+    rec.dateReturned=tod();
     rec.jobClosed=true;
     const tr=document.querySelector(`tr[data-id="${rid}"]`);
     if(tr){
@@ -1583,8 +1590,8 @@ function toggleAll(rid){
     if(!nowSelectingAll)p.receivedQty=null;
   });
   if(nowSelectingAll){
-    // Select All → set Date Returned to today + check Job Closed
-    if(!rec.dateReturned)rec.dateReturned=tod();
+    // Select All → stamp completion date (today) + close the job
+    rec.dateReturned=tod();
     rec.jobClosed=true;
   } else {
     // Deselect All → clear Date Returned + uncheck Job Closed
@@ -1865,7 +1872,27 @@ async function openAppAuditLog(event){
   appAuditPage=1; appAuditAllItems=[];
   // Flush pending queue first — await so SP writes land before we read
   await _flushAuditQueue();
-  fetchAppAuditLog();
+  await fetchAppAuditLog();
+  // Content has loaded and the popup is now its full height — re-clamp so the
+  // bottom isn't pushed past the viewport (the initial position used an empty-popup height).
+  repositionPopup(popup);
+}
+
+// Re-clamp a fixed popup so its full rendered height stays within the viewport.
+// Called AFTER content loads, since the initial open() measures an empty (short) popup.
+function repositionPopup(popup){
+  if(!popup) return;
+  const margin=10;
+  const rect=popup.getBoundingClientRect();
+  const winH=window.innerHeight;
+  let top=parseFloat(popup.style.top)||rect.top;
+  if(rect.height>=winH-margin*2){
+    top=margin; // taller than viewport — pin to top; internal max-height/overflow scrolls the rest
+  } else if(top+rect.height>winH-margin){
+    top=winH-margin-rect.height;
+  }
+  if(top<margin) top=margin;
+  popup.style.top=top+'px';
 }
 
 async function fetchAppAuditLog(){
@@ -1984,6 +2011,8 @@ async function openAuditPopup(event, recId){
     // Store versions and lazy load first page
     document.getElementById('auditPopup')._versions = versions;
     renderAuditVersions(versions, body, 0);
+    // Re-clamp now that the real content height is known
+    repositionPopup(popup);
   } catch(e){
     body.innerHTML=`<div class="audit-loading">Error loading activity: ${esc(e.message||'Unknown error')}</div>`;
     console.error('Audit error:',e);
