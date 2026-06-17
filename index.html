@@ -2020,13 +2020,14 @@ async function fetchAppAuditLog(){
   body.innerHTML='<div class="audit-loading">Loading activity…</div>';
   try{
     await ensureAppAuditListId();
-    // $orderby=ID desc returns newest items first before the $top cap is applied.
-    // Using ID (not a fields column) avoids the 400 that $orderby+$expand=fields causes.
-    const data=await gGet(`/sites/${spSiteId}/lists/${appAuditListId}/items?$expand=fields&$top=200&$orderby=ID desc`);
-    appAuditAllItems=(data?.value||[]).map(i=>({
+    // Page through ALL items (SharePoint Graph $orderby on list items is unreliable),
+    // then sort by real timestamp client-side so the newest entries are always shown.
+    const items = await fetchAllListItems(appAuditListId, '$expand=fields&$top=200');
+    appAuditAllItems=(items||[]).map(i=>({
       action:i.fields?.Action||'', detail:i.fields?.Detail||'',
       user:i.fields?.Title||i.fields?.UserName||'', ts:i.fields?.Timestamp||i.fields?.Modified||i.fields?.Created||''
     })).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+    console.log(`[AppAudit] Loaded ${appAuditAllItems.length} entries from SharePoint`);
     renderAppAuditLog();
   }catch(e){
     console.error('[AppAudit] Failed to load from SharePoint:', e);
@@ -2036,7 +2037,18 @@ async function fetchAppAuditLog(){
 
 function renderAppAuditLog(){
   const body=document.getElementById('appAuditBody');
-  if(!appAuditAllItems.length){body.innerHTML='<div class="audit-loading">No activity recorded yet.</div>';return;}
+  if(!appAuditAllItems.length){
+    // Distinguish "nothing in SharePoint" from "we have unsynced local entries / pending queue"
+    let localCount=0;
+    try{ localCount=JSON.parse(localStorage.getItem(APP_AUDIT_KEY)||'[]').length; }catch(e){}
+    const queued=(typeof _auditQueue!=='undefined')?_auditQueue.length:0;
+    if(localCount||queued){
+      body.innerHTML=`<div class="audit-loading">No activity from SharePoint yet.<br><span style="font-size:10px;color:var(--text3);display:block;margin-top:4px;">${localCount} local entr${localCount===1?'y':'ies'}, ${queued} waiting to sync. If this persists, SharePoint writes may be failing — check the console.</span></div>`;
+    } else {
+      body.innerHTML='<div class="audit-loading">No activity recorded yet.</div>';
+    }
+    return;
+  }
   const shown=appAuditAllItems.slice(0,appAuditPage*APP_AUDIT_PAGE);
   const hasMore=appAuditAllItems.length>shown.length;
   body.innerHTML=shown.map(e=>{
@@ -2722,6 +2734,34 @@ async function gGet(path){
   return r.json();
 }
 
+// Fetch ALL items of a list by following @odata.nextLink, since SharePoint Graph's
+// $orderby on list items is unreliable — we cannot trust the server to return "newest first".
+// Default order is oldest-first, so we must read every page to be sure we have the newest,
+// then sort client-side. Capped for safety; warns if the cap is hit (time to add date-filtering).
+async function fetchAllListItems(listId, query){
+  let path = `/sites/${spSiteId}/lists/${listId}/items?${query}`;
+  const all = [];
+  const MAX_PAGES = 60; // ~12k items at $top=200 — plenty of headroom for now
+  let pages = 0;
+  while(path && pages < MAX_PAGES){
+    const data = await gGet(path);
+    if(!data) break;
+    if(data.value && data.value.length) all.push(...data.value);
+    const next = data['@odata.nextLink'];
+    if(next){
+      const idx = next.indexOf('/v1.0/');
+      path = idx>=0 ? next.slice(idx + 5) : null; // strip ".../v1.0" -> keep "/sites/..."
+    } else {
+      path = null;
+    }
+    pages++;
+  }
+  if(path && pages>=MAX_PAGES){
+    console.warn(`[AppAudit] Reached page cap (${all.length} items loaded). Older entries beyond this are not shown — consider date-filtering the audit log.`);
+  }
+  return all;
+}
+
 async function gPost(path, body){
   const {res:r, token} = await gFetchRaw('POST', path, body);
   if(token===null) return null;
@@ -3053,6 +3093,10 @@ let presenceListId = null;
 let presenceItemId = null; // our own SP item ID
 let presenceHeartbeat = null;
 let presencePoll = null;
+// Presence cadence: beat/poll every 4 min; count as "present" if seen within the last 10 min.
+// Window MUST exceed the beat interval (with margin) or presence empties between beats.
+const PRESENCE_BEAT_MS = 4 * 60 * 1000;   // 4 minutes
+const PRESENCE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes "recently online"
 
 async function ensureAppAuditListId(){
   if(appAuditListId) return;
@@ -3122,8 +3166,9 @@ async function presenceJoin(){
       console.log('[Presence] Created new entry, id:', presenceItemId);
     }
 
-    // Heartbeat every 60s (stays well within the 90s "active" cutoff).
-    // Skipped while the tab is hidden — no need to announce presence no one is watching.
+    // Presence cadence — "recently online", not live tracking.
+    // Heartbeat and poll every 4 minutes; a user counts as present if seen within PRESENCE_WINDOW_MS.
+    // The window is intentionally MUCH larger than the heartbeat so presence never empties between beats.
     if(presenceHeartbeat) clearInterval(presenceHeartbeat);
     presenceHeartbeat = setInterval(async()=>{
       if(document.hidden) return;
@@ -3132,16 +3177,14 @@ async function presenceJoin(){
         await gPatch(`/sites/${spSiteId}/lists/${presenceListId}/items/${presenceItemId}/fields`,
           {LastSeen: new Date().toISOString()});
       } catch(e){}
-    }, 60000);
+    }, PRESENCE_BEAT_MS);
 
-    // Poll every 45s. Skipped while the tab is hidden so an idle background tab
-    // makes zero SharePoint calls (this was the main source of rate-limit pressure).
+    // Poll on the same cadence; skipped while the tab is hidden so an idle tab makes no calls.
     if(presencePoll) clearInterval(presencePoll);
-    presencePoll = setInterval(()=>{ if(!document.hidden) renderPresence(); }, 45000);
+    presencePoll = setInterval(()=>{ if(!document.hidden) renderPresence(); }, PRESENCE_BEAT_MS);
     await renderPresence();
 
-    // When the tab becomes visible again, refresh presence immediately and beat once,
-    // so coming back from a hidden tab feels live without waiting for the next interval.
+    // When the tab becomes visible again, refresh + beat once so it's current without waiting.
     if(!window._presenceVisHooked){
       window._presenceVisHooked = true;
       document.addEventListener('visibilitychange', ()=>{
@@ -3190,7 +3233,7 @@ async function renderPresence(){
   if(!bar||!presenceListId||!spSiteId){ _presenceRendering = false; return; }
   try{
     const data = await gGet(`/sites/${spSiteId}/lists/${presenceListId}/items?$expand=fields&$top=50`);
-    const cutoff = Date.now() - 90000; // 90 seconds — active threshold
+    const cutoff = Date.now() - PRESENCE_WINDOW_MS; // "recently online" window
     const active = (data.value||[]).filter(item=>{
       const ls = new Date(item.fields?.LastSeen).getTime();
       return ls > cutoff;
