@@ -2700,17 +2700,97 @@ async function getToken(){
   return null;
 }
 
+// ── Silent token refresh ──────────────────────────────────────────
+// Azure access tokens live ~1 hour (a fixed Microsoft default we can't extend).
+// To keep an all-day session without re-login, we silently fetch a fresh token
+// in a hidden iframe (prompt=none) a few minutes before expiry — no reload, no prompt.
+// Falls back to the normal re-login screen only if silent refresh isn't possible
+// (e.g. a browser that blocks third-party cookies in iframes).
+function storeTokenExpiry(token){
+  try{
+    const p=JSON.parse(atob(token.split('.')[1]));
+    if(p.exp) localStorage.setItem('mdr_token_exp', String(p.exp*1000));
+  }catch(e){}
+}
+
+function scheduleTokenRefresh(){
+  clearTimeout(window._tokenRefreshTimer);
+  const exp = parseInt(localStorage.getItem('mdr_token_exp')||'0', 10);
+  if(!exp) return;
+  const refreshAt = exp - 5*60*1000;          // 5 minutes before expiry
+  let delay = refreshAt - Date.now();
+  if(delay < 1000) delay = 1000;               // already close — refresh almost now
+  window._tokenRefreshTimer = setTimeout(()=>{ silentRefresh(); }, delay);
+}
+
+// Returns a Promise<boolean> — true if a new token was obtained. De-duped so
+// concurrent callers (timer + a 401) share one in-flight refresh.
+function silentRefresh(){
+  if(window._silentRefreshPromise) return window._silentRefreshPromise;
+  window._silentRefreshPromise = new Promise((resolve)=>{
+    const redirectUri = window.location.origin + window.location.pathname;
+    const nonce = Math.random().toString(36).slice(2);
+    const url = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
+      + '?client_id=' + MDR_CLIENT_ID
+      + '&response_type=token+id_token'
+      + '&redirect_uri=' + encodeURIComponent(redirectUri)
+      + '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All')
+      + '&response_mode=fragment&nonce=' + nonce + '&prompt=none';
+    const iframe=document.createElement('iframe');
+    iframe.style.display='none';
+    iframe.setAttribute('aria-hidden','true');
+    let done=false;
+    const cleanup=(result)=>{
+      if(done) return; done=true;
+      try{ document.body.removeChild(iframe); }catch(e){}
+      window.removeEventListener('message', onMsg);
+      clearTimeout(to);
+      window._silentRefreshPromise = null;
+      resolve(result);
+    };
+    const onMsg=(ev)=>{
+      if(ev.origin!==window.location.origin) return;
+      if(!ev.data || !ev.data.__mdrSilentAuth) return;
+      const params=new URLSearchParams((ev.data.hash||'').replace('#',''));
+      const at=params.get('access_token'), it=params.get('id_token');
+      if(at){
+        localStorage.setItem('mdr_access_token', at);
+        if(it) localStorage.setItem('mdr_id_token', it);
+        storeTokenExpiry(at);
+        scheduleTokenRefresh();
+        console.log('[Auth] Token silently refreshed');
+        cleanup(true);
+      } else {
+        console.warn('[Auth] Silent refresh returned no token (login_required?)');
+        cleanup(false);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    const to=setTimeout(()=>{ console.warn('[Auth] Silent refresh timed out'); cleanup(false); }, 20000);
+    iframe.src=url;
+    document.body.appendChild(iframe);
+  });
+  return window._silentRefreshPromise;
+}
+
 // Core Graph fetch with automatic back-off on throttling (429) and transient 503s.
 // Honors the Retry-After header when present; otherwise uses exponential back-off.
 // Preserves prior behavior: 401 -> session expired; other non-OK -> throws.
-async function gFetchRaw(method, path, body, attempt=0){
+async function gFetchRaw(method, path, body, attempt=0, authRetried=false){
   const MAX_RETRIES=4;
   const t = await getToken();
   if(!t){ showSessionExpired(); return {token:null}; }
   const opts={method,headers:{'Authorization':'Bearer '+t}};
   if(body!==undefined){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
   const r = await fetch('https://graph.microsoft.com/v1.0' + path, opts);
-  if(r.status===401){ showSessionExpired(); throw new Error('Session expired'); }
+  if(r.status===401){
+    // Token likely expired — try ONE silent refresh, then retry once before giving up.
+    if(!authRetried){
+      const ok = await silentRefresh();
+      if(ok) return gFetchRaw(method, path, body, attempt, true);
+    }
+    showSessionExpired(); throw new Error('Session expired');
+  }
   // Throttled or transient — back off and retry
   if((r.status===429 || r.status===503) && attempt < MAX_RETRIES){
     const ra = parseFloat(r.headers.get('Retry-After'));
@@ -2722,7 +2802,7 @@ async function gFetchRaw(method, path, body, attempt=0){
       setSyncStatus('syncing', `Rate-limited — retrying in ${Math.ceil(waitMs/1000)}s…`);
     }
     await new Promise(res=>setTimeout(res, waitMs));
-    return gFetchRaw(method, path, body, attempt+1);
+    return gFetchRaw(method, path, body, attempt+1, authRetried);
   }
   return {res:r, token:t};
 }
@@ -3016,9 +3096,10 @@ async function handleFragmentToken(hash){
     return;
   }
   // Store tokens
-  if(accessToken) localStorage.setItem('mdr_access_token', accessToken);
+  if(accessToken){ localStorage.setItem('mdr_access_token', accessToken); storeTokenExpiry(accessToken); }
   if(idToken) localStorage.setItem('mdr_id_token', idToken);
   localStorage.setItem('mdr_user_email', email);
+  scheduleTokenRefresh();
   // Clean the URL hash
   history.replaceState(null,'', window.location.pathname);
   await showSignedIn(email);
@@ -3078,6 +3159,7 @@ async function showSignedIn(email){
 
   hideAuthOverlay();
   applyRoleUI();
+  scheduleTokenRefresh();
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
   if(!window._auditFlushInterval){
@@ -3288,6 +3370,13 @@ function updateStickyHeight(){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Silent-refresh iframe context: this page was loaded inside the hidden refresh
+  // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
+  // the full app here.
+  if(window.top !== window.self && /[#&](access_token|id_token|error)=/.test(window.location.hash)){
+    try{ window.parent.postMessage({__mdrSilentAuth:true, hash:window.location.hash}, window.location.origin); }catch(e){}
+    return;
+  }
   initTheme(); initLib(); initFlash();
   // Click on empty table area clears selection
   document.addEventListener('click', e=>{
