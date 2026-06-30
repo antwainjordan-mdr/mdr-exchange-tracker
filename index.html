@@ -1088,30 +1088,48 @@ function loadDaily(text){
     let patientName=rawName,patientId='';
     const nl=rawName.indexOf('\n');
     if(nl>-1){patientName=rawName.slice(0,nl).trim();patientId=rawName.slice(nl+1).trim();}
-    const pieces=parsePiecesDaily(col(row,'pieces'));
+    const rawPieces=col(row,'pieces');
+    const pieces=parsePiecesDaily(rawPieces);
+    // Record-level Memory Download flag derived straight from the raw text. This does NOT
+    // depend on piece names lining up between the daily and any stale SharePoint record,
+    // so it's reliable even when an old record stored the piece under a different name.
+    const hasMemoryDownload=/memory\s*download/i.test(rawPieces);
     const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
     const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
     const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
 
-    const inc={patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,entryId,pieces,refSet:refTokens(soIds)};
+    const inc={patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,entryId,pieces,hasMemoryDownload,refSet:refTokens(soIds)};
 
     const match=findMatch(inc);
     if(match){
       doMerge(match, inc);
+      // Always carry the record-level MD flag onto the matched record (overrides stale data).
+      // Also flag a piece so it persists via the Pieces field serialization.
+      if(inc.hasMemoryDownload){
+        let changed=false;
+        if(!match.hasMemoryDownload){ match.hasMemoryDownload=true; changed=true; }
+        if((match.pieces||[]).length && !match.pieces.some(p=>p.memoryDownload)){ match.pieces[0].memoryDownload=true; changed=true; }
+        if(changed) saveRecs(match);
+      }
       return;
     }
 
     // ── New record ──
     const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
     const locked=makeLockMap(obj);
+    // If this row is a Memory Download, ensure at least one piece carries the flag so it
+    // persists through SharePoint serialization (the md: token in the Pieces field).
+    if(hasMemoryDownload && pieces.length && !pieces.some(p=>p.memoryDownload)){
+      pieces[0].memoryDownload=true;
+    }
     const rec={
       id:gid(),source:'daily',
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
       dateReturned:'',sgiNotes:'',mdrNotes:'',
       jobClosed:false,confirmed:false,verified:false,
-      entryId,locked,pieces
+      entryId,locked,pieces,hasMemoryDownload
     };
     records.push(rec);
     added++;
@@ -1352,7 +1370,7 @@ function renderStats(){
   const part=records.filter(r=>rowStatus(r)==='partial').length;
   const proc=records.filter(r=>rowStatus(r)==='processing').length;
   const comp=records.filter(r=>rowStatus(r)==='complete').length;
-  const memDl=records.filter(r=>(r.pieces||[]).some(p=>p.memoryDownload)).length;
+  const memDl=records.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
   document.getElementById('spills').innerHTML=`
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
     <div class="spill"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial</div>
@@ -2551,8 +2569,9 @@ function exportPDF(){
     const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
     // Flag any Memory Download items in the printed notes — MDR only (not relevant to SGI)
     const mdPieces=(r.pieces||[]).filter(p=>p.memoryDownload);
-    const memNote=(isMDR()&&mdPieces.length)
-      ? `★ MEMORY DOWNLOAD: ${mdPieces.map(p=>p.name).join(', ')}`
+    const isMD = r.hasMemoryDownload || mdPieces.length>0;
+    const memNote=(isMDR()&&isMD)
+      ? `★ MEMORY DOWNLOAD${mdPieces.length?': '+mdPieces.map(p=>p.name).join(', '):''}`
       : '';
     const notes=[memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
     const ref=r.soIds||'—';
@@ -2913,6 +2932,7 @@ function spToRec(item){
   function fbool(...names){ const v=fv(...names); return v===true||v===1||v==='1'||v==='Yes'; }
   let locked={};
   try{ locked=JSON.parse(fv('LockedFields')||'{}'); }catch(e){}
+  const pieces=parsePiecesRich(fv('Pieces')||'');
   return {
     id: fv('AppRecordId') || String(item.id), _spId: item.id,
     source: fv('Source')||'daily',
@@ -2923,7 +2943,8 @@ function spToRec(item){
     sgiNotes: fv('SgiNotes'), mdrNotes: fv('MdrNotes'),
     jobClosed: fbool('JobClosed'), verified: fbool('Verified'), confirmed: fbool('Confirmed'),
     entryId: fv('EntryId'), locked,
-    pieces: parsePiecesRich(fv('Pieces')||'')
+    pieces,
+    hasMemoryDownload: pieces.some(p=>p.memoryDownload)
   };
 }
 
@@ -3402,7 +3423,7 @@ function updateStickyHeight(){
 
 window.addEventListener('DOMContentLoaded', () => {
   // Build marker — confirm which version is actually running (helps catch stale/cached deploys)
-  const BUILD='2026-06-30-memdownload-legend';
+  const BUILD='2026-06-30-memdownload-recordlevel';
   console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
   // Silent-refresh iframe context: this page was loaded inside the hidden refresh
   // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
