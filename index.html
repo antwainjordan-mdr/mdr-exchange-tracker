@@ -1358,7 +1358,7 @@ function renderStats(){
     <div class="spill"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial</div>
     ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> Processing</div>`:''}
     <div class="spill"><div class="dot" style="background:var(--green)"></div><strong>${comp}</strong> Complete</div>
-    ${memDl?`<div class="spill" title="Records that include a Memory Download piece"><div class="dot" style="background:var(--purple,#a78bfa)"></div><strong>${memDl}</strong> Memory Download</div>`:''}`;
+    ${(isMDR()&&memDl)?`<div class="spill" title="Records that include a Memory Download item — MDR only"><div class="dot" style="background:var(--purple,#a78bfa)"></div><strong>${memDl}</strong> Memory Download</div>`:''}`;
 }
 
 // ══════════════════════════════════
@@ -2549,9 +2549,9 @@ function exportPDF(){
     const sgi=r.sgiNotes?`SGI:\n ${r.sgiNotes}`:'';
     const sgiVar=variances.length?`SGI:\n ${variances.join('\n ')}`:'';
     const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
-    // Flag any Memory Download pieces in the printed notes
+    // Flag any Memory Download items in the printed notes — MDR only (not relevant to SGI)
     const mdPieces=(r.pieces||[]).filter(p=>p.memoryDownload);
-    const memNote=mdPieces.length
+    const memNote=(isMDR()&&mdPieces.length)
       ? `★ MEMORY DOWNLOAD: ${mdPieces.map(p=>p.name).join(', ')}`
       : '';
     const notes=[memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
