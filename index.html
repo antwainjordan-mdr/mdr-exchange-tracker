@@ -835,35 +835,44 @@ function csvEsc(v){
 }
 
 function serPieces(ps){
-  return(ps||[]).map(p=>`${p.type}--${p.name}→${p.expectedQty}|rcv:${p.receivedQty??''}|chk:${p.checked?1:0}|src:${p.fromSource?1:0}|sn:${p.serialNum||''}|id:${p.id}`).join(';;');
+  return(ps||[]).map(p=>`${p.type}--${p.name}→${p.expectedQty}|rcv:${p.receivedQty??''}|chk:${p.checked?1:0}|src:${p.fromSource?1:0}|sn:${p.serialNum||''}|md:${p.memoryDownload?1:0}|id:${p.id}`).join(';;');
 }
 
 function parsePiecesRich(raw){
   if(!raw||!raw.trim())return[];
   return raw.split(';;').map(s=>{
-    // Rich format with sn: "Type--Name→qty|rcv:N|chk:0|src:1|sn:SERIAL|id:abc"
+    // Newest format with sn + md: "Type--Name→qty|rcv:N|chk:0|src:1|sn:SERIAL|md:0|id:abc"
+    const richMd=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|sn:([^|]*)\|md:([01])\|id:(.+)$/i);
+    if(richMd){
+      const name=richMd[2].trim();
+      ensureLib(name);
+      return{id:richMd[9],name,type:richMd[1],expectedQty:parseInt(richMd[3]),
+        receivedQty:richMd[4]===''?null:parseInt(richMd[4]),
+        checked:richMd[5]==='1',fromSource:richMd[6]==='1',serialNum:richMd[7]||'',memoryDownload:richMd[8]==='1'};
+    }
+    // Format with sn but no md: "Type--Name→qty|rcv:N|chk:0|src:1|sn:SERIAL|id:abc"
     const rich=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|sn:([^|]*)\|id:(.+)$/i);
     if(rich){
       const name=rich[2].trim();
       ensureLib(name);
       return{id:rich[8],name,type:rich[1],expectedQty:parseInt(rich[3]),
         receivedQty:rich[4]===''?null:parseInt(rich[4]),
-        checked:rich[5]==='1',fromSource:rich[6]==='1',serialNum:rich[7]||''};
+        checked:rich[5]==='1',fromSource:rich[6]==='1',serialNum:rich[7]||'',memoryDownload:false};
     }
-    // Rich format without sn (existing records): "Type--Name→qty|rcv:N|chk:0|src:1|id:abc"
+    // Older format without sn: "Type--Name→qty|rcv:N|chk:0|src:1|id:abc"
     const richOld=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|id:(.+)$/i);
     if(richOld){
       const name=richOld[2].trim();
       ensureLib(name);
       return{id:richOld[7],name,type:richOld[1],expectedQty:parseInt(richOld[3]),
         receivedQty:richOld[4]===''?null:parseInt(richOld[4]),
-        checked:richOld[5]==='1',fromSource:richOld[6]==='1',serialNum:''};
+        checked:richOld[5]==='1',fromSource:richOld[6]==='1',serialNum:'',memoryDownload:false};
     }
     // Legacy pipe format: "Exchange -- Name → qty"
     const leg=s.match(/^(Exchange|Pickup)\s*--\s*(.+?)\s*[→>]\s*(\d+)\s*$/i);
     if(leg){
       const name=leg[2].trim();ensureLib(name);
-      return{id:gid(),name,type:leg[1],expectedQty:parseInt(leg[3]),receivedQty:null,checked:false,fromSource:true,serialNum:''};
+      return{id:gid(),name,type:leg[1],expectedQty:parseInt(leg[3]),receivedQty:null,checked:false,fromSource:true,serialNum:'',memoryDownload:false};
     }
     return null;
   }).filter(Boolean);
@@ -874,13 +883,21 @@ function parsePiecesDaily(raw){
   if(!raw||!raw.trim())return[];
   // PowerBI format: pieces are newline-separated, with a trailing comma on all but the last line.
   // Each line looks like: "Exchange -- D Cylinder  → 3," or "Exchange -- D Cylinder  → 3"
+  // Some lines carry an extra "Memory Download" segment between the type and the "--":
+  //   "Exchange - Memory Download -- Oximeter MBH2307168 → 1"
   const lines=raw.split(/\r?\n/)
     .map(s=>s.trim().replace(/,\s*$/,'').trim()) // strip trailing comma
     .filter(Boolean);
   return lines.map(s=>{
-    const m=s.match(/^(Exchange|Pickup)\s*--\s*(.+?)\s*[\u2192>]\s*(\d+)\s*$/i);
-    if(m){const name=m[2].trim();ensureLib(name);
-      return{id:gid(),name,type:m[1],expectedQty:parseInt(m[3]),receivedQty:null,checked:false,fromSource:true};}
+    // Allow an optional " - <anything> " (e.g. " - Memory Download ") between type and "--".
+    const m=s.match(/^(Exchange|Pickup)\s*(?:-\s*(.+?)\s*)?--\s*(.+?)\s*[\u2192>]\s*(\d+)\s*$/i);
+    if(m){
+      const name=m[3].trim();
+      const tag=(m[2]||'').trim();
+      const memoryDownload=/memory\s*download/i.test(tag);
+      ensureLib(name);
+      return{id:gid(),name,type:m[1],expectedQty:parseInt(m[4]),receivedQty:null,checked:false,fromSource:true,serialNum:'',memoryDownload};
+    }
     return null;
   }).filter(Boolean);
 }
@@ -1047,9 +1064,16 @@ function loadDaily(text){
             ex.pieces=[...(ex.pieces||[]),np];
             byName.set(np.name.toLowerCase(),np);
             changed=true;
-          } else if(existP.expectedQty!==np.expectedQty){
-            existP.expectedQty=np.expectedQty; // qty changed on the source — reflect it
-            changed=true;
+          } else {
+            if(existP.expectedQty!==np.expectedQty){
+              existP.expectedQty=np.expectedQty; // qty changed on the source — reflect it
+              changed=true;
+            }
+            // If the daily now marks this piece as a Memory Download, carry that over.
+            if(np.memoryDownload && !existP.memoryDownload){
+              existP.memoryDownload=true;
+              changed=true;
+            }
           }
         });
       }
@@ -1328,11 +1352,13 @@ function renderStats(){
   const part=records.filter(r=>rowStatus(r)==='partial').length;
   const proc=records.filter(r=>rowStatus(r)==='processing').length;
   const comp=records.filter(r=>rowStatus(r)==='complete').length;
+  const memDl=records.filter(r=>(r.pieces||[]).some(p=>p.memoryDownload)).length;
   document.getElementById('spills').innerHTML=`
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
     <div class="spill"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial</div>
     ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> Processing</div>`:''}
-    <div class="spill"><div class="dot" style="background:var(--green)"></div><strong>${comp}</strong> Complete</div>`;
+    <div class="spill"><div class="dot" style="background:var(--green)"></div><strong>${comp}</strong> Complete</div>
+    ${memDl?`<div class="spill" title="Records that include a Memory Download piece"><div class="dot" style="background:var(--purple,#a78bfa)"></div><strong>${memDl}</strong> Memory Download</div>`:''}`;
 }
 
 // ══════════════════════════════════
@@ -2523,7 +2549,12 @@ function exportPDF(){
     const sgi=r.sgiNotes?`SGI:\n ${r.sgiNotes}`:'';
     const sgiVar=variances.length?`SGI:\n ${variances.join('\n ')}`:'';
     const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
-    const notes=[sgi,sgiVar,mdr].filter(Boolean).join('\n');
+    // Flag any Memory Download pieces in the printed notes
+    const mdPieces=(r.pieces||[]).filter(p=>p.memoryDownload);
+    const memNote=mdPieces.length
+      ? `★ MEMORY DOWNLOAD: ${mdPieces.map(p=>p.name).join(', ')}`
+      : '';
+    const notes=[memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
     const ref=r.soIds||'—';
     return`<tr class="${cls}">
       <td class="pc-pickup">${esc(fmtDate(r.pickupDate))||'—'}</td>
