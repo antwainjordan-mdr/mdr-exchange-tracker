@@ -3401,6 +3401,9 @@ function updateStickyHeight(){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Build marker — confirm which version is actually running (helps catch stale/cached deploys)
+  const BUILD='2026-06-30-memdownload-legend';
+  console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
   // Silent-refresh iframe context: this page was loaded inside the hidden refresh
   // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
   // the full app here.
