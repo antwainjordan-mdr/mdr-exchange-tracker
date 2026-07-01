@@ -2594,12 +2594,10 @@ function exportPDF(){
     const sgi=r.sgiNotes?`SGI:\n ${r.sgiNotes}`:'';
     const sgiVar=variances.length?`SGI:\n ${variances.join('\n ')}`:'';
     const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
-    // Flag any Memory Download items in the printed notes — MDR only (not relevant to SGI)
-    const mdPieces=(r.pieces||[]).filter(p=>p.memoryDownload);
-    const isMD = r.hasMemoryDownload || mdPieces.length>0;
-    const memNote=(isMDR()&&isMD)
-      ? `★ MEMORY DOWNLOAD${mdPieces.length?': '+mdPieces.map(p=>p.name).join(', '):''}`
-      : '';
+    // Flag any Memory Download items in the printed notes — MDR only (not relevant to SGI).
+    // Just the label, no device name.
+    const isMD = r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload);
+    const memNote=(isMDR()&&isMD) ? '★ MEMORY DOWNLOAD' : '';
     const notes=[memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
     const ref=r.soIds||'—';
     return`<tr class="${cls}">
@@ -3450,7 +3448,7 @@ function updateStickyHeight(){
 
 window.addEventListener('DOMContentLoaded', () => {
   // Build marker — confirm which version is actually running (helps catch stale/cached deploys)
-  const BUILD='2026-06-30-memdownload-manualtoggle';
+  const BUILD='2026-07-01-memdownload-labelonly';
   console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
   // Silent-refresh iframe context: this page was loaded inside the hidden refresh
   // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
