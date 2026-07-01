@@ -583,6 +583,10 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Delete Record
       </button>
+      <label class="mdr-modal-only" id="m-memdl-wrap" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none;margin-right:8px;" title="Mark this record as a Memory Download (MDR only)">
+        <input type="checkbox" id="m-memdl" style="width:15px;height:15px;cursor:pointer;accent-color:var(--purple,#a78bfa);">
+        Memory Download
+      </label>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveModal()">Save</button>
     </div>
@@ -1868,6 +1872,8 @@ function openAddModal(){
   document.getElementById('m-dropOffBy').value='';
   document.getElementById('m-sgiNotes').value='';
   document.getElementById('m-mdrNotes').value='';
+  const memCbAdd=document.getElementById('m-memdl');
+  if(memCbAdd) memCbAdd.checked=false;
   mSrcPieces=[];mAddPieces=[];
   renderCurPieces();renderPselList();
   document.getElementById('moverlay').classList.add('open');
@@ -2368,6 +2374,9 @@ function openEditModal(id){
   document.getElementById('m-dropOffBy').value=rec.dropOffBy||'';
   document.getElementById('m-sgiNotes').value=rec.sgiNotes||'';
   document.getElementById('m-mdrNotes').value=rec.mdrNotes||'';
+  // Memory Download checkbox (MDR only — hidden from SGI via .mdr-modal-only)
+  const memCb=document.getElementById('m-memdl');
+  if(memCb) memCb.checked = !!(rec.hasMemoryDownload || (rec.pieces||[]).some(p=>p.memoryDownload));
   mSrcPieces=(rec.pieces||[]).filter(p=>p.fromSource).map(p=>({...p}));
   mAddPieces=(rec.pieces||[]).filter(p=>!p.fromSource).map(p=>({...p}));
   renderCurPieces();renderPselList();
@@ -2484,11 +2493,14 @@ function saveModal(){
   let recToSave = null;
   if(isNew){
     const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=gv('m-soIds'),pi=gv('m-patientId'),db=gv('m-dropOffBy');
+    // Memory Download is MDR-only; SGI's checkbox is hidden so this stays false for them.
+    const memDl = isMDR() && !!document.getElementById('m-memdl')?.checked;
     recToSave = {
       id:gid(),source:'manual',
       patientName,patientId:pi,jobNum:jn,soIds:si,pickupDate:pd,dropOffBy:db,
       dateReturned:'',sgiNotes:gv('m-sgiNotes'),mdrNotes:gv('m-mdrNotes'),
-      jobClosed:false,confirmed:false,verified:false,entryId:'',locked:{},pieces:allPieces
+      jobClosed:false,confirmed:false,verified:false,entryId:'',locked:{},pieces:allPieces,
+      hasMemoryDownload:memDl
     };
     records.unshift(recToSave);
   } else {
@@ -2504,6 +2516,21 @@ function saveModal(){
         const ex=recToSave.pieces.find(ep=>ep.id===p.id);
         return ex?{...p,checked:ex.checked,receivedQty:ex.receivedQty}:p;
       });
+      // Memory Download — MDR only. SGI's checkbox is hidden, so only apply the change for MDR;
+      // for SGI, leave the record's existing flag untouched.
+      if(isMDR()){
+        const memDl = !!document.getElementById('m-memdl')?.checked;
+        recToSave.hasMemoryDownload = memDl;
+        if(memDl){
+          // Ensure a piece carries the flag so it persists through SharePoint serialization.
+          if((recToSave.pieces||[]).length && !recToSave.pieces.some(p=>p.memoryDownload)){
+            recToSave.pieces[0].memoryDownload=true;
+          }
+        } else {
+          // Unchecked — clear the flag from all pieces too.
+          (recToSave.pieces||[]).forEach(p=>{ p.memoryDownload=false; });
+        }
+      }
     }
   }
   if(recToSave){
@@ -3423,7 +3450,7 @@ function updateStickyHeight(){
 
 window.addEventListener('DOMContentLoaded', () => {
   // Build marker — confirm which version is actually running (helps catch stale/cached deploys)
-  const BUILD='2026-06-30-memdownload-recordlevel';
+  const BUILD='2026-06-30-memdownload-manualtoggle';
   console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
   // Silent-refresh iframe context: this page was loaded inside the hidden refresh
   // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
