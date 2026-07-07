@@ -1018,6 +1018,10 @@ function loadDaily(text){
 
   // Rebookings detected this load (same patient+ref but a different, non-blank job#)
   const rebookings=[];
+  // Ids of records actually touched (new or changed) by THIS import — used so the
+  // post-import SharePoint sync only writes what changed instead of re-syncing
+  // every record the app has ever loaded.
+  const touchedIds=new Set();
 
   // Find an existing record that is the SAME logical record as the incoming row.
   // Requires patient match AND one identity signal (ref overlap, same Entry ID, or same job#).
@@ -1083,7 +1087,7 @@ function loadDaily(text){
       }
       const obj={patientName:ex.patientName,patientId:ex.patientId,jobNum:ex.jobNum,soIds:ex.soIds,pickupDate:ex.pickupDate,entryId:ex.entryId};
       ex.locked=makeLockMap(obj);
-      if(changed){saveRecs(ex);merged++;console.log(`[MDR] Merged into ${ex.patientName} (job ${ex.jobNum||'—'}, refs ${ex.soIds||'—'})`);}
+      if(changed){saveRecs(ex);merged++;touchedIds.add(ex.id);console.log(`[MDR] Merged into ${ex.patientName} (job ${ex.jobNum||'—'}, refs ${ex.soIds||'—'})`);}
       else{skipped++;}
   }
 
@@ -1115,7 +1119,7 @@ function loadDaily(text){
         let changed=false;
         if(!match.hasMemoryDownload){ match.hasMemoryDownload=true; changed=true; }
         if((match.pieces||[]).length && !match.pieces.some(p=>p.memoryDownload)){ match.pieces[0].memoryDownload=true; changed=true; }
-        if(changed) saveRecs(match);
+        if(changed){ saveRecs(match); touchedIds.add(match.id); }
       }
       return;
     }
@@ -1137,6 +1141,7 @@ function loadDaily(text){
     };
     records.push(rec);
     added++;
+    touchedIds.add(rec.id);
   });
 
   saveRecs();
@@ -1163,7 +1168,7 @@ function loadDaily(text){
     }
   }
 
-  return added+merged;
+  return {count:added+merged, touchedIds:[...touchedIds]};
 }
 
 function showRebookModal(list){
@@ -1201,7 +1206,7 @@ function handleLoadDaily(e){
       const text=ev.target.result;
       const result=loadDaily(text);
       buildChips();renderTable();renderStats();
-      if(result > 0){
+      if(result.count > 0){
         // spSiteId/spListId are normally set by loadFromSharePoint() at sign-in, but if
         // Load Daily is clicked before that finishes (or it errored), they can still be
         // null here. Try once to resolve them now rather than silently going local-only.
@@ -1209,7 +1214,12 @@ function handleLoadDaily(e){
           try{ await ensureSPIds(); }catch(e){ console.error('ensureSPIds failed during Load Daily:',e); }
         }
         if(spSiteId && spListId){
-          await syncAllToSharePoint();
+          // Sync ONLY the records this import actually touched (new + merged-with-changes),
+          // not the entire records array — otherwise a 33-row daily re-writes every
+          // record the app has ever loaded (e.g. all 287) back to SharePoint every time.
+          const touchedSet=new Set(result.touchedIds);
+          const toSync=records.filter(r=>touchedSet.has(r.id));
+          await syncAllToSharePoint(toSync);
         } else {
           // Persistent banner (does not auto-dismiss) — refreshing now would pull down
           // SharePoint data and lose these locally-saved-only records.
@@ -2738,12 +2748,17 @@ function setSyncStatus(state, msg){
 function toastSync(msg){ setSyncStatus('synced', '✓ '+msg); }
 
 function saveRecs(recToSync){
+  // Mark dirty BEFORE writing to localStorage, so if the sync below fails (or the tab
+  // closes mid-request), the flag itself is what's saved — that's what tells
+  // loadFromSharePoint() this record must not be silently overwritten by a stale
+  // SharePoint copy until the edit is confirmed synced.
+  if(recToSync) recToSync._dirty = true;
   localStorage.setItem('mdr_v5', JSON.stringify(records));
   if(recToSync && userRole && spSiteId && spListId){
     // Connected — sync to SharePoint
     syncRecordToSP(recToSync).catch(e=>{
       console.error('sync:', e);
-      setSyncStatus('error','✗ Sync failed');
+      setSyncStatus('error','✗ Sync failed — changes saved locally, will retry');
     });
   } else if(recToSync && userRole && (!spSiteId || !spListId)){
     // Not connected to SharePoint — local only
@@ -3005,18 +3020,19 @@ async function loadFromSharePoint(){
     await ensureSPIds();
     // Flush any queued audit entries now that SP is connected
     _flushAuditQueue();
-    // Read whatever is cached in localStorage BEFORE fetching from SharePoint, and pull
-    // out any record that was never confirmed synced (no _spId — e.g. a Load Daily import
-    // that ran before spSiteId/spListId were ready, or a batch sync that partially failed).
-    // Without this, the unconditional `records = spRecs` below would silently wipe those
-    // records out of both memory AND localStorage the moment this function runs on refresh —
-    // which is exactly the bug this fixes.
-    let localUnsynced = [];
+    // Read whatever is cached in localStorage BEFORE fetching from SharePoint, and pull out
+    // any record that either (a) was never confirmed created on SharePoint (no _spId — e.g.
+    // a Load Daily import that ran before spSiteId/spListId were ready), or (b) has a local
+    // edit that never got confirmed synced (_dirty — e.g. a field edit whose PATCH failed
+    // from a network blip or SharePoint throttling). Without this, the unconditional
+    // `records = spRecs` below would silently overwrite those records — new ones AND edited
+    // ones — with a stale/absent SharePoint copy the moment this runs on refresh.
+    let localPreserve = [];
     try{
       const cached = localStorage.getItem('mdr_v5');
       if(cached){
         const localRecs = JSON.parse(cached);
-        localUnsynced = (localRecs||[]).filter(r=>r && !r._spId);
+        localPreserve = (localRecs||[]).filter(r=>r && (!r._spId || r._dirty));
       }
     }catch(e){ console.warn('Could not parse local cache for unsynced-record check:',e); }
 
@@ -3031,14 +3047,25 @@ async function loadFromSharePoint(){
     const spRecs = all.map(spToRec);
     const valid = spRecs.filter(r=>r.patientName&&r.patientName.trim());
     if(valid.length > 0){
-      records = spRecs.concat(localUnsynced);
+      // Merge: start from the SharePoint copy, but substitute in the preserved local version
+      // of any record that already has a _spId (REPLACE the stale SharePoint row in place —
+      // never just append it, or the same patient would show up twice). Anything preserved
+      // with no _spId yet is brand-new locally and gets appended.
+      const preserveBySpId = new Map();
+      const preserveNew = [];
+      localPreserve.forEach(r=>{
+        if(r._spId) preserveBySpId.set(r._spId, r);
+        else preserveNew.push(r);
+      });
+      records = spRecs.map(sp => preserveBySpId.has(sp._spId) ? preserveBySpId.get(sp._spId) : sp)
+                      .concat(preserveNew);
       localStorage.setItem('mdr_v5',JSON.stringify(records));
       buildChips(); renderTable(); renderStats();
-      if(localUnsynced.length){
-        const n = localUnsynced.length;
+      if(localPreserve.length){
+        const n = localPreserve.length;
         toast('Loaded '+valid.length+' from SharePoint \u2014 kept '+n+' local record'+(n>1?'s':'')+' not yet synced, retrying\u2026','i');
         setSyncStatus('error','\u26a0 '+n+' local record'+(n>1?'s':'')+' not yet on SharePoint \u2014 retrying sync\u2026');
-        syncAllToSharePoint().catch(e=>console.error('Retry sync failed:',e));
+        syncAllToSharePoint(localPreserve).catch(e=>console.error('Retry sync failed:',e));
       } else {
         toast('Loaded '+valid.length+' records from SharePoint','s');
       }
@@ -3069,14 +3096,16 @@ async function syncRecordToSP(rec){
       await gPatch('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId+'/fields',fields);
     } else {
       const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
-      if(created){
-        rec._spId = created.id;
-        // Update localStorage with the new _spId
-        localStorage.setItem('mdr_v5', JSON.stringify(records));
-      }
+      if(created) rec._spId = created.id;
     }
+    // Confirmed synced — clear the dirty flag. Until this happens, loadFromSharePoint()
+    // treats this record as still-pending and won't let a refresh overwrite it.
+    delete rec._dirty;
+    localStorage.setItem('mdr_v5', JSON.stringify(records));
     setSyncStatus('synced', '✓ Synced: '+name);
   } catch(e){
+    // rec._dirty is left as-is (already true, set by saveRecs before this call) so the
+    // failed edit stays protected from being clobbered by a stale SharePoint refresh.
     console.error('SP sync error:',e);
     const msg=String(e.message||'');
     if(/\b429\b/.test(msg)){
@@ -3089,13 +3118,17 @@ async function syncRecordToSP(rec){
   }
 }
 
-async function syncAllToSharePoint(){
-  if(!spSiteId||!spListId||!records.length) return {success:0,failed:0,failedRecords:[]};
-  toast('Syncing '+records.length+' records to SharePoint\u2026','i');
-  setSyncStatus('syncing','Syncing '+records.length+' records\u2026');
+async function syncAllToSharePoint(subset){
+  // Optional `subset` — sync just these records instead of the entire `records` array.
+  // Falling back to the full array preserves the old "sync everything" behavior for any
+  // caller that doesn't pass one, but every current call site passes a targeted subset.
+  const list = (subset && subset.length) ? subset : records;
+  if(!spSiteId||!spListId||!list.length) return {success:0,failed:0,failedRecords:[]};
+  toast('Syncing '+list.length+' record'+(list.length===1?'':'s')+' to SharePoint\u2026','i');
+  setSyncStatus('syncing','Syncing '+list.length+' record'+(list.length===1?'':'s')+'\u2026');
   let success=0, failed=0;
   const failedRecords=[];
-  for(const rec of records){
+  for(const rec of list){
     try{
       const fields = recToSP(rec);
       if(rec._spId){
@@ -3104,6 +3137,7 @@ async function syncAllToSharePoint(){
         const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
         if(created) rec._spId = created.id;
       }
+      delete rec._dirty;
       success++;
     } catch(e){
       console.error('Sync failed for',rec.patientName,e);
@@ -3115,12 +3149,12 @@ async function syncAllToSharePoint(){
     await new Promise(res=>setTimeout(res, 120));
   }
   localStorage.setItem('mdr_v5',JSON.stringify(records));
-  toast('Synced '+success+' records'+(failed?' ('+failed+' failed)':''),success>0?'s':'e');
+  toast('Synced '+success+' record'+(success===1?'':'s')+(failed?' ('+failed+' failed)':''),success>0?'s':'e');
   // Persistent status banner — unlike the toast above, this does NOT auto-dismiss on
   // failure, so a failed/partial sync stays visible instead of disappearing after 3.5s
   // and silently getting wiped out by the next SharePoint refresh.
   if(failed>0){
-    setSyncStatus('error','\u2717 '+failed+' of '+records.length+' failed to sync \u2014 '+failedRecords.slice(0,3).join(', ')+(failedRecords.length>3?', \u2026':'')+' (saved locally, will retry)');
+    setSyncStatus('error','\u2717 '+failed+' of '+list.length+' failed to sync \u2014 '+failedRecords.slice(0,3).join(', ')+(failedRecords.length>3?', \u2026':'')+' (saved locally, will retry)');
   } else {
     setSyncStatus('synced','\u2713 Synced '+success+' record'+(success===1?'':'s'));
   }
