@@ -8,9 +8,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
 <meta name="version" content="20260514201442">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
+  --font-main:'Calibri','Carlito',Arial,sans-serif;
+  --font-mono:'DM Mono','Consolas','Courier New',monospace;
   --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--surface3:#2a2f47;
   --border:#2e3350;--text:#e8eaf6;--text2:#8892b0;--text3:#5a6480;
   --accent:#4f8ef7;--purple:#a78bfa;--green:#38d9a9;--yellow:#f7c948;
@@ -49,7 +51,7 @@
   --hbg:linear-gradient(135deg,#ffffff,#eceaf8);--cal:invert(.2);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;transition:background .2s,color .2s;padding-top:var(--sticky-top-h,160px);}
+body{font-family:var(--font-main);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;transition:background .2s,color .2s;padding-top:var(--sticky-top-h,160px);}
 
 /* HEADER */
 .hdr{background:var(--hbg);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(0,0,0,.3);}
@@ -60,7 +62,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .hacts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 
 /* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;transition:all .15s;white-space:nowrap;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;border:none;cursor:pointer;font-family:var(--font-main);font-size:12px;font-weight:500;transition:all .15s;white-space:nowrap;}
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
 .btn-ghost:hover{background:var(--surface2);color:var(--text);}
 .btn-primary{background:var(--accent);color:#fff;}
@@ -141,24 +143,24 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .pname{font-weight:600;color:var(--text);font-size:12px;line-height:1.3;}
 .pname-link{font-weight:600;font-size:12px;line-height:1.3;color:var(--text);text-decoration:none;border-bottom:1px dashed rgba(232,234,246,.3);transition:color .15s,border-color .15s;}
 .pname-link:hover{color:var(--accent);border-bottom-color:var(--accent);}
-.pid{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px;}
-.jnum{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);}
-.tracklink{color:var(--red);text-decoration:none;font-family:'DM Mono',monospace;font-size:11px;border-bottom:1px dashed var(--red);transition:opacity .15s;}
+.pid{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;}
+.jnum{font-family:var(--font-mono);font-size:11px;color:var(--text2);}
+.tracklink{color:var(--red);text-decoration:none;font-family:var(--font-main);font-size:11px;border-bottom:1px dashed var(--red);transition:opacity .15s;}
 .tracklink:hover{opacity:.75;}
 .reflinks{display:flex;flex-direction:column;gap:3px;align-items:center;}
-.reflink{color:var(--accent);text-decoration:none;font-family:'DM Mono',monospace;font-size:11px;border-bottom:1px dashed var(--accent);white-space:nowrap;transition:opacity .15s;display:inline;width:auto;}
+.reflink{color:var(--accent);text-decoration:none;font-family:var(--font-mono);font-size:11px;border-bottom:1px dashed var(--accent);white-space:nowrap;transition:opacity .15s;display:inline;width:auto;}
 .reflink:hover{opacity:.75;}
-.refplain{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);}
+.refplain{font-family:var(--font-mono);font-size:11px;color:var(--text2);}
 .tag-new{font-size:9px;background:rgba(56,217,169,.15);color:var(--green);border-radius:3px;padding:1px 4px;font-weight:600;}
 .tag-csv{font-size:9px;background:rgba(79,142,247,.15);color:var(--blue);border-radius:3px;padding:1px 4px;font-weight:600;}
 
 /* REFERENCE */
-.refcell{min-width:120px;max-width:160px;word-wrap:break-word;white-space:normal;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);line-height:1.6;text-align:center;}
+.refcell{min-width:120px;max-width:160px;word-wrap:break-word;white-space:normal;font-family:var(--font-mono);font-size:11px;color:var(--text2);line-height:1.6;text-align:center;}
 
 /* DATE PICKER — opens calendar on click, no stepping */
 .datepick{
   background:var(--surface2);border:1px solid var(--border);border-radius:6px;
-  padding:5px 6px;color:var(--text);font-family:'DM Mono',monospace;
+  padding:5px 6px;color:var(--text);font-family:var(--font-main);
   font-size:11px;outline:none;width:108px;cursor:pointer;
   -webkit-appearance:none;appearance:none;
   position:relative;
@@ -197,7 +199,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .pname2{flex:1;font-size:11px;color:var(--text);min-width:0;line-height:1.3;}
 .qwrap{display:flex;align-items:center;gap:3px;flex-shrink:0;}
 .ql{font-size:9px;color:var(--text3);}
-.qrcv{width:38px;background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:2px 4px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;text-align:center;outline:none;}
+.qrcv{width:38px;background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:2px 4px;color:var(--text);font-family:var(--font-main);font-size:11px;text-align:center;outline:none;}
 .qrcv::placeholder{color:var(--text3);opacity:.8;}
 .qrcv:focus{border-color:var(--accent);}
 .qrcv.qmatch{border-color:var(--green);}
@@ -225,7 +227,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .cb-verified:checked{background:var(--green);border-color:var(--green);}
 
 /* NOTES */
-.ntxt{width:100%;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 7px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:11px;resize:none;min-height:34px;max-height:300px;overflow-y:hidden;outline:none;box-sizing:border-box;}
+.ntxt{width:100%;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 7px;color:var(--text);font-family:var(--font-main);font-size:11px;resize:none;min-height:34px;max-height:300px;overflow-y:hidden;outline:none;box-sizing:border-box;}
 .ntxt:focus{border-color:var(--accent);}
 .ntxt::placeholder{color:var(--text3);}
 .ntxt.hv{border-color:rgba(247,201,72,.5);background:rgba(247,201,72,.04);}
@@ -277,7 +279,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 .closebtn:hover{background:var(--surface2);color:var(--text);}
 .fg{display:flex;flex-direction:column;gap:4px;}
 .flabel{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
-.finput{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;width:100%;}
+.finput{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 11px;color:var(--text);font-family:var(--font-main);font-size:12px;outline:none;width:100%;}
 .finput:focus{border-color:var(--accent);}
 .finput::placeholder{color:var(--text3);}
 .finput:disabled{opacity:.5;cursor:not-allowed;}
@@ -288,7 +290,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 .popt:hover{border-color:var(--accent);}
 .popt-left{display:flex;align-items:center;gap:7px;flex:1;min-width:0;}
 .popt-name{font-size:12px;color:var(--text);}
-.popt-qty{width:40px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:3px 5px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;text-align:center;outline:none;}
+.popt-qty{width:40px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:3px 5px;color:var(--text);font-family:var(--font-main);font-size:12px;text-align:center;outline:none;}
 .psearch{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 11px;color:var(--text);font-family:inherit;font-size:12px;outline:none;width:100%;margin-bottom:5px;}
 .psearch:focus{border-color:var(--accent);}
 .psearch::placeholder{color:var(--text3);}
@@ -362,7 +364,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 @media print{
   /* ── When printing, hide the live app table entirely ── */
   @page{size:landscape;margin:8mm 10mm;}
-  html,body{background:#fff !important;color:#000 !important;font-family:Arial,sans-serif;font-size:18pt;}
+  html,body{background:#fff !important;color:#000 !important;font-family:var(--font-main);font-size:18pt;}
   /* Hide everything except the print container */
   .hdr,.datebar,.toolbar,.legend,.tcontainer,.moverlay,
   #emptyState,.themetog,.twrap{display:none !important;}
@@ -390,18 +392,21 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   .pr-exchange td{background:#dce8fd !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-pickup   td{background:#ede7f6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pr-mixed    td{background:#fff9e6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* Overdue rows print solid red with white text so they stand out on the page */
+  .pr-overdue td{background:#cc1f24 !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .pr-overdue td *{color:#fff !important;}
 
   /* Column widths */
   .pc-pickup   {width:10%;font-size:15pt;white-space:nowrap;}
   .pc-patient  {width:13%;}
-  .pc-job      {width:9%;font-family:monospace;font-size:15.5pt;}
+  .pc-job      {width:9%;font-family:var(--font-mono);font-size:15.5pt;}
   .pc-pieces   {width:22%;}
-  .pc-ref      {width:11%;font-family:monospace;font-size:15.5pt;word-break:break-all;}
+  .pc-ref      {width:11%;font-family:var(--font-mono);font-size:15.5pt;word-break:break-all;}
   .pc-notes    {width:35%;}
   .pt-name{font-weight:700;font-size:16.5pt;}
   .pt-id{font-size:14pt;color:#555;}
   .pt-piece{font-size:15.5pt;margin-bottom:3pt;line-height:1.3;}
-  .pt-notes{font-size:15.5pt;white-space:pre-wrap;word-break:break-word;line-height:1.4;}
+  .pt-notes{font-size:15.5pt;font-weight:700;white-space:pre-wrap;word-break:break-word;line-height:1.4;}
   /* Page number footer */
   @page{@bottom-right{content:"Page " counter(page) " of " counter(pages);font-size:12pt;color:#666;}}
 }
@@ -1181,7 +1186,7 @@ function showRebookModal(list){
         <span>Existing job: <strong style="color:var(--text)">${esc(rb.oldJob||'—')}</strong></span>
         <span>New job: <strong style="color:var(--yellow)">${esc(rb.newJob||'—')}</strong></span>
       </div>
-      ${rb.ref?`<div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:'DM Mono',monospace;">Ref: ${esc(rb.ref)}</div>`:''}
+      ${rb.ref?`<div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--font-mono);">Ref: ${esc(rb.ref)}</div>`:''}
     </div>`).join('');
   const ov=document.getElementById('rebookOverlay');
   if(ov) ov.classList.add('open');
@@ -1606,17 +1611,17 @@ function renderPcell(r){
     const varLabel=p.fromSource&&rcv!==''&&variance!=='match'&&variance!=='uncounted'
       ?`<span style="font-size:9px;font-weight:700;color:${variance==='shortage'?'var(--red)':'var(--green)'};">${variance==='shortage'?'SHORT':'OVER'}</span>`
       :'';
-    // Show expected qty in name only for source items with a qty
-    const qtyTag=p.fromSource&&p.expectedQty?`<span style="font-size:9px;color:var(--text3);"> ×${p.expectedQty}</span>`:'';
+    // Show expected qty in name for any item that has one — source or manually added
+    const qtyTag=p.expectedQty?`<span style="font-size:9px;color:var(--text3);"> ×${p.expectedQty}</span>`:'';
     return`<div class="${cls.trim()}">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       ${badge}${lock}
       <span class="pname2">${esc(p.name)}${qtyTag}</span>
-      ${p.serialNum?`<span style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;margin-left:2px;">SN: ${esc(p.serialNum)}</span>`:''}
+      ${p.serialNum?`<span style="font-size:9px;color:var(--text3);font-family:var(--font-main);margin-left:2px;">SN: ${esc(p.serialNum)}</span>`:''}
       ${varLabel}
       <div class="qwrap">
         <input type="number" class="qrcv${m?' qmatch':''}${mm?' qmis':''}" value="${rcv}" min="0"
-          placeholder="${p.fromSource?p.expectedQty:''}"
+          placeholder="${p.expectedQty||''}"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">
       </div>
       ${delBtn}
@@ -2324,7 +2329,7 @@ function renderPopupCurPieces(){
       <div style="display:flex;align-items:center;gap:4px;padding-left:16px;">
         <span style="font-size:9px;color:var(--text3);white-space:nowrap;">SN:</span>
         <input type="text" data-sn="${p.id}" value="${esc(p.serialNum||'')}" placeholder="Serial # (optional)"
-          style="flex:1;font-size:10px;font-family:'DM Mono',monospace;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
+          style="flex:1;font-size:10px;font-family:var(--font-main);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
       </div>
     </div>`;
   }).join('');
@@ -2425,7 +2430,7 @@ function renderCurPieces(){
       <div style="display:flex;align-items:center;gap:4px;padding-left:18px;width:100%;">
         <span style="font-size:9px;color:var(--text3);white-space:nowrap;">SN:</span>
         <input type="text" data-sn="${p.id}" value="${esc(p.serialNum||'')}" placeholder="Serial # (optional)"
-          style="flex:1;font-size:10px;font-family:'DM Mono',monospace;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
+          style="flex:1;font-size:10px;font-family:var(--font-main);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
       </div>
     </div>`;
   }).join('');
@@ -2599,7 +2604,10 @@ function exportPDF(){
 
   function buildRow(r){
     const rt=rowType(r);
-    const cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':'';
+    const status=rowStatus(r);
+    let cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':'';
+    // Same "flashing/overdue" rule as the live table — closed or completed records are never overdue.
+    if(r.dropOffBy && status!=='complete' && !r.jobClosed && r.dropOffBy<=tod()) cls+=' pr-overdue';
     const piecesHtml=(r.pieces||[]).map(p=>
       `<div class="pt-piece">${esc(p.type==='Pickup'?'PKP':'EXC')} ${esc(p.name)} ×${p.expectedQty}</div>`
     ).join('');
