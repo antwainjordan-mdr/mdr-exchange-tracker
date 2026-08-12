@@ -258,9 +258,9 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 
 .changelog-entry{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border);}
 .changelog-entry:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
-.changelog-date{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
-.changelog-list{list-style:none;display:flex;flex-direction:column;gap:6px;padding-left:0;}
-.changelog-list li{font-size:12px;color:var(--text);line-height:1.5;padding-left:14px;position:relative;}
+.changelog-date{font-size:14px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.changelog-list{list-style:none;display:flex;flex-direction:column;gap:10px;padding-left:0;}
+.changelog-list li{font-size:15px;color:var(--text);line-height:1.6;padding-left:16px;position:relative;}
 .changelog-list li::before{content:'•';position:absolute;left:0;color:var(--accent);}
 .popup-overlay.open{display:block;}
 .popup-modal{position:fixed;z-index:301;background:var(--surface);border:1px solid var(--border);border-radius:12px;width:340px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.4);display:none;}
@@ -860,27 +860,13 @@ const CHANGELOG = [
     ]
   }
 ];
-const LAST_SEEN_BUILD_KEY = 'mdr_last_seen_build';
-
-function maybeShowWhatsNew(){
-  try{
-    const lastSeen = localStorage.getItem(LAST_SEEN_BUILD_KEY);
-    if(lastSeen === null){
-      // First time this browser has ever tracked a build — there's nothing they
-      // "missed", so just start tracking from here without popping a splash.
-      localStorage.setItem(LAST_SEEN_BUILD_KEY, BUILD);
-      return;
-    }
-    if(lastSeen === BUILD) return; // already seen this exact build
-
-    // Show everything newer than what they last saw. If their last-seen build
-    // isn't in the list at all (very old / cleared cache), fall back to the
-    // single latest entry rather than dumping the entire history on them.
-    const idx = CHANGELOG.findIndex(e=>e.build===lastSeen);
-    const newEntries = idx === -1 ? CHANGELOG.slice(0,1) : CHANGELOG.slice(0, idx);
-    if(newEntries.length) openChangelog(newEntries, true);
-    localStorage.setItem(LAST_SEEN_BUILD_KEY, BUILD);
-  }catch(e){ console.warn('[Changelog] could not check last-seen build:', e); }
+// Shown once per fresh, interactive sign-in — NOT on a page refresh while already
+// signed in. The distinction is WHERE this gets called from, not anything tracked
+// in storage: handleFragmentToken() (just completed an Azure AD login redirect) calls
+// this; the "cached session" restore path in initMSAL() (a plain refresh) does not.
+function showWhatsNewOnLogin(){
+  if(!CHANGELOG.length) return;
+  openChangelog(CHANGELOG.slice(0,1), true); // most recent entry only
 }
 
 function openChangelog(entries, isSplash){
@@ -3500,6 +3486,7 @@ async function handleFragmentToken(hash){
   // Clean the URL hash
   history.replaceState(null,'', window.location.pathname);
   await showSignedIn(email);
+  showWhatsNewOnLogin(); // fresh interactive login just completed — show what's new
 }
 
 function parseEmailFromToken(token){
@@ -3558,7 +3545,6 @@ async function showSignedIn(email){
   applyRoleUI();
   scheduleTokenRefresh();
   await loadFromSharePoint();
-  maybeShowWhatsNew();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
   if(!window._auditFlushInterval){
     window._auditFlushInterval = setInterval(_flushAuditQueue, 60000);
@@ -3794,7 +3780,6 @@ window.addEventListener('DOMContentLoaded', () => {
     userRole = 'mdr';
     loadStorageLocal(); buildChips(); renderTable(); renderStats();
     toast('Local mode', 'i');
-    maybeShowWhatsNew();
   }
 });
 
