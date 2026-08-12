@@ -255,6 +255,13 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .audit-loading{padding:20px;text-align:center;color:var(--text2);font-size:12px;}
 .audit-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:10px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap;}
 .audit-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.changelog-entry{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border);}
+.changelog-entry:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.changelog-date{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.changelog-list{list-style:none;display:flex;flex-direction:column;gap:6px;padding-left:0;}
+.changelog-list li{font-size:12px;color:var(--text);line-height:1.5;padding-left:14px;position:relative;}
+.changelog-list li::before{content:'•';position:absolute;left:0;color:var(--accent);}
 .popup-overlay.open{display:block;}
 .popup-modal{position:fixed;z-index:301;background:var(--surface);border:1px solid var(--border);border-radius:12px;width:340px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.4);display:none;}
 .popup-modal.open{display:block;}
@@ -468,6 +475,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <button class="btn btn-sm mdr-only" onclick="openAppAuditLog(event)" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="View app activity log">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>App Log
     </button>
+    <button class="btn btn-sm" onclick="openChangelog()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="View update history">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Updates
+    </button>
   </div>
 </header>
 
@@ -475,7 +485,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 <div class="datebar">
   <span class="dbl">Month:</span>
   <div class="mchips" id="mchips"></div>
-  <div class="rangegrp">
+  <div class="rangegrp" id="rangegrp" style="display:none">
     <span class="dbl">Range:</span>
     <input type="date" class="datepick" id="rangeS" onchange="setRange()" style="width:108px;">
     <span style="color:var(--text3);font-size:11px">→</span>
@@ -672,6 +682,19 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div id="appAuditBody"><div class="audit-loading">No activity recorded yet.</div></div>
 </div>
 
+<!-- CHANGELOG / WHAT'S NEW -->
+<div class="moverlay" id="changelogOverlay" onclick="if(event.target===this)closeChangelog()">
+  <div class="modal" style="max-width:480px;">
+    <div class="mhdr">
+      <span class="mtitle" id="changelogTitle">What's New</span>
+      <button class="closebtn" onclick="closeChangelog()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" id="changelogBody" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="mftr"><button class="btn btn-primary btn-sm" onclick="closeChangelog()">Got it</button></div>
+  </div>
+</div>
+
+
 <!-- REBOOKING / POSSIBLE-DUPLICATE MODAL (MDR view only) — must be dismissed -->
 <div class="moverlay" id="rebookOverlay">
   <div class="modal" style="max-width:520px;">
@@ -808,6 +831,80 @@ let records=[];
 let selectedRowId = null; // currently selected/locked row
 let sortCol='pickupDate',sortDir=1;
 let activeMon='all',rangeS='',rangeE='';
+let customOpen=false; // whether the "Custom" month chip has revealed the date-range pickers
+
+// ══════════════════════════════════
+//  CHANGELOG / "WHAT'S NEW"
+// ══════════════════════════════════
+// Append a new entry here (top of the array = newest) every time a change ships.
+// Only log things that change what a user actually sees or experiences in the app
+// (new features, behavior changes, visible bug fixes, noticeable performance
+// changes). Backend/infrastructure work — SharePoint schema, sync efficiency,
+// Graph API calls, internal refactors — has no user-visible effect and should NOT
+// get an entry here, even though it's still worth tracking in our own notes.
+// This is the permanent record of updates to this app — it drives the automatic
+// "What's New" splash on first load after a new build, and the full "Updates"
+// history available any time from the header button. Nothing here needs Azure
+// or any backend — it's static data baked into this file at deploy time, same
+// as everything else in this single-file app.
+const BUILD = '2026-08-12-monthfix-lazyload';
+const CHANGELOG = [
+  {
+    build:'2026-08-12-monthfix-lazyload',
+    date:'Aug 12, 2026',
+    items:[
+      'Fixed: selecting the Pending or Processing status ignored the Month/Custom date filters — they now combine correctly (e.g. Pending + May shows only pending records from May, and correctly shows nothing if there are none).',
+      'Month filter redesigned: quick chips for the current month plus the previous two, and a new "Custom" chip for picking any start/end date range.',
+      'Performance: the exchange table now loads 50 rows at a time and loads more automatically as you scroll, instead of rendering every matching record at once — the Completed filter in particular should feel much faster.',
+      'Search always checks every matching record now, even ones not yet scrolled into view.'
+    ]
+  }
+];
+const LAST_SEEN_BUILD_KEY = 'mdr_last_seen_build';
+
+function maybeShowWhatsNew(){
+  try{
+    const lastSeen = localStorage.getItem(LAST_SEEN_BUILD_KEY);
+    if(lastSeen === null){
+      // First time this browser has ever tracked a build — there's nothing they
+      // "missed", so just start tracking from here without popping a splash.
+      localStorage.setItem(LAST_SEEN_BUILD_KEY, BUILD);
+      return;
+    }
+    if(lastSeen === BUILD) return; // already seen this exact build
+
+    // Show everything newer than what they last saw. If their last-seen build
+    // isn't in the list at all (very old / cleared cache), fall back to the
+    // single latest entry rather than dumping the entire history on them.
+    const idx = CHANGELOG.findIndex(e=>e.build===lastSeen);
+    const newEntries = idx === -1 ? CHANGELOG.slice(0,1) : CHANGELOG.slice(0, idx);
+    if(newEntries.length) openChangelog(newEntries, true);
+    localStorage.setItem(LAST_SEEN_BUILD_KEY, BUILD);
+  }catch(e){ console.warn('[Changelog] could not check last-seen build:', e); }
+}
+
+function openChangelog(entries, isSplash){
+  entries = entries || CHANGELOG;
+  const overlay = document.getElementById('changelogOverlay');
+  const body = document.getElementById('changelogBody');
+  document.getElementById('changelogTitle').textContent = isSplash ? "What's New" : 'Update History';
+  body.innerHTML = entries.map(e=>`
+    <div class="changelog-entry">
+      <div class="changelog-date">${esc(e.date)}</div>
+      <ul class="changelog-list">${e.items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>
+    </div>`).join('') || '<div class="audit-loading">Nothing here yet.</div>';
+  overlay.classList.add('open');
+}
+function closeChangelog(){
+  document.getElementById('changelogOverlay').classList.remove('open');
+}
+// Table lazy-load (infinite scroll) state — how many of the current filtered
+// rows are rendered into the DOM at once. Resets to TABLE_PAGE_SIZE whenever
+// the active filter criteria change; grows as the user scrolls near the bottom.
+const TABLE_PAGE_SIZE = 50;
+let tableRenderLimit = TABLE_PAGE_SIZE;
+let _lastFilterSig = '';
+let _tableObserver = null;
 let editId=null;
 let mSrcPieces=[],mAddPieces=[];
 
@@ -1100,7 +1197,7 @@ function loadDaily(text){
       }
       const obj={patientName:ex.patientName,patientId:ex.patientId,jobNum:ex.jobNum,soIds:ex.soIds,pickupDate:ex.pickupDate,entryId:ex.entryId};
       ex.locked=makeLockMap(obj);
-      if(changed){saveRecs(ex);merged++;touchedIds.add(ex.id);console.log(`[MDR] Merged into ${ex.patientName} (job ${ex.jobNum||'—'}, refs ${ex.soIds||'—'})`);}
+      if(changed){saveRecs(ex,{skipSync:true});merged++;touchedIds.add(ex.id);console.log(`[MDR] Merged into ${ex.patientName} (job ${ex.jobNum||'—'}, refs ${ex.soIds||'—'})`);}
       else{skipped++;}
   }
 
@@ -1132,7 +1229,7 @@ function loadDaily(text){
         let changed=false;
         if(!match.hasMemoryDownload){ match.hasMemoryDownload=true; changed=true; }
         if((match.pieces||[]).length && !match.pieces.some(p=>p.memoryDownload)){ match.pieces[0].memoryDownload=true; changed=true; }
-        if(changed){ saveRecs(match); touchedIds.add(match.id); }
+        if(changed){ saveRecs(match,{skipSync:true}); touchedIds.add(match.id); }
       }
       return;
     }
@@ -1355,11 +1452,13 @@ function filtered(){
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
     if(sf!=='all'){
       const st=rowStatus(r);
-      if(isMDR()){
-        if(sf==='pending') return st==='pending'||st==='partial';
-        if(sf==='processing') return st==='processing';
-      }
-      if(st!==sf)return false;
+      // NOTE: these must set a flag and fall through — an early `return` here would skip
+      // every check below it (type, month, date range) whenever this branch is taken.
+      let statusOk;
+      if(isMDR() && sf==='pending') statusOk = (st==='pending'||st==='partial');
+      else if(isMDR() && sf==='processing') statusOk = (st==='processing');
+      else statusOk = (st===sf);
+      if(!statusOk) return false;
     }
     if(tf!=='all'&&rowType(r)!==tf)return false;
     const pd=r.pickupDate||'';
@@ -1377,29 +1476,75 @@ function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}re
 // ══════════════════════════════════
 //  MONTH CHIPS
 // ══════════════════════════════════
+// Fixed rolling window (current month + previous 2) instead of one chip per
+// month ever seen in the data — otherwise this row would grow forever as
+// records pile up across years. A "Custom" chip reveals the existing
+// start/end date range pickers for anything older or more specific.
+const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function rollingMonths(){
+  const now=new Date(), out=[];
+  for(let i=0;i<3;i++){
+    const d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    out.push({ym:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label:`${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`});
+  }
+  return out.reverse(); // oldest → newest, left to right
+}
 function buildChips(){
-  const ms=new Set();
-  records.forEach(r=>{if(r.pickupDate){const[y,m]=r.pickupDate.split('-');ms.add(`${y}-${m}`);}});
-  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  let h=`<button class="mc${activeMon==='all'?' active':''}" onclick="setMon('all',this)">All</button>`;
-  [...ms].sort().forEach(ym=>{const[y,m]=ym.split('-');h+=`<button class="mc${activeMon===ym?' active':''}" onclick="setMon('${ym}',this)">${MN[parseInt(m)-1]} ${y}</button>`;});
+  let h=`<button class="mc${(activeMon==='all'&&!customOpen)?' active':''}" onclick="setMon('all',this)">All</button>`;
+  rollingMonths().forEach(mo=>{
+    h+=`<button class="mc${activeMon===mo.ym?' active':''}" onclick="setMon('${mo.ym}',this)">${mo.label}</button>`;
+  });
+  h+=`<button class="mc${customOpen?' active':''}" onclick="toggleCustomRange(this)">Custom</button>`;
   document.getElementById('mchips').innerHTML=h;
 }
 function setMon(m,btn){
   activeMon=m;rangeS='';rangeE='';
   document.getElementById('rangeS').value='';document.getElementById('rangeE').value='';
+  customOpen=false;
+  const rg=document.getElementById('rangegrp'); if(rg) rg.style.display='none';
   document.querySelectorAll('.mc').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');renderTable();renderStats();
 }
+function toggleCustomRange(btn){
+  customOpen=!customOpen;
+  const rg=document.getElementById('rangegrp');
+  if(customOpen){
+    activeMon='';
+    document.querySelectorAll('.mc').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    if(rg) rg.style.display='flex';
+  } else {
+    rangeS='';rangeE='';
+    document.getElementById('rangeS').value='';document.getElementById('rangeE').value='';
+    if(rg) rg.style.display='none';
+    activeMon='all';
+    buildChips();
+  }
+  renderTable();renderStats();
+  // Showing/hiding the range pickers changes the header's height — recalc the
+  // sticky offset or the table can overlap/gap under it.
+  setTimeout(updateStickyHeight, 0);
+}
 function setRange(){
   rangeS=document.getElementById('rangeS').value;rangeE=document.getElementById('rangeE').value;
-  if(rangeS||rangeE){activeMon='';document.querySelectorAll('.mc').forEach(b=>b.classList.remove('active'));}
+  if(rangeS||rangeE){
+    activeMon='';
+    document.querySelectorAll('.mc').forEach(b=>b.classList.remove('active'));
+    // Keep "Custom" itself marked active — the blanket removeAll above would otherwise
+    // strip it the moment an actual date is picked.
+    const customBtn=[...document.querySelectorAll('.mc')].find(b=>b.textContent.trim()==='Custom');
+    if(customBtn) customBtn.classList.add('active');
+  }
   renderTable();renderStats();
 }
 function clearRange(){
   rangeS='';rangeE='';
   document.getElementById('rangeS').value='';document.getElementById('rangeE').value='';
-  activeMon='all';buildChips();renderTable();renderStats();
+  activeMon='all';
+  customOpen=false;
+  const rg=document.getElementById('rangegrp'); if(rg) rg.style.display='none';
+  buildChips();renderTable();renderStats();
+  setTimeout(updateStickyHeight, 0);
 }
 
 // ══════════════════════════════════
@@ -1457,23 +1602,83 @@ function renderRefLinks(soIds){
 // ─────────────────────────────────────
 // SECTION 10: RENDER
 // ─────────────────────────────────────
+function currentFilterSig(){
+  return JSON.stringify([
+    document.getElementById('searchQ').value.trim().toLowerCase(),
+    document.getElementById('statusF').value,
+    document.getElementById('typeF').value,
+    activeMon, rangeS, rangeE
+  ]);
+}
+
 function renderTable(){
   const tbody=document.getElementById('tbody'),empty=document.getElementById('emptyState');
   const rows=filtered();
-  if(!rows.length){tbody.innerHTML='';empty.style.display='block';renderStats();return;}
+
+  // Reset the lazy-load window whenever the active filter criteria change (new
+  // search text, status/type switch, month chip, date range) so switching
+  // filters always starts back at the top page instead of an arbitrary depth.
+  const sig=currentFilterSig();
+  if(sig!==_lastFilterSig){ tableRenderLimit=TABLE_PAGE_SIZE; _lastFilterSig=sig; }
+
+  if(!rows.length){tbody.innerHTML='';empty.style.display='block';renderStats();teardownTableLazyLoad();return;}
   empty.style.display='none';
-  tbody.innerHTML=rows.map(r=>renderRow(r)).join('');
+
+  // Search bypasses the lazy-load window entirely — a match should never be
+  // hidden just because it falls outside the currently-loaded page.
+  const searchActive=!!document.getElementById('searchQ').value.trim();
+  const visibleRows=searchActive?rows:rows.slice(0,tableRenderLimit);
+
+  tbody.innerHTML=visibleRows.map(r=>renderRow(r)).join('');
   renderStats();
   // Re-apply role UI after DOM rebuild so hidden columns stay hidden
   if(userRole) applyRoleUI();
   // Auto-size all note textareas to fit their content
   setTimeout(autoSizeAll, 0);
-  // Restore selected row highlight after DOM rebuild
+  // Restore selected row highlight after DOM rebuild. If the selected record no
+  // longer has a matching row (e.g. its id changed after a SharePoint reload, or
+  // it scrolled out of the loaded page), drop the stale selection entirely instead
+  // of leaving `has-selection` stuck on body with nothing actually marked selected
+  // — that combination silently disables the row-hover highlight app-wide.
   if(selectedRowId){
     const tr = document.querySelector(`tr[data-id="${selectedRowId}"]`);
-    if(tr) tr.classList.add('r-selected');
-    document.body.classList.add('has-selection');
+    if(tr){
+      tr.classList.add('r-selected');
+      document.body.classList.add('has-selection');
+    } else {
+      selectedRowId = null;
+      document.body.classList.remove('has-selection');
+    }
   }
+  setupTableLazyLoad(rows.length, visibleRows.length, searchActive);
+}
+
+// ══════════════════════════════════
+//  LAZY LOAD (infinite scroll)
+// ══════════════════════════════════
+function teardownTableLazyLoad(){
+  if(_tableObserver){ _tableObserver.disconnect(); _tableObserver=null; }
+  const sentinel=document.getElementById('tableSentinel');
+  if(sentinel) sentinel.remove();
+}
+
+function setupTableLazyLoad(totalCount, shownCount, searchActive){
+  teardownTableLazyLoad();
+  if(searchActive || shownCount>=totalCount) return; // everything that matches is already on screen
+
+  const tbody=document.getElementById('tbody');
+  const tr=document.createElement('tr');
+  tr.id='tableSentinel';
+  tr.innerHTML=`<td colspan="14" style="text-align:center;padding:10px;color:var(--text3);font-size:11px;">Loading more… (${shownCount} of ${totalCount})</td>`;
+  tbody.appendChild(tr);
+
+  _tableObserver=new IntersectionObserver((entries)=>{
+    if(entries.some(e=>e.isIntersecting)){
+      tableRenderLimit+=TABLE_PAGE_SIZE;
+      renderTable();
+    }
+  }, {rootMargin:'400px'}); // start loading before the sentinel is actually on-screen
+  _tableObserver.observe(tr);
 }
 
 function renderRow(r){
@@ -2772,13 +2977,17 @@ function setSyncStatus(state, msg){
 }
 function toastSync(msg){ setSyncStatus('synced', '✓ '+msg); }
 
-function saveRecs(recToSync){
+function saveRecs(recToSync, opts){
   // Mark dirty BEFORE writing to localStorage, so if the sync below fails (or the tab
   // closes mid-request), the flag itself is what's saved — that's what tells
   // loadFromSharePoint() this record must not be silently overwritten by a stale
   // SharePoint copy until the edit is confirmed synced.
   if(recToSync) recToSync._dirty = true;
   localStorage.setItem('mdr_v5', JSON.stringify(records));
+  // skipSync: caller is about to sync this record itself (e.g. as part of a batched
+  // syncAllToSharePoint() right after a bulk import) — don't also fire an individual
+  // PATCH here, or every merged record gets written to SharePoint twice per import.
+  if(opts && opts.skipSync) return;
   if(recToSync && userRole && spSiteId && spListId){
     // Connected — sync to SharePoint
     syncRecordToSP(recToSync).catch(e=>{
@@ -3349,6 +3558,7 @@ async function showSignedIn(email){
   applyRoleUI();
   scheduleTokenRefresh();
   await loadFromSharePoint();
+  maybeShowWhatsNew();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
   if(!window._auditFlushInterval){
     window._auditFlushInterval = setInterval(_flushAuditQueue, 60000);
@@ -3559,7 +3769,6 @@ function updateStickyHeight(){
 
 window.addEventListener('DOMContentLoaded', () => {
   // Build marker — confirm which version is actually running (helps catch stale/cached deploys)
-  const BUILD='2026-07-01-memdownload-labelonly';
   console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
   // Silent-refresh iframe context: this page was loaded inside the hidden refresh
   // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
@@ -3585,6 +3794,7 @@ window.addEventListener('DOMContentLoaded', () => {
     userRole = 'mdr';
     loadStorageLocal(); buildChips(); renderTable(); renderStats();
     toast('Local mode', 'i');
+    maybeShowWhatsNew();
   }
 });
 
