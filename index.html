@@ -55,7 +55,7 @@ body{font-family:var(--font-main);background:var(--bg);color:var(--text);min-hei
 
 /* HEADER */
 .hdr{background:var(--hbg);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(0,0,0,.3);}
-.logo{display:flex;align-items:center;gap:10px;}
+.logo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .logobadge{background:linear-gradient(135deg,var(--accent),var(--purple));width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0;}
 .apptitle{font-size:15px;font-weight:700;letter-spacing:-.3px;}
 .appsub{font-size:11px;color:var(--text2);}
@@ -379,7 +379,8 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   #printContainer{display:block !important;}
   .print-hdr{display:block !important;font-size:18pt;font-weight:700;color:#000;
     padding-bottom:5pt;margin-bottom:6pt;border-bottom:2pt solid #1e3a5f;}
-  /* Print page: one table per page of 10 records */
+  /* Print page: single continuous table — the browser handles page breaks; a row is
+     never split across pages (see .print-table tbody tr below). */
   .print-page{page-break-after:always;margin-bottom:0;}
   .print-page:last-child{page-break-after:avoid;}
   .print-table{border-collapse:collapse;width:100%;table-layout:fixed;}
@@ -507,7 +508,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 <div class="toolbar">
   <div class="sbox">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="searchQ" placeholder="Search patient, job #, reference, equipment, serial #…" oninput="renderTable()">
+    <input type="text" id="searchQ" placeholder="Search patient, job #, reference, equipment, serial #…" oninput="onSearchInput()">
   </div>
   <span class="flbl">Status:</span>
   <select class="fsel" id="statusF" onchange="renderTable()">
@@ -739,6 +740,11 @@ const SGI_DOMAIN    = 'sgi-solutions.com';
 
 let currentUser = null;
 let userRole    = null;
+// The role actually logged in as — set once at sign-in, never touched by
+// toggleRoleView(). userRole itself DOES change when previewing (see below),
+// so anything that must key off "is this really an MDR account" — like whether
+// the preview toggle is even shown — uses this instead of userRole/isMDR().
+let authenticatedRole = null;
 let spSiteId    = null;
 let appAuditListId = null;
 let spListId    = null;
@@ -852,10 +858,14 @@ const CHANGELOG = [
     build:'2026-08-13-sgi-verified-pending',
     date:'Aug 13, 2026',
     items:[
-      'SGI view: a Closed job now stays in your Pending queue until MDR checks it as Verified — closing your side alone no longer marks it Complete.',
+      'SGI view: a Closed job now stays in your Pending queue until MDR marks it Confirmed — Closed alone, or even Closed + Verified, is not enough on its own.',
+      'Partial is now purely an indicator of how items came back (e.g. a shortage) — it no longer affects whether an order counts as Pending or Complete.',
       'SGI view: added a Verified column so you can see when MDR has confirmed a record (view only — MDR sets this, not SGI).',
       'Fixed: the Pending count now includes Partial records instead of undercounting them (e.g. 14 Pending + 1 Partial now correctly shows 15 Pending).',
-      'Moved the MDR/SGI view toggle up next to the app logo, and the Custom date-range pickers now sit right next to the Custom chip instead of the far right of the screen.'
+      'Moved the MDR/SGI view toggle up next to the app logo, and the Custom date-range pickers now sit right next to the Custom chip instead of the far right of the screen.',
+      'The MDR/SGI view-preview toggle (for testing what the other side sees) is no longer visible to actual SGI accounts — it was only ever meant for MDR to preview with.',
+      'Search should feel smoother on large lists — results now update briefly after you stop typing instead of on every keystroke.',
+      'If a record fails to delete from SharePoint (e.g. a network hiccup), the app now keeps retrying automatically instead of the record silently coming back on your next refresh. If someone else deletes a record you had an unsaved edit on, you\u2019ll now see a warning instead of the edit just disappearing.'
     ]
   },
   {
@@ -1398,31 +1408,34 @@ function normDate(s){
 }
 
 function rowStatus(rec){
+  // Status (Pending/Processing/Complete) is decided ONLY by Job Closed, Verified,
+  // and Confirmed. Partial/Shortage/Overage are a separate, purely informational
+  // measure of how items were actually received — see pieceReceiptFlag() — and
+  // must never move a record in or out of Pending/Processing/Complete.
   if(isSGI()){
-    // Stays "pending" from SGI's perspective until MDR actually checks Verified —
-    // not just until SGI closes the job. This is what lets MDR leave a job closed
-    // with a note (something missing/wrong) and NOT check Verified, keeping it
-    // visibly unresolved in SGI's queue instead of it silently flipping to Complete.
-    if(!rec.verified) return 'pending';
-    if(!rec.pieces||!rec.pieces.length) return 'complete';
-    const chk=rec.pieces.filter(p=>p.checked);
-    if(chk.length<rec.pieces.length) return 'partial';
-    const hasVar=chk.some(p=>p.receivedQty!==null&&p.receivedQty!==p.expectedQty);
-    return hasVar?'partial':'complete';
+    // Only Confirmed moves a record out of Pending for SGI. Closed alone isn't
+    // enough, and Verified alone isn't enough — this is what lets MDR leave a
+    // closed, even verified, job sitting visibly unresolved in SGI's queue by
+    // simply not checking Confirmed yet (e.g. while a note is still open).
+    return rec.confirmed ? 'complete' : 'pending';
   }
-  // MDR: complete=Confirmed, processing=JobClosed+Verified, pending=everything else
+  // MDR: complete=Confirmed, processing=Closed+Verified, pending=everything else.
   if(rec.confirmed) return 'complete';
   if(rec.jobClosed && rec.verified) return 'processing';
-  const pieces=rec.pieces||[];
-  if(pieces.length){
-    const chk=pieces.filter(p=>p.checked);
-    if(chk.length===pieces.length){
-      const hasShortage=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
-      const hasOverage=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
-      if(hasShortage||hasOverage) return 'partial';
-    }
-  }
   return 'pending';
+}
+function pieceReceiptFlag(rec){
+  // Purely descriptive indicator of how items came back — 'partial' (not everything
+  // checked in yet), 'shortage', or 'overage'. NEVER used to decide rowStatus().
+  const pieces=rec.pieces||[];
+  if(!pieces.length) return null;
+  const chk=pieces.filter(p=>p.checked);
+  if(chk.length<pieces.length) return 'partial';
+  const hasOver=chk.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
+  const hasShort=chk.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
+  if(hasOver) return 'overage';
+  if(hasShort) return 'shortage';
+  return null;
 }
 function pieceVariance(p){
   // Returns: 'shortage' | 'overage' | 'match' | 'uncounted'
@@ -1451,16 +1464,12 @@ function filtered(){
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
     if(sf!=='all'){
       const st=rowStatus(r);
-      // NOTE: these must set a flag and fall through — an early `return` here would skip
-      // every check below it (type, month, date range) whenever this branch is taken.
-      let statusOk;
-      // "Pending" always includes Partial too — Partial is a sub-indicator of an
-      // outstanding record, not a separate resolved bucket. Matches the Pending
-      // count shown in the stats bar (see renderStats()).
-      if(sf==='pending') statusOk = (st==='pending'||st==='partial');
-      else if(isMDR() && sf==='processing') statusOk = (st==='processing');
-      else statusOk = (st===sf);
-      if(!statusOk) return false;
+      // rowStatus() never returns 'partial' — that's a separate, informational
+      // measure now (see pieceReceiptFlag()) that never affects which bucket a
+      // record is in — so this is a plain match against Pending/Processing/Complete.
+      // NOTE: must fall through, not `return` here directly — an early return would
+      // skip every check below it (type, month, date range).
+      if(st!==sf) return false;
     }
     if(tf!=='all'&&rowType(r)!==tf)return false;
     const pd=r.pickupDate||'';
@@ -1555,10 +1564,13 @@ function clearRange(){
 function renderStats(){
   const comp=records.filter(r=>rowStatus(r)==='complete').length;
   const proc=records.filter(r=>rowStatus(r)==='processing').length; // MDR-only concept; always 0 for SGI
-  const part=records.filter(r=>rowStatus(r)==='partial').length;
+  // Partial is purely a measure of how many orders came back with a discrepancy —
+  // it has no bearing on Pending/Processing/Complete (see pieceReceiptFlag()), so
+  // it's computed independently here rather than via rowStatus().
+  const part=records.filter(r=>pieceReceiptFlag(r)).length;
   // "Pending" is every record that isn't Complete or Processing — i.e. everything
-  // still outstanding, INCLUDING the ones flagged Partial. Partial is shown as its
-  // own indicator alongside it, not as a bucket that's subtracted out of Pending.
+  // still outstanding. A record flagged Partial is still counted here too, since
+  // Partial never removes anything from Pending.
   const pend=records.length - comp - proc;
   const memDl=records.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
   document.getElementById('spills').innerHTML=`
@@ -1614,6 +1626,17 @@ function currentFilterSig(){
     document.getElementById('typeF').value,
     activeMon, rangeS, rangeE
   ]);
+}
+
+// Search bypasses the row-pagination limit (see renderTable()) so a match is never
+// hidden just because it's outside the loaded page — but that means a broad search
+// term can re-render hundreds of rows on every keystroke. Debouncing so a full
+// re-render only happens once typing pauses, instead of on every character, keeps
+// that from causing visible lag while typing.
+let _searchDebounceTimer = null;
+function onSearchInput(){
+  clearTimeout(_searchDebounceTimer);
+  _searchDebounceTimer = setTimeout(renderTable, 200);
 }
 
 function renderTable(){
@@ -1699,21 +1722,6 @@ function renderRow(r){
     if(r.dropOffBy <= tod()) cls += ' r-overdue';
   }
 
-  // Helper: locked display OR editable input
-  function lockedOrInput(field,val,type='text',ph='',extraStyle=''){
-    if(isLocked(r,field)){
-      return`<div class="flock"><span class="li2">🔒</span><span class="lv">${esc(val||'—')}</span></div>`;
-    }
-    if(type==='date'){
-      return`<input type="date" class="datepick" value="${esc(r[field]||'')}"
-        onclick="openCal(this)"
-        onchange="updateF('${r.id}','${field}',this.value)" style="${extraStyle}">`;
-    }
-    return`<input type="text" style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:4px 7px;color:var(--text);font-family:inherit;font-size:11px;outline:none;width:100%;${extraStyle}"
-      value="${esc(r[field]||'')}" placeholder="${ph}"
-      onchange="updateF('${r.id}','${field}',this.value)">`;
-  }
-
   const nameTag=r.source==='manual'?' <span class="tag-new">NEW</span>':'';
 
   // Reference cell — locked shows clickable links, editable shows input
@@ -1737,17 +1745,17 @@ function renderRow(r){
     onclick="openCal(this)"
     onchange="updateF('${r.id}','dropOffBy',this.value)">`;
 
-  // Determine chip label — Shortage/Overage when all checked but qty mismatch
+  // Chip shows the receipt discrepancy (Partial/Shortage/Overage) instead of the
+  // bare status when there is one — more useful at a glance — but ONLY while the
+  // record is still open (Pending/Processing). A Complete record always shows
+  // Complete: Partial/Shortage/Overage is informational only and must never look
+  // like it changes Pending/Processing/Complete (see rowStatus()/pieceReceiptFlag()).
   let chipStatus = status;
   let chipLabel = status.charAt(0).toUpperCase() + status.slice(1);
-  if(status === 'partial'){
-    const allChkd = r.pieces && r.pieces.length && r.pieces.every(p=>p.checked);
-    if(allChkd){
-      const hasOver = r.pieces.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
-      const hasShort = r.pieces.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
-      if(hasOver){ chipLabel='Overage'; }
-      else if(hasShort){ chipLabel='Shortage'; }
-    }
+  const receipt = pieceReceiptFlag(r);
+  if(receipt && status !== 'complete'){
+    chipStatus = 'partial'; // shares the yellow "partial" chip styling
+    chipLabel = receipt === 'shortage' ? 'Shortage' : receipt === 'overage' ? 'Overage' : 'Partial';
   }
   const chipHtml=`<span class="schip c-${chipStatus}"><span class="cdot"></span>${chipLabel}</span>`;
 
@@ -1979,16 +1987,16 @@ function refreshRowStatus(rec){
   tr.classList.toggle('r-complete',st==='complete');
   const chip=tr.querySelector('.schip');
   if(chip){
+    let cls = st;
     let lbl = st==='processing'?'Processing':st.charAt(0).toUpperCase()+st.slice(1);
-    if(st==='partial'){
-      const allChkd=rec.pieces&&rec.pieces.every(p=>p.checked);
-      if(allChkd){
-        const hasOver=rec.pieces.some(p=>p.receivedQty!==null&&p.receivedQty>p.expectedQty);
-        const hasShort=rec.pieces.some(p=>p.receivedQty!==null&&p.receivedQty<p.expectedQty);
-        if(hasOver) lbl='Overage'; else if(hasShort) lbl='Shortage';
-      }
+    // Same rule as renderRow(): show the receipt discrepancy instead of the bare
+    // status while still open, but never once it's actually Complete.
+    const receipt = pieceReceiptFlag(rec);
+    if(receipt && st!=='complete'){
+      cls = 'partial';
+      lbl = receipt==='shortage' ? 'Shortage' : receipt==='overage' ? 'Overage' : 'Partial';
     }
-    chip.className=`schip c-${st}`;chip.innerHTML=`<span class="cdot"></span>${lbl}`;
+    chip.className=`schip c-${cls}`;chip.innerHTML=`<span class="cdot"></span>${lbl}`;
   }
   const sa=tr.querySelector('.sabtn');
   if(sa)sa.textContent=rec.pieces.every(p=>p.checked)?'☐ Deselect All':'☑ Select All';
@@ -2026,38 +2034,66 @@ function toggleAll(rid){
   refreshRowStatus(rec);renderStats();
 }
 
-function delRecFromModal(){
-  if(!editId) return;
-  if(!confirm('Permanently delete this record?\n\nThis cannot be undone.')) return;
-  // Call delRec but skip its own confirm since we already confirmed
-  const rec=records.find(r=>r.id===editId);
-  records=records.filter(r=>r.id!==editId);
-  localStorage.setItem('mdr_v5',JSON.stringify(records));
-  if(rec&&rec._spId&&spSiteId&&spListId){
-    setSyncStatus('syncing','Deleting record…');
-    gDelete('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId)
-      .then(()=>setSyncStatus('synced','✓ Record deleted'))
-      .catch(e=>{ console.error('SP delete error:',e); setSyncStatus('error','✗ Delete failed on SharePoint'); });
-  }
-  renderTable();toast('Record deleted','i');
-  closeModal();
+// ─────────────────────────────────────
+// PENDING DELETES
+// ─────────────────────────────────────
+// Deleting a record is optimistic — it disappears from the UI immediately, before
+// SharePoint confirms it. If that DELETE call fails (network blip, throttling) with
+// no tracking, the record would silently reappear on the next SharePoint refresh
+// with no indication anything went wrong. This mirrors the existing `_dirty`-flag
+// pattern used for edits: persist the intent to delete, filter it out of anything
+// loadFromSharePoint() pulls down, and retry until it actually succeeds.
+function getPendingDeletes(){
+  try{ return JSON.parse(localStorage.getItem('mdr_pending_deletes')||'[]'); }catch(e){ return []; }
 }
-
-function delRec(id){
-  if(!confirm('Delete this record?'))return;
+function addPendingDelete(spId){
+  if(!spId) return;
+  const list=getPendingDeletes();
+  if(!list.includes(spId)){ list.push(spId); localStorage.setItem('mdr_pending_deletes',JSON.stringify(list)); }
+}
+function clearPendingDelete(spId){
+  const list=getPendingDeletes().filter(id=>id!==spId);
+  localStorage.setItem('mdr_pending_deletes',JSON.stringify(list));
+}
+// Deletes on SharePoint, tracking the attempt as pending until it actually succeeds.
+// Returns true/false rather than throwing, so callers can update sync status either way.
+async function deleteRecordFromSP(spId){
+  if(!spId||!spSiteId||!spListId) return false;
+  addPendingDelete(spId);
+  try{
+    await gDelete('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+spId);
+    clearPendingDelete(spId);
+    return true;
+  }catch(e){
+    console.error('SP delete error:',e);
+    return false; // stays in the pending list — retried on next loadFromSharePoint()
+  }
+}
+// Shared by delRec() and delRecFromModal() — removes locally (optimistic) and kicks
+// off the tracked SharePoint delete.
+function deleteRecordLocalAndSP(id){
   const rec=records.find(r=>r.id===id);
   records=records.filter(r=>r.id!==id);
   localStorage.setItem('mdr_v5',JSON.stringify(records));
   if(rec&&rec._spId&&spSiteId&&spListId){
     setSyncStatus('syncing','Deleting record…');
-    gDelete('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId)
-      .then(()=>setSyncStatus('synced','✓ Record deleted'))
-      .catch(e=>{
-        console.error('SP delete error:',e);
-        setSyncStatus('error','✗ Delete failed on SharePoint');
-      });
+    deleteRecordFromSP(rec._spId).then(ok=>{
+      setSyncStatus(ok?'synced':'error', ok?'✓ Record deleted':'✗ Delete failed — will keep retrying');
+    });
   }
   renderTable();toast('Record deleted','i');
+}
+
+function delRecFromModal(){
+  if(!editId) return;
+  if(!confirm('Permanently delete this record?\n\nThis cannot be undone.')) return;
+  deleteRecordLocalAndSP(editId);
+  closeModal();
+}
+
+function delRec(id){
+  if(!confirm('Delete this record?'))return;
+  deleteRecordLocalAndSP(id);
 }
 
 function removePieceInline(rid,pid){
@@ -2943,6 +2979,15 @@ function toggleRoleView(){
 }
 
 function applyRoleUI(){
+  // The MDR/SGI preview toggle is an MDR-only testing tool — hide it entirely for a
+  // real SGI-authenticated session, regardless of which view is currently being
+  // previewed. Gated on authenticatedRole (fixed at login), NOT on userRole/isSGI()
+  // (which toggleRoleView() intentionally flips) — gating on isSGI() instead would
+  // also hide the button from an MDR admin who toggled into SGI preview, leaving
+  // them stuck with no way to toggle back.
+  const roleToggleBtn = document.getElementById('btnRoleToggle');
+  if(roleToggleBtn) roleToggleBtn.style.display = (authenticatedRole==='mdr') ? '' : 'none';
+
   if(isSGI()){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
       const t = b.textContent.trim();
@@ -2980,7 +3025,6 @@ function setSyncStatus(state, msg){
     syncStatusTimer = setTimeout(()=>{ el.className = 'sync-status'; }, 3000);
   }
 }
-function toastSync(msg){ setSyncStatus('synced', '✓ '+msg); }
 
 function saveRecs(recToSync, opts){
   // Mark dirty BEFORE writing to localStorage, so if the sync below fails (or the tab
@@ -3283,7 +3327,12 @@ async function loadFromSharePoint(){
       url = data['@odata.nextLink']
         ? data['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0','') : null;
     }
-    const spRecs = all.map(spToRec);
+    let spRecs = all.map(spToRec);
+    // Never let a record we're still trying to delete come back from under us — a
+    // delete whose SharePoint call hasn't succeeded yet (see deleteRecordFromSP())
+    // would otherwise silently reappear here on every refresh until it does.
+    const pendingDeletes = getPendingDeletes();
+    if(pendingDeletes.length) spRecs = spRecs.filter(r=>!pendingDeletes.includes(r._spId));
     const valid = spRecs.filter(r=>r.patientName&&r.patientName.trim());
     if(valid.length > 0){
       // Merge: start from the SharePoint copy, but substitute in the preserved local version
@@ -3298,8 +3347,19 @@ async function loadFromSharePoint(){
       });
       records = spRecs.map(sp => preserveBySpId.has(sp._spId) ? preserveBySpId.get(sp._spId) : sp)
                       .concat(preserveNew);
+      // Anything preserved-by-spId that DIDN'T get consumed above means: we have an
+      // unsynced local edit for a record that no longer exists anywhere in the current
+      // SharePoint results (and isn't one of our own pending deletes, already filtered
+      // out above) — i.e. someone else deleted it before our edit ever synced. Rather
+      // than let it silently vanish, surface it so the edit isn't just lost without a trace.
+      const consumedSpIds = new Set(spRecs.map(sp=>sp._spId));
+      const orphanedEdits = [...preserveBySpId.keys()].filter(spId=>!consumedSpIds.has(spId));
       localStorage.setItem('mdr_v5',JSON.stringify(records));
       buildChips(); renderTable(); renderStats();
+      if(orphanedEdits.length){
+        const names = orphanedEdits.map(id=>preserveBySpId.get(id).patientName||'record').slice(0,3).join(', ');
+        toast('\u26a0 '+orphanedEdits.length+' unsynced edit'+(orphanedEdits.length>1?'s':'')+' discarded \u2014 '+names+(orphanedEdits.length>3?', \u2026':'')+' no longer exist on SharePoint','e');
+      }
       if(localPreserve.length){
         const n = localPreserve.length;
         toast('Loaded '+valid.length+' from SharePoint \u2014 kept '+n+' local record'+(n>1?'s':'')+' not yet synced, retrying\u2026','i');
@@ -3307,6 +3367,10 @@ async function loadFromSharePoint(){
         syncAllToSharePoint(localPreserve).catch(e=>console.error('Retry sync failed:',e));
       } else {
         toast('Loaded '+valid.length+' records from SharePoint','s');
+      }
+      // Retry any deletes that haven't confirmed yet, same reasoning as the edit retry above.
+      if(pendingDeletes.length){
+        pendingDeletes.forEach(spId=>deleteRecordFromSP(spId).catch(()=>{}));
       }
     } else if(spRecs.length > 0){
       console.warn('[MDR] SP records missing patient names:',spRecs[0]);
@@ -3403,7 +3467,7 @@ async function syncAllToSharePoint(subset){
 async function spRefresh(){
   await logAppAction('Refresh','Refreshed data from SharePoint');
   await loadFromSharePoint();
-  presenceJoin().catch(e=>console.warn('Presence join failed:',e));
+  presenceTouch().catch(e=>console.warn('Presence touch failed:',e));
 }
 
 async function msalSignIn(){
@@ -3429,7 +3493,7 @@ async function signOut(){
   localStorage.removeItem('mdr_id_token');
   localStorage.removeItem('mdr_user_email');
   await presenceLeave();
-  currentUser = null; userRole = null; records = [];
+  currentUser = null; userRole = null; authenticatedRole = null; records = [];
   localStorage.removeItem('mdr_v5');
   const chip = document.getElementById('userChip');
   if(chip) chip.style.display = 'none';
@@ -3546,6 +3610,7 @@ async function showSignedIn(email){
     return;
   }
   userRole = domain === MDR_DOMAIN ? 'mdr' : 'sgi';
+  authenticatedRole = userRole; // fixed for the session — toggleRoleView() never changes this
   currentUser = {username: email, name: email.split('@')[0]};
   applyBranding(userRole);
 
@@ -3710,6 +3775,22 @@ async function presenceLeave(){
   presenceItemId = null;
 }
 
+// Lightweight re-announce for an already-joined session (e.g. a manual Refresh
+// click) — a single PATCH, same as the heartbeat. Falls back to a full presenceJoin()
+// only if we somehow don't have a presence entry yet, instead of always paying for
+// the full join sequence (profile photo fetch + full list scan + create/update)
+// on every refresh.
+async function presenceTouch(){
+  if(!presenceItemId||!spSiteId||!presenceListId){
+    return presenceJoin();
+  }
+  try{
+    await gPatch(`/sites/${spSiteId}/lists/${presenceListId}/items/${presenceItemId}/fields`,
+      {LastSeen: new Date().toISOString()});
+  } catch(e){}
+  renderPresence();
+}
+
 let _presenceRendering = false;
 async function renderPresence(){
   if(_presenceRendering) return;
@@ -3797,6 +3878,7 @@ window.addEventListener('DOMContentLoaded', () => {
     initMSAL();
   } else {
     userRole = 'mdr';
+    authenticatedRole = 'mdr'; // local file:// dev mode — always the MDR testing context
     loadStorageLocal(); buildChips(); renderTable(); renderStats();
     toast('Local mode', 'i');
   }
