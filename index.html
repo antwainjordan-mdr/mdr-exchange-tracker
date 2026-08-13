@@ -80,7 +80,7 @@ body{font-family:var(--font-main);background:var(--bg);color:var(--text);min-hei
 /* DATE BAR */
 .datebar{background:var(--surface);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .dbl{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
-.mchips{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+.mchips{display:flex;gap:4px;flex-wrap:wrap;}
 .mc{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;white-space:nowrap;}
 .mc:hover{border-color:var(--accent);color:var(--text);}
 .mc.active{background:var(--accent);border-color:var(--accent);color:#fff;}
@@ -436,6 +436,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div class="logo">
     <div class="logobadge" style="background:transparent;padding:2px;"><svg width="100%" height="100%" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g><path d="M529.111,535.543l0,-264.557l58.955,0c56.752,0 62.738,-1.533 74.424,5.221c19.406,11.214 24.148,31.907 24.156,62.134c0.008,26.13 -13.672,42.456 -26.493,51.558c26.751,14.864 26.496,54.851 26.624,84.461l0,61.183l-61.093,0l0,-67.091c0,-40.077 -1.346,-50.943 -9.602,-53.157c-8.256,-2.213 -11.253,-1.204 -18.621,-1.204l-0,121.452l-68.35,0Zm97.458,-198.836c-0.072,-11.21 -4.269,-23.927 -11.946,-28.577c-8.863,-0 -12.941,-1.236 -17.162,-0c-0,11.909 0.203,13.682 -0,26.218c-0,25.116 0.027,27.695 -0,37.745c4.265,0.011 1.899,-0.016 17.162,-0c9.46,-7.54 11.946,-22.781 11.946,-35.386Z" style="fill:#f41617;fill-rule:nonzero;"/><path d="M331.671,795.272c-208.86,-39.633 -353.155,-231.203 -329.042,-436.845c22.2,-189.33 166.325,-333.745 355.206,-355.919c153.568,-18.029 311.314,62.49 389.195,198.658c114.854,200.814 36.296,456.587 -171.52,558.442c-23.219,11.38 -58.364,24.638 -78.099,29.462c-47.598,11.636 -122.362,14.433 -165.74,6.202Zm142.901,-78.047c117.593,-29.604 208.272,-119.128 241.045,-237.974c10.305,-37.366 11.881,-121.899 -0.561,-159.14c-37.909,-113.476 -113.269,-197.726 -226.089,-232.993c-26.638,-8.327 -65,-12.832 -88.341,-12.832c-23.34,0 -62.327,4.505 -88.966,12.832c-112.536,35.178 -195.349,120.509 -226.356,233.237c-10.337,37.579 -10.337,122.451 0,160.03c17.423,63.342 48.254,113.837 97.747,160.085c37.288,34.845 89.692,63.234 141.274,76.533c43.466,11.207 106.245,11.299 150.247,0.222l-0,0Zm-88.08,-194.138c-17.638,-18.422 -25.136,-39.598 -25.69,-84.699c-0.577,-46.937 20.426,-83.066 43.515,-94.93c21.879,-11.242 52.989,4.191 52.989,4.191l-0,-76.663c27.353,0 32.365,0.845 48.548,0l-0,264.557l-48.548,0c-0,-22.184 1.714,-17.713 -0,-22.184c-6.353,7.534 -13.553,13.79 -13.553,13.79c-12.61,12.618 -43.095,10.733 -57.261,-4.062Zm44.476,-122.495c-30.641,-0 -29.072,84.593 1.495,84.593c30.567,-0 29.147,-84.593 -1.495,-84.593Zm-312.657,-129.606c9.741,0 0.001,-0.211 78.27,0c33.607,160.035 24.109,99.975 34.909,159.526c36.209,-160.035 34.907,-159.526 34.907,-159.526l78.583,0l2.564,260.229l-49.139,-0l-0,-204.393l-43.735,204.393l-46.36,-0c-16.74,-66.039 1.476,-0 -44.406,-200.547c0,200.547 0.055,131.733 0,200.547c-24.312,0.047 -39.294,0.001 -47.844,-0c-0,-88.159 1.585,-171.579 2.251,-260.229Z" style="fill:#23118c;fill-rule:nonzero;"/></g></svg></div>
     <div><div class="apptitle">Exchange Tracker</div><div class="appsub">Pickup &amp; Exchange Management</div></div>
+    <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);margin-left:6px;">
+      👁 SGI View
+    </button>
   </div>
   <div class="hacts">
     <div id="presenceBar" class="presence-bar" style="display:none"></div>
@@ -454,10 +457,6 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     </button>
     <button class="btn btn-pdf btn-sm" onclick="exportPDF()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Export PDF
-    </button>
-
-    <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);">
-      👁 SGI View
     </button>
 
     
@@ -545,7 +544,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:160px">SGI Notes</th>
         <th style="min-width:160px">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
-        <th class="ctr th-mdr-only" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
+        <th class="ctr" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
         <th class="ctr th-mdr-only" style="min-width:80px">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
         <th style="min-width:80px;text-align:center">Activity</th>
         <th class="no-print" style="min-width:50px"></th>
@@ -847,8 +846,18 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 // history available any time from the header button. Nothing here needs Azure
 // or any backend — it's static data baked into this file at deploy time, same
 // as everything else in this single-file app.
-const BUILD = '2026-08-12-monthfix-lazyload';
+const BUILD = '2026-08-13-sgi-verified-pending';
 const CHANGELOG = [
+  {
+    build:'2026-08-13-sgi-verified-pending',
+    date:'Aug 13, 2026',
+    items:[
+      'SGI view: a Closed job now stays in your Pending queue until MDR checks it as Verified — closing your side alone no longer marks it Complete.',
+      'SGI view: added a Verified column so you can see when MDR has confirmed a record (view only — MDR sets this, not SGI).',
+      'Fixed: the Pending count now includes Partial records instead of undercounting them (e.g. 14 Pending + 1 Partial now correctly shows 15 Pending).',
+      'Moved the MDR/SGI view toggle up next to the app logo, and the Custom date-range pickers now sit right next to the Custom chip instead of the far right of the screen.'
+    ]
+  },
   {
     build:'2026-08-12-monthfix-lazyload',
     date:'Aug 12, 2026',
@@ -1390,7 +1399,11 @@ function normDate(s){
 
 function rowStatus(rec){
   if(isSGI()){
-    if(!rec.jobClosed) return 'pending';
+    // Stays "pending" from SGI's perspective until MDR actually checks Verified —
+    // not just until SGI closes the job. This is what lets MDR leave a job closed
+    // with a note (something missing/wrong) and NOT check Verified, keeping it
+    // visibly unresolved in SGI's queue instead of it silently flipping to Complete.
+    if(!rec.verified) return 'pending';
     if(!rec.pieces||!rec.pieces.length) return 'complete';
     const chk=rec.pieces.filter(p=>p.checked);
     if(chk.length<rec.pieces.length) return 'partial';
@@ -1441,7 +1454,10 @@ function filtered(){
       // NOTE: these must set a flag and fall through — an early `return` here would skip
       // every check below it (type, month, date range) whenever this branch is taken.
       let statusOk;
-      if(isMDR() && sf==='pending') statusOk = (st==='pending'||st==='partial');
+      // "Pending" always includes Partial too — Partial is a sub-indicator of an
+      // outstanding record, not a separate resolved bucket. Matches the Pending
+      // count shown in the stats bar (see renderStats()).
+      if(sf==='pending') statusOk = (st==='pending'||st==='partial');
       else if(isMDR() && sf==='processing') statusOk = (st==='processing');
       else statusOk = (st===sf);
       if(!statusOk) return false;
@@ -1537,10 +1553,13 @@ function clearRange(){
 //  STATS
 // ══════════════════════════════════
 function renderStats(){
-  const pend=records.filter(r=>rowStatus(r)==='pending').length;
-  const part=records.filter(r=>rowStatus(r)==='partial').length;
-  const proc=records.filter(r=>rowStatus(r)==='processing').length;
   const comp=records.filter(r=>rowStatus(r)==='complete').length;
+  const proc=records.filter(r=>rowStatus(r)==='processing').length; // MDR-only concept; always 0 for SGI
+  const part=records.filter(r=>rowStatus(r)==='partial').length;
+  // "Pending" is every record that isn't Complete or Processing — i.e. everything
+  // still outstanding, INCLUDING the ones flagged Partial. Partial is shown as its
+  // own indicator alongside it, not as a bucket that's subtracted out of Pending.
+  const pend=records.length - comp - proc;
   const memDl=records.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
   document.getElementById('spills').innerHTML=`
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
@@ -1763,9 +1782,9 @@ function renderRow(r){
       onclick="event.stopPropagation()"
       ${isSGI()?'readonly style="opacity:.75;cursor:default"':''}>${esc(r.mdrNotes)}</textarea></td>
     <td>${lateHtml}</td>
-    <td class="ctr col-mdr-only">
+    <td class="ctr">
       <div class="cbwrap">
-        <input type="checkbox" class="bigcb cb-verified" ${r.verified?'checked':''}
+        <input type="checkbox" class="bigcb cb-verified" ${r.verified?'checked':''} ${isSGI()?'disabled title="MDR sets this — view only"':''}
           onchange="updateF('${r.id}','verified',this.checked)" onclick="event.stopPropagation()">
       </div>
       <span class="print-cb verified-p${r.verified?' checked-p':''}"></span>
