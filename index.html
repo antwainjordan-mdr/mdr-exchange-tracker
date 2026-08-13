@@ -865,7 +865,8 @@ const CHANGELOG = [
       'Moved the MDR/SGI view toggle up next to the app logo, and the Custom date-range pickers now sit right next to the Custom chip instead of the far right of the screen.',
       'The MDR/SGI view-preview toggle (for testing what the other side sees) is no longer visible to actual SGI accounts — it was only ever meant for MDR to preview with.',
       'Search should feel smoother on large lists — results now update briefly after you stop typing instead of on every keystroke.',
-      'If a record fails to delete from SharePoint (e.g. a network hiccup), the app now keeps retrying automatically instead of the record silently coming back on your next refresh. If someone else deletes a record you had an unsaved edit on, you\u2019ll now see a warning instead of the edit just disappearing.'
+      'If a record fails to delete from SharePoint (e.g. a network hiccup), the app now keeps retrying automatically instead of the record silently coming back on your next refresh. If someone else deletes a record you had an unsaved edit on, you\u2019ll now see a warning instead of the edit just disappearing.',
+      'Opening the App Activity Log no longer adds its own \"opened the log\" entry to the log.'
     ]
   },
   {
@@ -2310,7 +2311,6 @@ async function _flushAuditQueue(){
 
 async function openAppAuditLog(event){
   event.stopPropagation();
-  logAppAction('App Log', 'Opened app activity log');
   const popup = document.getElementById('appAuditPopup');
   const vw=window.innerWidth,vh=window.innerHeight;
   let x=event.clientX,y=event.clientY;
