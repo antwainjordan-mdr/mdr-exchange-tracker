@@ -866,7 +866,8 @@ const CHANGELOG = [
       'The MDR/SGI view-preview toggle (for testing what the other side sees) is no longer visible to actual SGI accounts — it was only ever meant for MDR to preview with.',
       'Search should feel smoother on large lists — results now update briefly after you stop typing instead of on every keystroke.',
       'If a record fails to delete from SharePoint (e.g. a network hiccup), the app now keeps retrying automatically instead of the record silently coming back on your next refresh. If someone else deletes a record you had an unsaved edit on, you\u2019ll now see a warning instead of the edit just disappearing.',
-      'Opening the App Activity Log no longer adds its own \"opened the log\" entry to the log.'
+      'Opening the App Activity Log no longer adds its own \"opened the log\" entry to the log.',
+      'Fixed a bug causing duplicate entries after a Daily load: a patient ID exported in a slightly different number format (e.g. \"13961\" vs \"13961.00\") was being read as a different patient, creating a new duplicate record instead of updating the existing one.'
     ]
   },
   {
@@ -1106,13 +1107,23 @@ function loadDaily(text){
   function normName(s){
     return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
   }
+  // Normalize an ID-like value for comparison — strips a trailing ".00" (the same
+  // Excel/PowerBI numeric-export artifact already worked around for job# and
+  // reference tokens below) and stray leading zeros, so e.g. "13961", "13961.00",
+  // and "013961" all compare equal. Without this, a patient ID that gets exported
+  // in a slightly different numeric format on a later Daily load looks like a
+  // DIFFERENT patient, and findMatch() creates a fresh duplicate record instead of
+  // recognizing the existing one.
+  function normIdStr(s){
+    return (s==null?'':String(s)).trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,'');
+  }
   // Split a reference string into a Set of normalized tokens.
   function refTokens(s){
-    return new Set((s||'').toLowerCase().split(/[\s,;|\/]+/).map(t=>t.replace(/\.00$/,'').trim()).filter(Boolean));
+    return new Set((s||'').toLowerCase().split(/[\s,;|\/]+/).map(t=>normIdStr(t)).filter(Boolean));
   }
   // Same patient? IDs decide when both present; otherwise fall back to name.
   function patientMatch(aName,aId,bName,bId){
-    const idA=(aId||'').trim(), idB=(bId||'').trim();
+    const idA=normIdStr(aId), idB=normIdStr(bId);
     if(idA && idB) return idA===idB;
     const nA=normName(aName);
     return !!nA && nA===normName(bName);
@@ -1145,13 +1156,13 @@ function loadDaily(text){
   // job#, they are different jobs (e.g. a rebooking) and must NOT merge — even if patient
   // and reference match. A blank job# on either side still merges (job# gets filled in).
   function findMatch(inc){
-    const incJob=(inc.jobNum||'').replace(/\.00$/,'').trim();
+    const incJob=normIdStr(inc.jobNum);
     for(const r of records){
       if(!patientMatch(inc.patientName, inc.patientId, r.patientName, r.patientId)) continue;
-      const exJob=String(r.jobNum||'').replace(/\.00$/,'').trim();
+      const exJob=normIdStr(r.jobNum);
       // Does any identity signal say "same record"?
       const sameByRef   = refOverlap(inc.refSet, refTokens(r.soIds));
-      const sameByEntry = inc.entryId && r.entryId && inc.entryId.trim()===String(r.entryId).trim();
+      const sameByEntry = inc.entryId && r.entryId && normIdStr(inc.entryId)===normIdStr(r.entryId);
       const sameByJob   = incJob && exJob && incJob===exJob;
       if(!(sameByRef||sameByEntry||sameByJob)) continue;
       // Conflicting non-blank job numbers => different jobs (rebooking). Keep separate + warn.
