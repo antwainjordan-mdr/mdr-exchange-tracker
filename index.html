@@ -848,12 +848,31 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 // Graph API calls, internal refactors — has no user-visible effect and should NOT
 // get an entry here, even though it's still worth tracking in our own notes.
 // This is the permanent record of updates to this app — it drives the automatic
-// "What's New" splash on first load after a new build, and the full "Updates"
+// "What's New" splash on first login after a new build, and the full "Updates"
 // history available any time from the header button. Nothing here needs Azure
 // or any backend — it's static data baked into this file at deploy time, same
 // as everything else in this single-file app.
-const BUILD = '2026-08-13-sgi-verified-pending';
+//
+// KEEP IN SYNC, EVERY TIME — all three of these travel together:
+//   1. BUILD below — bump it on every deploy, even a same-day one. This is the ONLY
+//      way anyone (including us) can visually confirm in the browser console or the
+//      DevTools Sources tab that a re-upload actually took effect, since the file has
+//      no version number anywhere else.
+//   2. A new CHANGELOG[0] entry — if what changed is user-visible (see rule above).
+//   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
+//      automatically, so it never needs editing itself, but it's WHY BUILD must
+//      change: this is the line that actually surfaces the new value on load.
+const BUILD = '2026-08-18-dailyload-dedup-fix';
+console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-08-18-dailyload-dedup-fix',
+    date:'Aug 18, 2026',
+    items:[
+      'Fixed a bug causing duplicate entries after a Daily load: a patient ID exported in a slightly different number format (e.g. \"13961\" vs \"13961.00\") was being read as a different patient, creating a new duplicate record instead of updating the existing one.',
+      'Opening the App Activity Log no longer adds its own \"opened the log\" entry to the log.'
+    ]
+  },
   {
     build:'2026-08-13-sgi-verified-pending',
     date:'Aug 13, 2026',
@@ -865,9 +884,7 @@ const CHANGELOG = [
       'Moved the MDR/SGI view toggle up next to the app logo, and the Custom date-range pickers now sit right next to the Custom chip instead of the far right of the screen.',
       'The MDR/SGI view-preview toggle (for testing what the other side sees) is no longer visible to actual SGI accounts — it was only ever meant for MDR to preview with.',
       'Search should feel smoother on large lists — results now update briefly after you stop typing instead of on every keystroke.',
-      'If a record fails to delete from SharePoint (e.g. a network hiccup), the app now keeps retrying automatically instead of the record silently coming back on your next refresh. If someone else deletes a record you had an unsaved edit on, you\u2019ll now see a warning instead of the edit just disappearing.',
-      'Opening the App Activity Log no longer adds its own \"opened the log\" entry to the log.',
-      'Fixed a bug causing duplicate entries after a Daily load: a patient ID exported in a slightly different number format (e.g. \"13961\" vs \"13961.00\") was being read as a different patient, creating a new duplicate record instead of updating the existing one.'
+      'If a record fails to delete from SharePoint (e.g. a network hiccup), the app now keeps retrying automatically instead of the record silently coming back on your next refresh. If someone else deletes a record you had an unsaved edit on, you\u2019ll now see a warning instead of the edit just disappearing.'
     ]
   },
   {
@@ -3865,8 +3882,7 @@ function updateStickyHeight(){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Build marker — confirm which version is actually running (helps catch stale/cached deploys)
-  console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
+  // Build marker now lives up top, right next to BUILD/CHANGELOG — see that block.
   // Silent-refresh iframe context: this page was loaded inside the hidden refresh
   // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
   // the full app here.
