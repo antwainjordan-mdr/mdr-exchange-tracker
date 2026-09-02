@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="20260902000000">
+<meta name="version" content="20260902010000">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -866,9 +866,17 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-09-02-nopickup-incomplete-typerm';
+const BUILD = '2026-09-02-fix-piece-save-race';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-09-02-fix-piece-save-race',
+    date:'Sep 2, 2026',
+    items:[
+      'Fixed a bug where checking the last piece on a job could, a few minutes later, silently un-check Job Closed again under the same person\'s name — even though they never touched it. Checking a piece was firing two overlapping saves to SharePoint, and if the older one happened to arrive after the newer one (e.g. during a slow moment), it quietly overwrote the newer state.',
+      'Saves to the same record are now always sent to SharePoint in the order they happened, so an older save can never land after a newer one and undo it.'
+    ]
+  },
   {
     build:'2026-09-02-nopickup-incomplete-typerm',
     date:'Sep 2, 2026',
@@ -2023,7 +2031,6 @@ function togglePiece(rid,pid,checked){
   // Auto-fill rcv qty when PIECE checkbox checked
   if(checked&&p.receivedQty===null)p.receivedQty=p.expectedQty;
   if(!checked)p.receivedQty=null;
-  saveRecs(rec);
   // If ALL pieces are now checked, auto-close the job and stamp the completion date.
   // Per spec: the Date Returned is the date the FINAL piece was checked (i.e. today, the
   // moment the set becomes fully checked). Set unconditionally on the transition into
@@ -2043,8 +2050,15 @@ function togglePiece(rid,pid,checked){
       const sa=tr.querySelector('.sabtn');
       if(sa)sa.textContent='☐ Deselect All';
     }
-    saveRecs(rec);
   }
+  // Save ONCE, after every field this action touches (including the possible
+  // auto-close above) has been finalized. Saving partway through — before the
+  // all-checked logic ran — used to fire a second, overlapping SharePoint request
+  // carrying the OLD Job Closed/Date Returned values. If that first (stale) request
+  // happened to land after the second (fresh) one — e.g. under SharePoint
+  // throttling — it silently reverted Job Closed back to unchecked a few minutes
+  // later, under the same user's own name, even though they never touched it again.
+  saveRecs(rec);
   refreshPiece(rec,p);refreshRowStatus(rec);renderStats();
 }
 
@@ -3477,7 +3491,29 @@ async function loadFromSharePoint(){
   }
 }
 
-async function syncRecordToSP(rec){
+// Per-record save queue — keyed by the record's local id. Two saves for the SAME
+// record fired close together (e.g. a follow-up mutation before the first PATCH's
+// response has come back, or SharePoint throttling delaying one of them) used to
+// race as independent network requests with no guaranteed completion order. If the
+// OLDER save happened to land after the NEWER one, it silently overwrote the newer
+// state — that's exactly how a record could appear to "undo" a checkbox a couple
+// minutes after it was set, still attributed to whoever's browser sent it. Routing
+// every save for a given record through this queue guarantees they reach SharePoint
+// strictly in the order they were triggered, and each one reads the record's fields
+// at the moment it actually runs (not when it was queued), so it always sends the
+// latest state rather than a stale snapshot.
+const _syncQueues = new Map();
+function syncRecordToSP(rec){
+  if(!rec) return Promise.resolve();
+  const key = rec.id;
+  const prev = _syncQueues.get(key) || Promise.resolve();
+  const next = prev.catch(()=>{}).then(()=>_syncRecordToSPInner(rec));
+  _syncQueues.set(key, next);
+  next.finally(()=>{ if(_syncQueues.get(key)===next) _syncQueues.delete(key); });
+  return next;
+}
+
+async function _syncRecordToSPInner(rec){
   if(!spSiteId||!spListId||!rec) return;
   const name = rec.patientName ? rec.patientName.split(',')[0] : 'Record';
   setSyncStatus('syncing', 'Syncing '+name+'…');
