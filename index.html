@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="20260514201442">
+<meta name="version" content="20260902000000">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -212,6 +212,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 
 /* STATUS CHIP */
 .schip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.c-incomplete{background:rgba(244,22,23,.15);color:var(--red);}
 .c-pending{background:rgba(90,100,128,.3);color:var(--text2);}
 .c-partial{background:rgba(247,201,72,.2);color:var(--yellow);}
 .c-processing{background:rgba(79,142,247,.2);color:var(--accent);}
@@ -225,6 +226,14 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .cb-jobclosed:checked{background:#e65100;border-color:#e65100;}
 .cb-confirmed:checked{background:var(--blue);border-color:var(--blue);}
 .cb-verified:checked{background:var(--green);border-color:var(--green);}
+/* NO PICKUP — X mark instead of a checkmark; overrides .bigcb:checked::after */
+.cb-nopickup:checked{background:var(--red);border-color:var(--red);}
+.cb-nopickup:checked::before,.cb-nopickup:checked::after{
+  content:'';position:absolute;top:3px;left:8px;width:2.5px;height:14px;
+  background:#fff;border:none;
+}
+.cb-nopickup:checked::before{transform:rotate(45deg);}
+.cb-nopickup:checked::after{transform:rotate(-45deg);}
 
 /* NOTES */
 .ntxt{width:100%;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 7px;color:var(--text);font-family:var(--font-main);font-size:11px;resize:none;min-height:34px;max-height:300px;overflow-y:hidden;outline:none;box-sizing:border-box;}
@@ -501,7 +510,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div class="li"><div class="lbar" style="background:var(--yellow)"></div>Mixed</div>
   <div class="li"><span style="width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block"></span>All Done</div>
 
-  <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Confirmed (Portal) &nbsp;<span style="color:#f41617">■</span> Overdue</div>
+  <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Confirmed (Portal) &nbsp;<span style="color:var(--red)">✕</span> No Pickup &nbsp;<span style="color:#f41617">■</span> Overdue</div>
 </div>
 
 <!-- TOOLBAR -->
@@ -513,16 +522,10 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <span class="flbl">Status:</span>
   <select class="fsel" id="statusF" onchange="renderTable()">
     <option value="all">All Active</option>
+    <option value="incomplete" class="mdr-only">Incomplete</option>
     <option value="pending" selected>Pending</option>
     <option value="processing" class="mdr-only">Processing</option>
     <option value="complete">Complete</option>
-  </select>
-  <span class="flbl">Type:</span>
-  <select class="fsel" id="typeF" onchange="renderTable()">
-    <option value="all">All</option>
-    <option value="exchange">Exchange</option>
-    <option value="pickup">Pickup</option>
-    <option value="mixed">Mixed</option>
   </select>
   <div class="spills" id="spills"></div>
 </div>
@@ -530,7 +533,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 </div><!-- /sticky-top -->
 
 <!-- TABLE -->
-<!-- Columns: Patient | Job# | Pieces | Reference | Date Returned | Job Closed | SGI Notes | MDR Notes | Late by Date | Confirmed | Verified | Status | Pickup Date | actions -->
+<!-- Columns: Patient | Job# | Pieces | Reference | Date Returned | Job Closed | No Pickup | SGI Notes | MDR Notes | Late by Date | Confirmed | Verified | Status | Pickup Date | actions -->
 <div class="twrap">
   <table>
     <thead>
@@ -542,6 +545,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:120px">Reference</th>
         <th class="srt" onclick="sortBy('dateReturned')" style="min-width:120px">Date Returned ↕</th>
         <th class="ctr" style="min-width:80px">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
+        <th class="ctr" style="min-width:80px">No Pickup<br><span style="font-size:9px;color:var(--red);font-weight:400">(all items, qty 0)</span></th>
         <th style="min-width:160px">SGI Notes</th>
         <th style="min-width:160px">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
@@ -862,9 +866,18 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-08-18-dailyload-dedup-fix';
+const BUILD = '2026-09-02-nopickup-incomplete-typerm';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-09-02-nopickup-incomplete-typerm',
+    date:'Sep 2, 2026',
+    items:[
+      'Removed the Type filter (Exchange/Pickup/Mixed) from the toolbar.',
+      'MDR view: added a new "Incomplete" status for jobs with zero progress — no piece checked, no Date Returned, not Job Closed, not Verified, not Confirmed. As soon as any piece is checked (or any of those fields is set), the record moves to Pending instead. SGI’s view is unaffected.',
+      'Added a "No Pickup" checkbox next to Job Closed — marks it with an X instead of a check. Checking it selects every piece and sets each received quantity to 0, and stamps Date Returned + Job Closed the same as completing all pieces normally.'
+    ]
+  },
   {
     build:'2026-08-18-dailyload-dedup-fix',
     date:'Aug 18, 2026',
@@ -936,7 +949,7 @@ let mSrcPieces=[],mAddPieces=[];
 // { id, source:'manual'|'daily'|'historic', sealed:bool,
 //   patientName, patientId, jobNum, soIds, pickupDate, dropOffBy,
 //   dateReturned, sgiNotes, mdrNotes,
-//   jobClosed:bool, confirmed:bool, verified:bool,
+//   jobClosed:bool, confirmed:bool, verified:bool, noPickup:bool,
 //   locked:{field:true,...},
 //   pieces:[{id,name,type,expectedQty,receivedQty,checked,fromSource}] }
 
@@ -963,7 +976,7 @@ function makeLockMap(obj){
 // ─────────────────────────────────────
 const HCOLS=['id','source','patientName','patientId','jobNum','soIds',
   'pickupDate','dropOffBy','dateReturned','sgiNotes','mdrNotes',
-  'jobClosed','confirmed','verified','pieces','lockedFields','entryId'];
+  'jobClosed','confirmed','verified','noPickup','pieces','lockedFields','entryId'];
 
 function csvEsc(v){
   if(v===null||v===undefined)return'';
@@ -1050,7 +1063,7 @@ function exportCSV(){
       r.patientName,r.patientId,r.jobNum,r.soIds,
       r.pickupDate,r.dropOffBy,r.dateReturned,
       r.sgiNotes,r.mdrNotes,
-      r.jobClosed?1:0,r.confirmed?1:0,r.verified?1:0,
+      r.jobClosed?1:0,r.confirmed?1:0,r.verified?1:0,r.noPickup?1:0,
       serPieces(r.pieces||[]),
       JSON.stringify(r.locked||{}),
       r.entryId||''
@@ -1280,7 +1293,7 @@ function loadDaily(text){
       id:gid(),source:'daily',
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
       dateReturned:'',sgiNotes:'',mdrNotes:'',
-      jobClosed:false,confirmed:false,verified:false,
+      jobClosed:false,confirmed:false,verified:false,noPickup:false,
       entryId,locked,pieces,hasMemoryDownload
     };
     records.push(rec);
@@ -1437,20 +1450,27 @@ function normDate(s){
 }
 
 function rowStatus(rec){
-  // Status (Pending/Processing/Complete) is decided ONLY by Job Closed, Verified,
-  // and Confirmed. Partial/Shortage/Overage are a separate, purely informational
-  // measure of how items were actually received — see pieceReceiptFlag() — and
-  // must never move a record in or out of Pending/Processing/Complete.
+  // Status (Incomplete/Pending/Processing/Complete) is decided ONLY by Job Closed,
+  // Verified, Confirmed, Date Returned, and whether any piece has been checked.
+  // Partial/Shortage/Overage are a separate, purely informational measure of how
+  // items were actually received — see pieceReceiptFlag() — and must never move a
+  // record in or out of Incomplete/Pending/Processing/Complete.
   if(isSGI()){
     // Only Confirmed moves a record out of Pending for SGI. Closed alone isn't
     // enough, and Verified alone isn't enough — this is what lets MDR leave a
     // closed, even verified, job sitting visibly unresolved in SGI's queue by
     // simply not checking Confirmed yet (e.g. while a note is still open).
+    // Incomplete is an MDR-only concept — SGI only ever sees Pending or Complete.
     return rec.confirmed ? 'complete' : 'pending';
   }
-  // MDR: complete=Confirmed, processing=Closed+Verified, pending=everything else.
+  // MDR: complete=Confirmed, processing=Closed+Verified.
   if(rec.confirmed) return 'complete';
   if(rec.jobClosed && rec.verified) return 'processing';
+  // Incomplete = literally no progress yet: no piece checked, no Date Returned,
+  // not Job Closed, not Verified, not Confirmed. The moment any piece is checked
+  // (or any of those fields is set) the record moves to Pending instead.
+  const hasProgress = (rec.pieces||[]).some(p=>p.checked) || !!rec.dateReturned || !!rec.jobClosed || !!rec.verified || !!rec.confirmed;
+  if(!hasProgress) return 'incomplete';
   return 'pending';
 }
 function pieceReceiptFlag(rec){
@@ -1488,19 +1508,17 @@ function esc(s){if(!s&&s!==0)return'';return String(s).replace(/&/g,'&amp;').rep
 function filtered(){
   const q=document.getElementById('searchQ').value.trim().toLowerCase();
   const sf=document.getElementById('statusF').value;
-  const tf=document.getElementById('typeF').value;
   return records.filter(r=>{
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
     if(sf!=='all'){
       const st=rowStatus(r);
       // rowStatus() never returns 'partial' — that's a separate, informational
       // measure now (see pieceReceiptFlag()) that never affects which bucket a
-      // record is in — so this is a plain match against Pending/Processing/Complete.
+      // record is in — so this is a plain match against Incomplete/Pending/Processing/Complete.
       // NOTE: must fall through, not `return` here directly — an early return would
-      // skip every check below it (type, month, date range).
+      // skip every check below it (month, date range).
       if(st!==sf) return false;
     }
-    if(tf!=='all'&&rowType(r)!==tf)return false;
     const pd=r.pickupDate||'';
     if(activeMon&&activeMon!=='all'&&!pd.startsWith(activeMon))return false;
     if(rangeS&&pd&&pd<rangeS)return false;
@@ -1593,16 +1611,19 @@ function clearRange(){
 function renderStats(){
   const comp=records.filter(r=>rowStatus(r)==='complete').length;
   const proc=records.filter(r=>rowStatus(r)==='processing').length; // MDR-only concept; always 0 for SGI
+  const inc=records.filter(r=>rowStatus(r)==='incomplete').length; // MDR-only concept; always 0 for SGI
   // Partial is purely a measure of how many orders came back with a discrepancy —
-  // it has no bearing on Pending/Processing/Complete (see pieceReceiptFlag()), so
+  // it has no bearing on Incomplete/Pending/Processing/Complete (see pieceReceiptFlag()), so
   // it's computed independently here rather than via rowStatus().
   const part=records.filter(r=>pieceReceiptFlag(r)).length;
-  // "Pending" is every record that isn't Complete or Processing — i.e. everything
-  // still outstanding. A record flagged Partial is still counted here too, since
-  // Partial never removes anything from Pending.
-  const pend=records.length - comp - proc;
+  // "Pending" is every record that isn't Complete, Processing, or Incomplete —
+  // i.e. everything still outstanding with at least some progress made. A record
+  // flagged Partial is still counted here too, since Partial never removes
+  // anything from Pending.
+  const pend=records.length - comp - proc - inc;
   const memDl=records.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
   document.getElementById('spills').innerHTML=`
+    ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--red)"></div><strong>${inc}</strong> Incomplete</div>`:''}
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
     <div class="spill"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial</div>
     ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> Processing</div>`:''}
@@ -1652,7 +1673,6 @@ function currentFilterSig(){
   return JSON.stringify([
     document.getElementById('searchQ').value.trim().toLowerCase(),
     document.getElementById('statusF').value,
-    document.getElementById('typeF').value,
     activeMon, rangeS, rangeE
   ]);
 }
@@ -1726,7 +1746,7 @@ function setupTableLazyLoad(totalCount, shownCount, searchActive){
   const tbody=document.getElementById('tbody');
   const tr=document.createElement('tr');
   tr.id='tableSentinel';
-  tr.innerHTML=`<td colspan="14" style="text-align:center;padding:10px;color:var(--text3);font-size:11px;">Loading more… (${shownCount} of ${totalCount})</td>`;
+  tr.innerHTML=`<td colspan="15" style="text-align:center;padding:10px;color:var(--text3);font-size:11px;">Loading more… (${shownCount} of ${totalCount})</td>`;
   tbody.appendChild(tr);
 
   _tableObserver=new IntersectionObserver((entries)=>{
@@ -1808,6 +1828,14 @@ function renderRow(r){
           onchange="jobClosedChanged('${r.id}',this.checked)" onclick="event.stopPropagation()">
       </div>
       <span class="print-cb jobclosed-p${r.jobClosed?' checked-p':''}"></span>
+    </td>
+    <td class="ctr">
+      <div class="cbwrap">
+        <input type="checkbox" class="bigcb cb-nopickup" ${r.noPickup?'checked':''}
+          title="No pickup — marks all pieces checked with qty 0"
+          onchange="noPickupChanged('${r.id}',this.checked)" onclick="event.stopPropagation()">
+      </div>
+      <span class="print-cb nopickup-p${r.noPickup?' checked-p':''}"></span>
     </td>
     <td style="min-width:160px"><textarea class="ntxt${r.sgiNotes?' hv':''}" placeholder="SGI notes…"
       onchange="updateF('${r.id}','sgiNotes',this.value)"
@@ -1944,6 +1972,35 @@ function jobClosedChanged(id, checked){
     }
   }
   saveRecs(rec);refreshRowStatus(rec);renderStats();
+}
+
+function noPickupChanged(id, checked){
+  const rec=records.find(r=>r.id===id);if(!rec)return;
+  rec.noPickup=checked;
+  if(checked){
+    // No pickup happened: every piece is checked in with qty 0 (overwriting any
+    // quantity already entered). That satisfies the "all pieces checked" rule —
+    // Date Returned + Job Closed get stamped with today, same as a normal
+    // full completion.
+    (rec.pieces||[]).forEach(p=>{ p.checked=true; p.receivedQty=0; });
+    rec.dateReturned=tod();
+    rec.jobClosed=true;
+  }
+  // Unchecking No Pickup does not undo the pieces/date/closed changes it made —
+  // those stay as ordinary editable fields for the user to adjust by hand.
+  saveRecs(rec);
+  const tr=document.querySelector(`tr[data-id="${id}"]`);
+  if(tr){
+    const pcell=tr.querySelector('.pcell');
+    if(pcell)pcell.innerHTML=renderPcell(rec);
+    const retInp=tr.querySelector('.ret-cell input.datepick');
+    if(retInp)retInp.value=rec.dateReturned||'';
+    const retCell=tr.querySelector('.ret-cell');
+    if(retCell)retCell.classList.toggle('has-date',!!rec.dateReturned);
+    const jcCb=tr.querySelector('.cb-jobclosed');
+    if(jcCb)jcCb.checked=rec.jobClosed;
+  }
+  refreshRowStatus(rec);renderStats();
 }
 
 // ══════════════════════════════════
@@ -2441,7 +2498,8 @@ const AUDIT_FIELD_LABELS = {
   JobNum:'Job #', SoIds:'Reference', EntryId:'Entry ID', Source:'Source',
   PickupDate:'Pickup Date', DropOffBy:'Late by Date', DateReturned:'Date Returned',
   SgiNotes:'SGI Notes', MdrNotes:'MDR Notes', Pieces:'Pieces',
-  JobClosed:'Job Closed', Verified:'Verified', Confirmed:'Confirmed', Sealed:'Sealed'
+  JobClosed:'Job Closed', Verified:'Verified', Confirmed:'Confirmed', Sealed:'Sealed',
+  NoPickup:'No Pickup'
 };
 
 const AUDIT_IGNORE = new Set(['Modified','Created','AuthorLookupId','EditorLookupId','_UIVersionString','ContentTypeId','LockedFields']);
@@ -2809,7 +2867,7 @@ function saveModal(){
       id:gid(),source:'manual',
       patientName,patientId:pi,jobNum:jn,soIds:si,pickupDate:pd,dropOffBy:db,
       dateReturned:'',sgiNotes:gv('m-sgiNotes'),mdrNotes:gv('m-mdrNotes'),
-      jobClosed:false,confirmed:false,verified:false,entryId:'',locked:{},pieces:allPieces,
+      jobClosed:false,confirmed:false,verified:false,noPickup:false,entryId:'',locked:{},pieces:allPieces,
       hasMemoryDownload:memDl
     };
     records.unshift(recToSave);
@@ -2921,7 +2979,8 @@ function exportPDF(){
     // Just the label, no device name.
     const isMD = r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload);
     const memNote=(isMDR()&&isMD) ? '★ MEMORY DOWNLOAD' : '';
-    const notes=[memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
+    const noPickupNote=r.noPickup ? '✕ NO PICKUP' : '';
+    const notes=[noPickupNote,memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
     return`<tr class="${cls}">
       <td class="pc-pickup">${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td class="pc-patient"><div class="pt-name">${esc(r.patientName)}</div><div class="pt-id">${esc(r.patientId)}</div></td>
@@ -3027,7 +3086,7 @@ function applyRoleUI(){
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='none');
     const sf=document.getElementById('statusF');
-    if(sf&&sf.value==='processing') sf.value='all';
+    if(sf&&(sf.value==='processing'||sf.value==='incomplete')) sf.value='all';
   } else {
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
@@ -3306,6 +3365,7 @@ function spToRec(item){
     dateReturned: fdate('DateReturned'),
     sgiNotes: fv('SgiNotes'), mdrNotes: fv('MdrNotes'),
     jobClosed: fbool('JobClosed'), verified: fbool('Verified'), confirmed: fbool('Confirmed'),
+    noPickup: fbool('NoPickup'),
     entryId: fv('EntryId'), locked,
     pieces,
     hasMemoryDownload: pieces.some(p=>p.memoryDownload)
@@ -3319,7 +3379,7 @@ function recToSP(r){
     PickupDate: r.pickupDate||null, DropOffBy: r.dropOffBy||null,
     DateReturned: r.dateReturned||null, SgiNotes: r.sgiNotes||'',
     MdrNotes: r.mdrNotes||'', JobClosed: !!r.jobClosed,
-    Verified: !!r.verified, Confirmed: !!r.confirmed,
+    Verified: !!r.verified, Confirmed: !!r.confirmed, NoPickup: !!r.noPickup,
     EntryId: r.entryId||'', Source: r.source||'daily',
     Pieces: serPieces(r.pieces||[]), LockedFields: JSON.stringify(r.locked||{})
   };
