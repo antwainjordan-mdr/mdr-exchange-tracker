@@ -73,6 +73,12 @@ body{font-family:var(--font-main);background:var(--bg);color:var(--text);min-hei
 .btn-daily{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;}
 .btn-pdf{background:linear-gradient(135deg,#c62828,#b71c1c);color:#fff;}
 .btn-sm{padding:5px 10px;font-size:11px;border-radius:6px;}
+.export-split{display:inline-flex;flex-direction:column;align-items:stretch;gap:2px;}
+.export-split-lbl{font-size:9px;line-height:1;color:var(--text3);text-align:center;letter-spacing:.3px;}
+.export-split-btns{display:inline-flex;}
+.btn-exp-csv{background:linear-gradient(135deg,#2e7d32,#1b5e20);color:#fff;border-radius:6px 0 0 6px;}
+.btn-exp-pdf{border-radius:0 6px 6px 0;}
+.btn-exp-csv:hover,.btn-exp-pdf:hover{filter:brightness(1.12);}
 .btn-xs{padding:3px 7px;font-size:10px;border-radius:5px;}
 .themetog{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text2);user-select:none;transition:all .15s;}
 .themetog:hover{border-color:var(--accent);color:var(--text);}
@@ -465,15 +471,16 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
     </button>
-    <button class="btn btn-pdf btn-sm" onclick="exportPDF()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Export PDF
-    </button>
+    <div class="export-split" role="group" aria-label="Export as">
+      <span class="export-split-lbl">Export as</span>
+      <span class="export-split-btns">
+        <button class="btn btn-sm btn-exp-csv" onclick="exportReportCSV()" title="Download the rows on screen as a CSV (same columns as the PDF, plus Job Closed, No Pickup, Verified)">CSV</button>
+        <button class="btn btn-sm btn-pdf btn-exp-pdf" onclick="exportPDF()" title="Print or save the rows on screen as a PDF">PDF</button>
+      </span>
+    </div>
 
     
     <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="handleLoadDaily(event)"></label>
-    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
-    </button>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
     </button>
@@ -866,9 +873,23 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-09-02-fix-piece-save-race';
+const BUILD = '2026-10-14-export-split-return-tz';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-14-export-split-return-tz',
+    date:'Oct 14, 2026',
+    items:[
+      'New "Export as" button: the green CSV half downloads exactly the rows on screen (same columns as the PDF, plus Job Closed, No Pickup and Verified as Yes/No). The red PDF half prints the same rows as before.',
+      'The separate "Export CSV" button is gone; CSV and PDF now live together in the one "Export as" button.',
+      'Daily loads now keep "Return" pieces (for example "Return - Memory Download -- Oximeter"). They are treated as Pickups (PKP). Before, those pieces were dropped.',
+      'Serial numbers now follow their device: a serial at the end of a device name (e.g. "Oximeter MBH2601549") fills that piece\'s SN field and shows on its own line under the device.',
+      'Memory Download stays with the device it belongs to and shows as ★ MD on that piece (MDR only). The Edit Record checkbox now marks the oximeter or apnea monitor instead of whichever piece happened to be first.',
+      'Dates now follow Central (Alabama) time: Date Returned, the overdue flash and export file names no longer jump to tomorrow after 7 PM.',
+      'Saves to SharePoint now always go out one at a time per record, including during Load Daily and refresh retries, so a save can no longer undo a newer one or create a duplicate row.',
+      'Opening a downloaded copy of this page from a drive now shows a locked screen with a link to the live site instead of opening without sign-in.'
+    ]
+  },
   {
     build:'2026-09-02-fix-piece-save-race',
     date:'Sep 2, 2026',
@@ -993,6 +1014,40 @@ function csvEsc(v){
   return s;
 }
 
+// Piece types: Exchange and Pickup. "Return" lines in the daily (e.g. "Return - Memory
+// Download -- Oximeter ...") are treated as Pickups: the item comes back, nothing goes out.
+function normPieceType(t){const v=String(t||'').toLowerCase();return(v==='pickup'||v==='return')?'Pickup':'Exchange';}
+function pieceAbbr(p){return p.type==='Pickup'?'PKP':'EXC';}
+function pieceBadge(p,style){const st=style?` style="${style}"`:'';return`<span class="ptbadge ${p.type==='Pickup'?'bp':'be'}"${st}>${pieceAbbr(p)}</span>`;}
+
+// A device's serial number is the last word of its name when that word looks like a
+// serial (6+ letters/digits with at least 4 digits): "Oximeter MBH2601549" -> MBH2601549,
+// "Concentrator B238300208DS" -> B238300208DS. Model words like "MAX4LPM" don't qualify.
+// The serial is stored on the piece itself (serialNum), so it always travels with its device.
+function serialFromName(name){
+  const t=String(name||'').trim().split(/\s+/);
+  if(t.length<2) return '';
+  const last=t[t.length-1];
+  return(/^[A-Za-z0-9]{6,}$/.test(last)&&(last.match(/\d/g)||[]).length>=4)?last.toUpperCase():'';
+}
+// Name to show on screen when the serial is shown on its own line under the device.
+function nameWithoutSerial(p){
+  const sn=String(p.serialNum||'').toUpperCase();
+  if(sn&&serialFromName(p.name)===sn) return p.name.trim().replace(/\s+\S+$/,'');
+  return p.name;
+}
+// The piece a Memory Download belongs to. The daily marks it on the device's own line
+// ("Exchange - Memory Download -- Oximeter MBH2311043"), so that piece already carries
+// the flag. Only when no piece does (e.g. the record-level checkbox in Edit Record) do
+// we pick the device: an oximeter or apnea monitor first, then anything with a serial.
+function memoryDownloadDevice(pieces){
+  const ps=pieces||[];
+  return ps.find(p=>p.memoryDownload)
+    || ps.find(p=>/oximeter|apnea/i.test(p.name)&&!/bag|cable|power supply/i.test(p.name))
+    || ps.find(p=>p.serialNum)
+    || ps[0] || null;
+}
+
 function serPieces(ps){
   return(ps||[]).map(p=>`${p.type}--${p.name}→${p.expectedQty}|rcv:${p.receivedQty??''}|chk:${p.checked?1:0}|src:${p.fromSource?1:0}|sn:${p.serialNum||''}|md:${p.memoryDownload?1:0}|id:${p.id}`).join(';;');
 }
@@ -1001,37 +1056,37 @@ function parsePiecesRich(raw){
   if(!raw||!raw.trim())return[];
   return raw.split(';;').map(s=>{
     // Newest format with sn + md: "Type--Name→qty|rcv:N|chk:0|src:1|sn:SERIAL|md:0|id:abc"
-    const richMd=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|sn:([^|]*)\|md:([01])\|id:(.+)$/i);
+    const richMd=s.match(/^(Exchange|Pickup|Return)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|sn:([^|]*)\|md:([01])\|id:(.+)$/i);
     if(richMd){
       const name=richMd[2].trim();
       ensureLib(name);
-      return{id:richMd[9],name,type:richMd[1],expectedQty:parseInt(richMd[3]),
+      return{id:richMd[9],name,type:normPieceType(richMd[1]),expectedQty:parseInt(richMd[3]),
         receivedQty:richMd[4]===''?null:parseInt(richMd[4]),
-        checked:richMd[5]==='1',fromSource:richMd[6]==='1',serialNum:richMd[7]||'',memoryDownload:richMd[8]==='1'};
+        checked:richMd[5]==='1',fromSource:richMd[6]==='1',serialNum:richMd[7]||serialFromName(name),memoryDownload:richMd[8]==='1'};
     }
     // Format with sn but no md: "Type--Name→qty|rcv:N|chk:0|src:1|sn:SERIAL|id:abc"
-    const rich=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|sn:([^|]*)\|id:(.+)$/i);
+    const rich=s.match(/^(Exchange|Pickup|Return)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|sn:([^|]*)\|id:(.+)$/i);
     if(rich){
       const name=rich[2].trim();
       ensureLib(name);
-      return{id:rich[8],name,type:rich[1],expectedQty:parseInt(rich[3]),
+      return{id:rich[8],name,type:normPieceType(rich[1]),expectedQty:parseInt(rich[3]),
         receivedQty:rich[4]===''?null:parseInt(rich[4]),
-        checked:rich[5]==='1',fromSource:rich[6]==='1',serialNum:rich[7]||'',memoryDownload:false};
+        checked:rich[5]==='1',fromSource:rich[6]==='1',serialNum:rich[7]||serialFromName(name),memoryDownload:false};
     }
     // Older format without sn: "Type--Name→qty|rcv:N|chk:0|src:1|id:abc"
-    const richOld=s.match(/^(Exchange|Pickup)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|id:(.+)$/i);
+    const richOld=s.match(/^(Exchange|Pickup|Return)--(.+?)→(\d+)\|rcv:(\d*)\|chk:([01])\|src:([01])\|id:(.+)$/i);
     if(richOld){
       const name=richOld[2].trim();
       ensureLib(name);
-      return{id:richOld[7],name,type:richOld[1],expectedQty:parseInt(richOld[3]),
+      return{id:richOld[7],name,type:normPieceType(richOld[1]),expectedQty:parseInt(richOld[3]),
         receivedQty:richOld[4]===''?null:parseInt(richOld[4]),
-        checked:richOld[5]==='1',fromSource:richOld[6]==='1',serialNum:'',memoryDownload:false};
+        checked:richOld[5]==='1',fromSource:richOld[6]==='1',serialNum:serialFromName(name),memoryDownload:false};
     }
     // Legacy pipe format: "Exchange -- Name → qty"
-    const leg=s.match(/^(Exchange|Pickup)\s*--\s*(.+?)\s*[→>]\s*(\d+)\s*$/i);
+    const leg=s.match(/^(Exchange|Pickup|Return)\s*--\s*(.+?)\s*[→>]\s*(\d+)\s*$/i);
     if(leg){
       const name=leg[2].trim();ensureLib(name);
-      return{id:gid(),name,type:leg[1],expectedQty:parseInt(leg[3]),receivedQty:null,checked:false,fromSource:true,serialNum:'',memoryDownload:false};
+      return{id:gid(),name,type:normPieceType(leg[1]),expectedQty:parseInt(leg[3]),receivedQty:null,checked:false,fromSource:true,serialNum:serialFromName(name),memoryDownload:false};
     }
     return null;
   }).filter(Boolean);
@@ -1049,39 +1104,40 @@ function parsePiecesDaily(raw){
     .filter(Boolean);
   return lines.map(s=>{
     // Allow an optional " - <anything> " (e.g. " - Memory Download ") between type and "--".
-    const m=s.match(/^(Exchange|Pickup)\s*(?:-\s*(.+?)\s*)?--\s*(.+?)\s*[\u2192>]\s*(\d+)\s*$/i);
+    const m=s.match(/^(Exchange|Pickup|Return)\s*(?:-\s*(.+?)\s*)?--\s*(.+?)\s*[\u2192>]\s*(\d+)\s*$/i);
     if(m){
       const name=m[3].trim();
       const tag=(m[2]||'').trim();
       const memoryDownload=/memory\s*download/i.test(tag);
       ensureLib(name);
-      return{id:gid(),name,type:m[1],expectedQty:parseInt(m[4]),receivedQty:null,checked:false,fromSource:true,serialNum:'',memoryDownload};
+      return{id:gid(),name,type:normPieceType(m[1]),expectedQty:parseInt(m[4]),receivedQty:null,checked:false,fromSource:true,serialNum:serialFromName(name),memoryDownload};
     }
     return null;
   }).filter(Boolean);
 }
 
-function exportCSV(){
-  logAppAction('Export CSV','Exported records to CSV');
-  if(!records.length){toast('No records to export','e');return;}
-  const rows=[HCOLS.join(',')];
-  records.forEach(r=>{
-    const row=[
-      r.id,r.source||'manual',
-      r.patientName,r.patientId,r.jobNum,r.soIds,
-      r.pickupDate,r.dropOffBy,r.dateReturned,
-      r.sgiNotes,r.mdrNotes,
-      r.jobClosed?1:0,r.confirmed?1:0,r.verified?1:0,r.noPickup?1:0,
-      serPieces(r.pieces||[]),
-      JSON.stringify(r.locked||{}),
-      r.entryId||''
-    ].map(csvEsc);
-    rows.push(row.join(','));
+// "Export as -> CSV": the same filtered rows and columns as the PDF, plus Job Closed,
+// No Pickup and Verified as Yes/No. Available to MDR and SGI.
+function exportReportCSV(){
+  const rows=filtered();
+  if(!rows.length){toast('No records to export','e');return;}
+  logAppAction('Export CSV',`Exported ${rows.length} records to CSV`);
+  const yn=v=>v?'Yes':'No';
+  const head=['Pickup Date','Patient','Patient ID','Job #','Pieces / Items','Reference','Notes','Job Closed','No Pickup','Verified'];
+  const lines=[head.map(csvEsc).join(',')];
+  rows.forEach(r=>{
+    const pieces=(r.pieces||[]).map(p=>`${pieceAbbr(p)} ${p.name} ×${p.expectedQty}`).join('\n');
+    lines.push([
+      r.pickupDate?fmtDate(r.pickupDate):'', r.patientName||'', r.patientId||'', r.jobNum||'',
+      pieces, r.soIds||'', exportNotesText(r), yn(r.jobClosed), yn(r.noPickup), yn(r.verified)
+    ].map(csvEsc).join(','));
   });
-  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`MDR_Exchange_${tod()}.csv`;a.click();
-  toast('CSV exported','s');
+  a.download=`MDR_Exchange_Report_${tod()}.csv`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  toast(`CSV exported (${rows.length} record${rows.length!==1?'s':''})`,'s');
 }
 
 function parseCSV(text){
@@ -1242,6 +1298,12 @@ function loadDaily(text){
               existP.expectedQty=np.expectedQty; // qty changed on the source — reflect it
               changed=true;
             }
+            // Serial follows the device: fill it in if this piece doesn't have one yet
+            // (never overwrite one MDR or SGI already typed).
+            if(np.serialNum && !existP.serialNum){
+              existP.serialNum=np.serialNum;
+              changed=true;
+            }
             // If the daily now marks this piece as a Memory Download, carry that over.
             if(np.memoryDownload && !existP.memoryDownload){
               existP.memoryDownload=true;
@@ -1283,7 +1345,7 @@ function loadDaily(text){
       if(inc.hasMemoryDownload){
         let changed=false;
         if(!match.hasMemoryDownload){ match.hasMemoryDownload=true; changed=true; }
-        if((match.pieces||[]).length && !match.pieces.some(p=>p.memoryDownload)){ match.pieces[0].memoryDownload=true; changed=true; }
+        if((match.pieces||[]).length && !match.pieces.some(p=>p.memoryDownload)){ memoryDownloadDevice(match.pieces).memoryDownload=true; changed=true; }
         if(changed){ saveRecs(match,{skipSync:true}); touchedIds.add(match.id); }
       }
       return;
@@ -1295,7 +1357,7 @@ function loadDaily(text){
     // If this row is a Memory Download, ensure at least one piece carries the flag so it
     // persists through SharePoint serialization (the md: token in the Pieces field).
     if(hasMemoryDownload && pieces.length && !pieces.some(p=>p.memoryDownload)){
-      pieces[0].memoryDownload=true;
+      memoryDownloadDevice(pieces).memoryDownload=true;
     }
     const rec={
       id:gid(),source:'daily',
@@ -1411,9 +1473,8 @@ async function saveCSVToDocuments(csvText){
   if(!spSiteId) return;
   try{
     // Build timestamped filename: data_2026-05-28_14-32.csv
-    const now = new Date();
-    const pad = n=>String(n).padStart(2,'0');
-    const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+    const cp = ctParts(new Date());
+    const stamp = `${cp.year}-${cp.month}-${cp.day}_${cp.hour}-${cp.minute}`;
     const filename = `data_${stamp}.csv`;
     // Upload to Documents library root via Graph API
     const bytes = new TextEncoder().encode(csvText);
@@ -1442,7 +1503,17 @@ async function saveCSVToDocuments(csvText){
 // SECTION 8: UTILS
 // ─────────────────────────────────────
 function gid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
-function tod(){return new Date().toISOString().slice(0,10);}
+// All "today" dates and displayed times use Central (Alabama) time, whatever the PC's
+// clock is set to. Stored audit timestamps stay in UTC (ISO) - only display changes.
+const MDR_TZ='America/Chicago';
+function ctParts(d){
+  const o={};
+  new Intl.DateTimeFormat('en-US',{timeZone:MDR_TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})
+    .formatToParts(d||new Date()).forEach(x=>{o[x.type]=x.value;});
+  if(o.hour==='24') o.hour='00';
+  return o; // {year,month,day,hour,minute}
+}
+function tod(){const p=ctParts(new Date());return`${p.year}-${p.month}-${p.day}`;}
 function fmtDate(d){
   if(!d)return'—';const c=d.toString().slice(0,10);const p=c.split('-');
   if(p.length!==3)return d;
@@ -1892,7 +1963,7 @@ function renderPcell(r){
     const m=rcv!==''&&parseInt(rcv)===p.expectedQty;
     const mm=rcv!==''&&parseInt(rcv)!==p.expectedQty;
     const cls='pitem '+(p.checked?(mm?'p-partial':'p-ok'):'');
-    const badge=p.type==='Pickup'?'<span class="ptbadge bp">PKP</span>':'<span class="ptbadge be">EXC</span>';
+    const badge=pieceBadge(p);
     const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
     // Delete button only for logistics-added pieces (not from source)
     const delBtn=!p.fromSource
@@ -1907,8 +1978,7 @@ function renderPcell(r){
     return`<div class="${cls.trim()}">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       ${badge}${lock}
-      <span class="pname2">${esc(p.name)}${qtyTag}</span>
-      ${p.serialNum?`<span style="font-size:9px;color:var(--text3);font-family:var(--font-main);margin-left:2px;">SN: ${esc(p.serialNum)}</span>`:''}
+      <span class="pname2">${esc(nameWithoutSerial(p))}${qtyTag}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}</span>
       ${varLabel}
       <div class="qwrap">
         <input type="number" class="qrcv${m?' qmatch':''}${mm?' qmis':''}" value="${rcv}" min="0"
@@ -2484,7 +2554,7 @@ function renderAppAuditLog(){
   const hasMore=appAuditAllItems.length>shown.length;
   body.innerHTML=shown.map(e=>{
     const who=(e.user||'').split('@')[0];
-    const when=e.ts?new Date(e.ts).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+    const when=e.ts?new Date(e.ts).toLocaleString('en-US',{timeZone:MDR_TZ,month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'—';
     return`<div class="audit-entry">
       <div class="audit-who">${esc(who)}</div>
       <div class="audit-when">${esc(when)}</div>
@@ -2528,7 +2598,7 @@ function auditFmtVal(key, val){
       return pieces.map(p=>{
         const qty = p.receivedQty!==null ? `${p.receivedQty}/${p.expectedQty}` : `×${p.expectedQty}`;
         const sn = p.serialNum ? ` [SN:${p.serialNum}]` : '';
-        return `${p.type==='Pickup'?'PKP':'EXC'} ${p.name} ${qty}${sn}`;
+        return `${pieceAbbr(p)} ${p.name} ${qty}${sn}`;
       }).join('; ');
     }catch(e){ return '(pieces)'; }
   }
@@ -2590,7 +2660,7 @@ function renderAuditVersions(versions, body, startPage){
   for(let i=0;i<versions.length;i++){
     const v=versions[i],prev=versions[i+1];
     const who=v.lastModifiedBy?.user?.displayName||v.lastModifiedBy?.user?.email||'Unknown';
-    const when=new Date(v.lastModifiedDateTime).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+    const when=new Date(v.lastModifiedDateTime).toLocaleString('en-US',{timeZone:MDR_TZ,month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
     const fields=v.fields||{},prevFields=prev?.fields||{};
     const diffs=[];
     if(i===versions.length-1){
@@ -2669,9 +2739,7 @@ function renderPopupCurPieces(){
   const all = [...popupSrcPieces.map(p=>({...p,_l:true})),...popupAddPieces.map(p=>({...p,_l:false}))];
   if(!all.length){ c.innerHTML='<div style="color:var(--text3);font-size:11px;padding:2px 0">No items yet</div>'; return; }
   c.innerHTML = all.map(p=>{
-    const badge = p.type==='Pickup'
-      ?'<span class="ptbadge bp" style="font-size:9px">PKP</span>'
-      :'<span class="ptbadge be" style="font-size:9px">EXC</span>';
+    const badge = pieceBadge(p,'font-size:9px');
     const lock = p._l?'🔒':'✏';
     const rm = p._l?'':`<button onclick="popupRmPiece('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0 2px;">✕</button>`;
     return`<div style="display:flex;flex-direction:column;gap:3px;padding:2px 0;">
@@ -2770,9 +2838,7 @@ function renderCurPieces(){
   const all=[...mSrcPieces.map(p=>({...p,_l:true})),...mAddPieces.map(p=>({...p,_l:false}))];
   if(!all.length){c.innerHTML='<div style="color:var(--text3);font-size:11px;padding:3px 0">No items yet</div>';return;}
   c.innerHTML=all.map(p=>{
-    const badge=p.type==='Pickup'
-      ?'<span class="ptbadge bp" style="font-size:9px">PKP</span>'
-      :'<span class="ptbadge be" style="font-size:9px">EXC</span>';
+    const badge=pieceBadge(p,'font-size:9px');
     return`<div class="cur-piece-row" style="flex-wrap:wrap;gap:3px;">
       <div style="display:flex;align-items:center;gap:4px;width:100%;">
         <span style="font-size:10px;flex-shrink:0">${p._l?'🔒':'✏️'}</span>
@@ -2906,7 +2972,7 @@ function saveModal(){
         if(memDl){
           // Ensure a piece carries the flag so it persists through SharePoint serialization.
           if((recToSave.pieces||[]).length && !recToSave.pieces.some(p=>p.memoryDownload)){
-            recToSave.pieces[0].memoryDownload=true;
+            memoryDownloadDevice(recToSave.pieces).memoryDownload=true;   // on the device, not just the first line
           }
         } else {
           // Unchecked — clear the flag from all pieces too.
@@ -2943,6 +3009,27 @@ function formatRefPrint(soIds){
   return lines.join('<br>');
 }
 
+// Notes text used by both the PDF and the CSV export.
+function exportNotesText(r){
+  // Variance notes for pieces with mismatched qty
+  const variances=(r.pieces||[]).filter(p=>{
+    if(p.receivedQty===null||p.receivedQty===undefined) return false;
+    return p.receivedQty !== p.expectedQty;
+  }).map(p=>{
+    const diff=p.receivedQty-p.expectedQty;
+    const label=diff>0?`${Math.abs(diff)} Over`:`${Math.abs(diff)} Under`;
+    return`${p.name} ×${p.receivedQty} (${label})`;
+  });
+  const sgi=r.sgiNotes?`SGI:\n ${r.sgiNotes}`:'';
+  const sgiVar=variances.length?`SGI:\n ${variances.join('\n ')}`:'';
+  const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
+  // Flag any Memory Download items - MDR only (not relevant to SGI). Just the label, no device name.
+  const isMD = r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload);
+  const memNote=(isMDR()&&isMD) ? '★ MEMORY DOWNLOAD' : '';
+  const noPickupNote=r.noPickup ? '✕ NO PICKUP' : '';
+  return [noPickupNote,memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
+}
+
 function exportPDF(){
   const rows=filtered();
   if(!rows.length){toast('No records to export','e');return;}
@@ -2953,8 +3040,8 @@ function exportPDF(){
     ?(dates[0]===dates[dates.length-1]?`Pickup: ${fmtDate(dates[0])}`:`Pickups: ${fmtDate(dates[0])} – ${fmtDate(dates[dates.length-1])}`)
     :'All Dates';
   const _d=new Date();
-  const now=_d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  const timeStr=_d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  const now=_d.toLocaleDateString('en-US',{timeZone:MDR_TZ,month:'short',day:'numeric',year:'numeric'});
+  const timeStr=_d.toLocaleTimeString('en-US',{timeZone:MDR_TZ,hour:'numeric',minute:'2-digit',hour12:true});
   const hdrText=`MDR Exchange Report  •  ${label}  •  ${rows.length} patient${rows.length!==1?'s':''}  •  Printed ${now} ${timeStr}`;
 
   const theadHtml=`<thead><tr>
@@ -2973,28 +3060,10 @@ function exportPDF(){
     // Same "flashing/overdue" rule as the live table — closed or completed records are never overdue.
     if(r.dropOffBy && status!=='complete' && !r.jobClosed && r.dropOffBy<=tod()) cls+=' pr-overdue';
     const piecesHtml=(r.pieces||[]).map(p=>
-      `<div class="pt-piece">${esc(p.type==='Pickup'?'PKP':'EXC')} ${esc(p.name)} ×${p.expectedQty}</div>`
+      `<div class="pt-piece">${esc(pieceAbbr(p))} ${esc(p.name)} ×${p.expectedQty}</div>`
     ).join('');
 
-    // Build variance notes for pieces with mismatched qty
-    const variances=(r.pieces||[]).filter(p=>{
-      if(p.receivedQty===null||p.receivedQty===undefined) return false;
-      return p.receivedQty !== p.expectedQty;
-    }).map(p=>{
-      const diff=p.receivedQty-p.expectedQty;
-      const label=diff>0?`${Math.abs(diff)} Over`:`${Math.abs(diff)} Under`;
-      return`${p.name} ×${p.receivedQty} (${label})`;
-    });
-
-    const sgi=r.sgiNotes?`SGI:\n ${r.sgiNotes}`:'';
-    const sgiVar=variances.length?`SGI:\n ${variances.join('\n ')}`:'';
-    const mdr=r.mdrNotes?`MDR: ${r.mdrNotes}`:'';
-    // Flag any Memory Download items in the printed notes — MDR only (not relevant to SGI).
-    // Just the label, no device name.
-    const isMD = r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload);
-    const memNote=(isMDR()&&isMD) ? '★ MEMORY DOWNLOAD' : '';
-    const noPickupNote=r.noPickup ? '✕ NO PICKUP' : '';
-    const notes=[noPickupNote,memNote,sgi,sgiVar,mdr].filter(Boolean).join('\n');
+    const notes=exportNotesText(r);
     return`<tr class="${cls}">
       <td class="pc-pickup">${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td class="pc-patient"><div class="pt-name">${esc(r.patientName)}</div><div class="pt-id">${esc(r.patientId)}</div></td>
@@ -3092,7 +3161,7 @@ function applyRoleUI(){
   if(isSGI()){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
       const t = b.textContent.trim();
-      if(['Load Daily','Export CSV'].some(s=>t.includes(s)) || b.classList.contains('mdr-only')){
+      if(['Load Daily'].some(s=>t.includes(s)) || b.classList.contains('mdr-only')){
         b.style.display = 'none';
       }
     });
@@ -3502,35 +3571,51 @@ async function loadFromSharePoint(){
 // strictly in the order they were triggered, and each one reads the record's fields
 // at the moment it actually runs (not when it was queued), so it always sends the
 // latest state rather than a stale snapshot.
+// Every save goes through this queue - single edits, the Load Daily batch, and the
+// refresh retry - so a second save for the same record always waits for the first.
+// That also means a brand-new record is created on SharePoint only once: the second
+// save sees the _spId the first one got back and updates that row instead.
 const _syncQueues = new Map();
-function syncRecordToSP(rec){
+const _saveSeq = new Map();   // latest save number per record (see _dirty handling below)
+function syncRecordToSP(rec, opts){
   if(!rec) return Promise.resolve();
   const key = rec.id;
+  const seq = (_saveSeq.get(key)||0) + 1;
+  _saveSeq.set(key, seq);
   const prev = _syncQueues.get(key) || Promise.resolve();
-  const next = prev.catch(()=>{}).then(()=>_syncRecordToSPInner(rec));
+  const next = prev.catch(()=>{}).then(()=>_syncRecordToSPInner(rec, opts, seq));
   _syncQueues.set(key, next);
-  next.finally(()=>{ if(_syncQueues.get(key)===next) _syncQueues.delete(key); });
+  next.finally(()=>{ if(_syncQueues.get(key)===next) _syncQueues.delete(key); }).catch(()=>{});
   return next;
 }
 
-async function _syncRecordToSPInner(rec){
+// opts.batch: called from syncAllToSharePoint() - errors are thrown back to the batch
+// (which counts them and shows one summary) instead of showing a banner per record.
+async function _syncRecordToSPInner(rec, opts, seq){
+  opts = opts || {};
   if(!spSiteId||!spListId||!rec) return;
-  const name = rec.patientName ? rec.patientName.split(',')[0] : 'Record';
-  setSyncStatus('syncing', 'Syncing '+name+'…');
+  // A refresh may have replaced the records array while this save was waiting; always
+  // work on the record that is live NOW (same app id), so its _spId is the real one.
+  const live = records.find(r=>r.id===rec.id) || rec;
+  const name = live.patientName ? live.patientName.split(',')[0] : 'Record';
+  if(!opts.batch) setSyncStatus('syncing', 'Syncing '+name+'…');
   try{
-    const fields = recToSP(rec);
-    if(rec._spId){
-      await gPatch('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId+'/fields',fields);
+    if(!live._spId && rec._spId) live._spId = rec._spId;
+    const fields = recToSP(live);
+    if(live._spId){
+      await gPatch('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+live._spId+'/fields',fields);
     } else {
       const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
-      if(created) rec._spId = created.id;
+      if(created){ live._spId = created.id; rec._spId = created.id; }
     }
-    // Confirmed synced — clear the dirty flag. Until this happens, loadFromSharePoint()
-    // treats this record as still-pending and won't let a refresh overwrite it.
-    delete rec._dirty;
+    // Confirmed synced: clear the dirty flag, but only if no newer save for this record
+    // is still waiting in the queue. Until then, loadFromSharePoint() treats the record
+    // as still-pending and won't let a refresh overwrite it.
+    if(_saveSeq.get(live.id)===seq){ delete live._dirty; if(rec!==live) delete rec._dirty; }
     localStorage.setItem('mdr_v5', JSON.stringify(records));
-    setSyncStatus('synced', '✓ Synced: '+name);
+    if(!opts.batch) setSyncStatus('synced', '✓ Synced: '+name);
   } catch(e){
+    if(opts.batch) throw e;
     // rec._dirty is left as-is (already true, set by saveRecs before this call) so the
     // failed edit stays protected from being clobbered by a stale SharePoint refresh.
     console.error('SP sync error:',e);
@@ -3557,14 +3642,8 @@ async function syncAllToSharePoint(subset){
   const failedRecords=[];
   for(const rec of list){
     try{
-      const fields = recToSP(rec);
-      if(rec._spId){
-        await gPatch('/sites/'+spSiteId+'/lists/'+spListId+'/items/'+rec._spId+'/fields',fields);
-      } else {
-        const created = await gPost('/sites/'+spSiteId+'/lists/'+spListId+'/items',{fields});
-        if(created) rec._spId = created.id;
-      }
-      delete rec._dirty;
+      // Same per-record queue as single edits, so a batch write can never race one.
+      await syncRecordToSP(rec, {batch:true});
       success++;
     } catch(e){
       console.error('Sync failed for',rec.patientName,e);
@@ -4000,12 +4079,29 @@ window.addEventListener('DOMContentLoaded', () => {
     showAuthOverlay();
     initMSAL();
   } else {
-    userRole = 'mdr';
-    authenticatedRole = 'mdr'; // local file:// dev mode — always the MDR testing context
-    loadStorageLocal(); buildChips(); renderTable(); renderStats();
-    toast('Local mode', 'i');
+    showLocalFileLock();
   }
 });
+
+// Opened from a drive (file://) - e.g. the copy kept on the fileshare. Microsoft sign-in
+// only works on the live site, so lock the page: no cached data, no MDR controls.
+const LIVE_URL = 'https://antwainjordan-mdr.github.io/mdr-exchange-tracker/';
+function showLocalFileLock(){
+  try{ localStorage.removeItem('mdr_v5'); }catch(e){}   // never keep patient data cached under file://
+  records = []; userRole = null; authenticatedRole = null;
+  const auth = document.getElementById('authOverlay'); if(auth) auth.style.display = 'none';
+  const lock = document.createElement('div');
+  lock.id = 'localFileLock';
+  lock.setAttribute('role','alertdialog');
+  lock.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(10,12,20,.97);font-family:var(--font-main,system-ui);';
+  lock.innerHTML = `<div style="max-width:420px;padding:28px 30px;border-radius:12px;background:#1b1f2c;border:1px solid #2c3244;color:#e8eaf0;text-align:center;">
+      <div style="font-size:30px;margin-bottom:8px;">🔒</div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Open the live Exchange Tracker</div>
+      <div style="font-size:13px;line-height:1.55;color:#aab0c0;margin-bottom:18px;">This is a saved copy of the page. It needs Microsoft sign-in, which only works on the live site.</div>
+      <a href="${LIVE_URL}" style="display:inline-block;padding:9px 18px;border-radius:7px;background:#4f8ef7;color:#fff;font-weight:600;font-size:13px;text-decoration:none;">Open live site</a>
+    </div>`;
+  document.body.appendChild(lock);
+}
 
 </script>
 </body>
