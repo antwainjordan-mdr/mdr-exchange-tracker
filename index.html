@@ -553,7 +553,10 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:160px">Pieces / Items</th>
         <th style="min-width:120px">Reference</th>
         <th class="srt" onclick="sortBy('dateReturned')" style="min-width:120px">Date Returned ↕</th>
-        <th class="ctr" style="min-width:80px">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
+        <th class="ctr" style="min-width:80px">
+          <button class="btn btn-xs sgi-only" id="btnHideReturned" onclick="event.stopPropagation();toggleHideReturned()" style="display:block;margin:0 auto 4px;background:transparent;color:var(--text2);border:1px solid var(--border);white-space:nowrap;" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can focus on what's still outstanding. View only — doesn't change any data.">Hide Returned Jobs</button>
+          Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span>
+        </th>
         <th class="ctr" style="min-width:80px">No Pickup<br><span style="font-size:9px;color:var(--red);font-weight:400">(all items, qty 0)</span></th>
         <th style="min-width:160px">SGI Notes</th>
         <th style="min-width:160px">MDR Notes</th>
@@ -807,6 +810,17 @@ function toggleHideOverdue(){
   renderTable();
 }
 
+function toggleHideReturned(){
+  hideReturned=!hideReturned;
+  const btn=document.getElementById('btnHideReturned');
+  if(btn){
+    btn.textContent = hideReturned ? 'Show Returned Jobs' : 'Hide Returned Jobs';
+    btn.style.background = hideReturned ? 'rgba(230,81,0,.15)' : 'transparent';
+  }
+  logAppAction('Hide Returned Jobs', hideReturned?'Hid already-closed jobs from view':'Showing returned jobs again');
+  renderTable();
+}
+
 // ══════════════════════════════════
 //  ITEM LIBRARY
 // ══════════════════════════════════
@@ -866,6 +880,11 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 // not persisted across reloads on purpose, so nobody leaves it on and thinks a backlog is
 // smaller than it is.
 let hideOverdue=false;
+// "Hide Returned Jobs" — SGI-only toggle above the Job Closed column. Job Closed means
+// SGI has already returned (or is actively returning) the items to MDR, so once it's
+// checked there's nothing left for SGI to act on — this just lets them filter it out of
+// view to see what still needs attention. Never applies to MDR (see applyRoleUI).
+let hideReturned=false;
 
 // ══════════════════════════════════
 //  CHANGELOG / "WHAT'S NEW"
@@ -891,9 +910,16 @@ let hideOverdue=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-hide-incomplete-toggle';
+const BUILD = '2026-10-30-hide-returned-jobs-toggle';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-hide-returned-jobs-toggle',
+    date:'Oct 30, 2026',
+    items:[
+      'New "Hide Returned Jobs" button above the Job Closed column (SGI view only): hides any job you\'ve already closed out, so you can see what still needs your attention instead of scrolling past jobs waiting on MDR to confirm. Click again to bring them back. View toggle only — doesn\'t change any data, and never affects the MDR view.',
+    ]
+  },
   {
     build:'2026-10-30-hide-incomplete-toggle',
     date:'Oct 30, 2026',
@@ -1879,6 +1905,8 @@ function filtered(){
     // "Hide Overdue" toggle — on top of whatever Status filter is selected, drop rows
     // the live table is flashing red (late by date passed, not complete, not closed).
     if(hideOverdue && isOverdue(r)) return false;
+    // "Hide Returned Jobs" — SGI only. Job Closed means SGI already returned it.
+    if(hideReturned && isSGI() && r.jobClosed) return false;
     if(sf!=='all'){
       const st=rowStatus(r);
       // rowStatus() never returns 'partial' — that's a separate, informational
@@ -3453,12 +3481,17 @@ function applyRoleUI(){
     document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='none');
+    document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='');
     const sf=document.getElementById('statusF');
     if(sf&&(sf.value==='processing'||sf.value==='incomplete')) sf.value='all';
   } else {
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='');
+    // SGI-only view toggles (e.g. Hide Returned Jobs) never apply to MDR — hidden, and
+    // reset off so flipping MDR -> SGI preview -> MDR never leaves a stale filter active.
+    document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='none');
+    if(hideReturned){ hideReturned=false; renderTable(); }
   }
   setTimeout(updateStickyHeight, 50);
 }
