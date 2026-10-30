@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-10-30-hide-returned-jobs-toolbar` (October 30, 2026)
+**Build:** `2026-10-30-reference-slash-normalize` (October 30, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -166,6 +166,14 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-10-30-reference-slash-normalize`
+
+- Reference field: a "/" typed between reference numbers (only happens when SGI manually adds a record) is now converted to a comma on save.
+
+## Changes in `2026-10-30-confirmed-void-btn-fix`
+
+- Fixed **Load Confirmed/Void** showing as an oversized button with a stray "Choose File / No file chosen" control inside it — the file input just wasn't hidden like the other upload buttons. Icon changed to ⛳ to match **Load Daily**'s style.
 
 ## Changes in `2026-10-30-hide-returned-jobs-toolbar`
 

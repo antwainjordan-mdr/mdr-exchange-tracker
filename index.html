@@ -378,7 +378,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
-#fi-daily{display:none;}
+#fi-daily,#fi-confirmedvoid{display:none;}
 @media(max-width:700px){.hdr{padding:8px 12px;}.toolbar{padding:7px 12px;}.twrap{padding:8px 6px;}table{min-width:900px;}.frow{grid-template-columns:1fr;}.spills{display:none;}}
 
 /* ══ PRINT ══ */
@@ -481,7 +481,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 
     
     <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="handleLoadDaily(event)"></label>
-    <label class="btn btn-daily btn-sm mdr-only" title="Load the Confirmed &amp; Void PowerBI CSV">✅ Load Confirmed/Void<input type="file" id="fi-confirmedvoid" accept=".csv" onchange="handleLoadConfirmedVoid(event)"></label>
+    <label class="btn btn-daily btn-sm mdr-only" title="Load the Confirmed &amp; Void PowerBI CSV">⛳ Load Confirmed/Void<input type="file" id="fi-confirmedvoid" accept=".csv" onchange="handleLoadConfirmedVoid(event)"></label>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
     </button>
@@ -908,9 +908,23 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-hide-returned-jobs-toolbar';
+const BUILD = '2026-10-30-reference-slash-normalize';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-reference-slash-normalize',
+    date:'Oct 30, 2026',
+    items:[
+      'Reference field: a "/" typed between reference numbers (this only happens when SGI manually adds a record) is now converted to a comma on save, so every record\'s Reference field stays in the same format no matter who entered it.',
+    ]
+  },
+  {
+    build:'2026-10-30-confirmed-void-btn-fix',
+    date:'Oct 30, 2026',
+    items:[
+      'Fixed "Load Confirmed/Void" rendering as an oversized button with a stray "Choose File / No file chosen" control showing through it — the file input just wasn\'t hidden like the other upload buttons. Also swapped its icon to ⛳ to match "Load Daily"\'s style.',
+    ]
+  },
   {
     build:'2026-10-30-hide-returned-jobs-toolbar',
     date:'Oct 30, 2026',
@@ -3233,6 +3247,14 @@ function resetLibrary(){
 function closeModal(){document.getElementById('moverlay').classList.remove('open');editId=null;}
 function overlayClick(e){if(e.target===document.getElementById('moverlay'))closeModal();}
 
+// SGI sometimes types "/" between reference numbers when adding a record by hand
+// (Brightree/Power BI-sourced records never do). Normalize to commas on save so
+// every record's Reference field matches the same format regardless of who typed it.
+function normalizeRef(s){
+  if(!s) return s;
+  return s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim();
+}
+
 function saveModal(){
   const isNew=!editId;
   const gv=id=>{const el=document.getElementById(id);return el&&el.style.display!=='none'?el.value.trim():'';}
@@ -3259,7 +3281,7 @@ function saveModal(){
 
   let recToSave = null;
   if(isNew){
-    const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=gv('m-soIds'),pi=gv('m-patientId'),db=gv('m-dropOffBy');
+    const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=normalizeRef(gv('m-soIds')),pi=gv('m-patientId'),db=gv('m-dropOffBy');
     // Memory Download is MDR-only; SGI's checkbox is hidden so this stays false for them.
     const memDl = isMDR() && !!document.getElementById('m-memdl')?.checked;
     recToSave = {
@@ -3275,7 +3297,7 @@ function saveModal(){
     if(recToSave){
       LOCKABLE.forEach(f=>{if(!isLocked(recToSave,f))recToSave[f]=gv(`m-${f}`)||recToSave[f];});
       recToSave.jobNum=gv('m-jobNum')||recToSave.jobNum;
-      recToSave.soIds=gv('m-soIds')||recToSave.soIds;
+      recToSave.soIds=normalizeRef(gv('m-soIds'))||recToSave.soIds;
       recToSave.dropOffBy=gv('m-dropOffBy')||recToSave.dropOffBy;
       recToSave.sgiNotes=document.getElementById('m-sgiNotes').value.trim();
       recToSave.mdrNotes=document.getElementById('m-mdrNotes').value.trim();
