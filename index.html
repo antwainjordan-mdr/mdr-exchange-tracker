@@ -595,8 +595,8 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <div class="fg"></div>
       </div>
       <div class="frow mdr-modal-only">
-        <div class="fg"><label class="flabel">Pickup Date</label><div id="m-pickupDate-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-pickupDate-lockval"></span></div><input type="date" class="finput datepick" id="m-pickupDate"></div>
-        <div class="fg"><label class="flabel">Late by Date <span style="color:var(--green);font-size:9px">(editable)</span></label><input type="date" class="finput datepick" id="m-dropOffBy"></div>
+        <div class="fg"><label class="flabel">Pickup Date</label><div id="m-pickupDate-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-pickupDate-lockval"></span></div><input type="date" class="finput datepick" id="m-pickupDate" onchange="updateLateByPreview()"></div>
+        <div class="fg"><label class="flabel">Late by Date <span style="color:var(--text3);font-size:9px">(calculated — 3 business days from pickup)</span></label><div class="flocked"><span>🔒</span><span id="m-dropOffBy-display">—</span></div></div>
       </div>
       <!-- Pieces -->
       <div class="fg">
@@ -908,9 +908,25 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-reference-slash-normalize';
+const BUILD = '2026-10-30-late-by-calculated';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-late-by-calculated',
+    date:'Oct 30, 2026',
+    items:[
+      'Late by Date is now calculated by the tracker instead of coming from the report: Pickup Date plus 3 business days (weekends never count), no matter which weekday the pickup falls on. No Pickup Date means no Late By Date.',
+      'Late By Date is no longer typed in by anyone — not MDR, not SGI. It shows as a plain calculated value everywhere (the table and the Add/Edit form).',
+      'One-time cleanup: every existing record\'s Late By Date gets recalculated from its Pickup Date on the next load, so the whole tracker is consistent with the new rule going forward.',
+    ]
+  },
+  {
+    build:'2026-10-30-reference-slash-cleanup',
+    date:'Oct 30, 2026',
+    items:[
+      'One-time cleanup: existing records whose Reference field still had a "/" from before the last update now get it converted to a comma automatically on the next load — no need to manually open and re-save each one.',
+    ]
+  },
   {
     build:'2026-10-30-reference-slash-normalize',
     date:'Oct 30, 2026',
@@ -1390,9 +1406,11 @@ function loadDaily(text){
       // Union references (covers SGI 1-ref vs daily 3-refs scenario)
       const newSo=mergeRefs(ex.soIds, inc.soIds);
       if(newSo!==(ex.soIds||'')){ex.soIds=newSo;changed=true;}
-      // Fill blanks from the incoming row
+      // Fill blanks from the incoming row. Late By Date is never taken from the report —
+      // it's always calculated from Pickup Date (see computeLateBy above), whether that's
+      // the Pickup Date we already had or one this row is filling in for the first time.
       if(!ex.pickupDate&&inc.pickupDate){ex.pickupDate=inc.pickupDate;changed=true;}
-      if(!ex.dropOffBy&&inc.dropOffBy){ex.dropOffBy=inc.dropOffBy;changed=true;}
+      if(!ex.dropOffBy&&ex.pickupDate){ex.dropOffBy=computeLateBy(ex.pickupDate);changed=true;}
       if(!ex.patientId&&inc.patientId){ex.patientId=inc.patientId;changed=true;}
       if(!ex.entryId&&inc.entryId){ex.entryId=inc.entryId;changed=true;}
       if(!ex.jobNum&&inc.jobNum){ex.jobNum=inc.jobNum;changed=true;}
@@ -1446,10 +1464,10 @@ function loadDaily(text){
     const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
     const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
-    const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
+    // Late By Date is never read from the report — see computeLateBy().
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
 
-    const inc={patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,entryId,pieces,hasMemoryDownload,refSet:refTokens(soIds)};
+    const inc={patientName,patientId,jobNum,soIds,pickupDate,entryId,pieces,hasMemoryDownload,refSet:refTokens(soIds)};
 
     const match=findMatch(inc);
     if(match){
@@ -1475,7 +1493,7 @@ function loadDaily(text){
     }
     const rec={
       id:gid(),source:'daily',
-      patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
+      patientName,patientId,jobNum,soIds,pickupDate,dropOffBy:computeLateBy(pickupDate),
       dateReturned:'',sgiNotes:'',mdrNotes:'',
       jobClosed:false,confirmed:false,verified:false,noPickup:false,
       entryId,locked,pieces,hasMemoryDownload
@@ -1612,7 +1630,7 @@ function loadConfirmedVoid(text){
     const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
     const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
-    const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
+    // Late By Date is never read from the report — see computeLateBy().
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
     const status=col(row,'pickup/exchange status','pickup exchange status').toLowerCase();
 
@@ -1664,7 +1682,7 @@ function loadConfirmedVoid(text){
     const locked=makeLockMap(obj);
     const rec={
       id:gid(),source:'daily',
-      patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
+      patientName,patientId,jobNum,soIds,pickupDate,dropOffBy:computeLateBy(pickupDate),
       dateReturned:tod(),sgiNotes:'',mdrNotes:'',
       jobClosed:true,confirmed:true,verified:status==='confirmed',noPickup:status==='void',
       entryId,locked,pieces
@@ -1850,6 +1868,31 @@ function normDate(s){
   const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
   return s;
+}
+
+// Late By Date is calculated by the tracker, not read from any report — Pickup Date
+// plus 3 business days (Sat/Sun never count), period, no matter which weekday the
+// pickup falls on. Example: Fri pickup -> +3 business days -> Wed (calendar +5,
+// since Sat/Sun are skipped); Mon pickup -> +3 business days -> Thu (calendar +3,
+// no weekend in the way). Pure date math — uses Date.UTC so it's never off by a day
+// from the server's local timezone.
+function addBusinessDays(ymd, n){
+  if(!ymd) return '';
+  const parts = ymd.split('-').map(Number);
+  if(parts.length!==3 || parts.some(isNaN)) return '';
+  const dt = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+  let added = 0;
+  while(added < n){
+    dt.setUTCDate(dt.getUTCDate()+1);
+    const dow = dt.getUTCDay(); // 0=Sun, 6=Sat
+    if(dow!==0 && dow!==6) added++;
+  }
+  const yy=dt.getUTCFullYear(), mm=String(dt.getUTCMonth()+1).padStart(2,'0'), dd=String(dt.getUTCDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
+}
+// No Pickup Date -> no Late By Date. Otherwise, pickup + 3 business days.
+function computeLateBy(pickupDate){
+  return pickupDate ? addBusinessDays(pickupDate, 3) : '';
 }
 
 function rowStatus(rec){
@@ -2199,12 +2242,9 @@ function renderRow(r){
     onclick="openCal(this)"
     onchange="dateRetChanged('${r.id}',this.value)">`;
 
-  // Late by date — always editable
-  const lateHtml=isSGI()
-    ?`<span style="font-size:12px;color:var(--text2)">${fmtDate(r.dropOffBy)||'—'}</span>`
-    :`<input type="date" class="datepick" value="${esc(r.dropOffBy||'')}"
-    onclick="openCal(this)"
-    onchange="updateF('${r.id}','dropOffBy',this.value)">`;
+  // Late by date — calculated (Pickup Date + 3 business days), not editable by anyone.
+  // See computeLateBy().
+  const lateHtml=`<span style="font-size:12px;color:var(--text2)">${fmtDate(r.dropOffBy)||'—'}</span>`;
 
   // Chip shows the receipt discrepancy (Partial/Shortage/Overage) instead of the
   // bare status when there is one — more useful at a glance — but ONLY while the
@@ -2654,7 +2694,7 @@ function openAddModal(){
     if(lock)lock.style.display='none';
     if(inp){inp.style.display='';inp.value='';}
   });
-  document.getElementById('m-dropOffBy').value='';
+  updateLateByPreview();
   document.getElementById('m-sgiNotes').value='';
   document.getElementById('m-mdrNotes').value='';
   const memCbAdd=document.getElementById('m-memdl');
@@ -3154,7 +3194,7 @@ function openEditModal(id){
   document.getElementById('m-soIds').style.display='';
   document.getElementById('m-soIds').value=rec.soIds||'';
 
-  document.getElementById('m-dropOffBy').value=rec.dropOffBy||'';
+  updateLateByPreview();
   document.getElementById('m-sgiNotes').value=rec.sgiNotes||'';
   document.getElementById('m-mdrNotes').value=rec.mdrNotes||'';
   // Memory Download checkbox (MDR only — hidden from SGI via .mdr-modal-only)
@@ -3255,6 +3295,23 @@ function normalizeRef(s){
   return s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim();
 }
 
+// Keeps the read-only Late By Date display in the Add/Edit modal in sync with
+// whatever Pickup Date is currently in the form — called on open, on reset, and
+// whenever Pickup Date changes. Never writes to a record; saveModal() recomputes
+// the real value itself at save time from whatever Pickup Date actually got saved.
+function updateLateByPreview(){
+  const el=document.getElementById('m-dropOffBy-display');
+  if(!el) return;
+  const inp=document.getElementById('m-pickupDate');
+  // Pickup Date is locked (hidden input) for most existing records — read the real
+  // value off the record itself rather than a hidden, possibly-stale input.
+  const pd = (inp && inp.style.display!=='none')
+    ? inp.value
+    : (editId ? (records.find(r=>r.id===editId)?.pickupDate||'') : '');
+  const lb=computeLateBy(pd);
+  el.textContent = lb ? fmtDate(lb) : '—';
+}
+
 function saveModal(){
   const isNew=!editId;
   const gv=id=>{const el=document.getElementById(id);return el&&el.style.display!=='none'?el.value.trim():'';}
@@ -3281,12 +3338,12 @@ function saveModal(){
 
   let recToSave = null;
   if(isNew){
-    const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=normalizeRef(gv('m-soIds')),pi=gv('m-patientId'),db=gv('m-dropOffBy');
+    const pd=gv('m-pickupDate'),jn=gv('m-jobNum'),si=normalizeRef(gv('m-soIds')),pi=gv('m-patientId');
     // Memory Download is MDR-only; SGI's checkbox is hidden so this stays false for them.
     const memDl = isMDR() && !!document.getElementById('m-memdl')?.checked;
     recToSave = {
       id:gid(),source:'manual',
-      patientName,patientId:pi,jobNum:jn,soIds:si,pickupDate:pd,dropOffBy:db,
+      patientName,patientId:pi,jobNum:jn,soIds:si,pickupDate:pd,dropOffBy:computeLateBy(pd),
       dateReturned:'',sgiNotes:gv('m-sgiNotes'),mdrNotes:gv('m-mdrNotes'),
       jobClosed:false,confirmed:false,verified:false,noPickup:false,entryId:'',locked:{},pieces:allPieces,
       hasMemoryDownload:memDl
@@ -3298,7 +3355,9 @@ function saveModal(){
       LOCKABLE.forEach(f=>{if(!isLocked(recToSave,f))recToSave[f]=gv(`m-${f}`)||recToSave[f];});
       recToSave.jobNum=gv('m-jobNum')||recToSave.jobNum;
       recToSave.soIds=normalizeRef(gv('m-soIds'))||recToSave.soIds;
-      recToSave.dropOffBy=gv('m-dropOffBy')||recToSave.dropOffBy;
+      // Late By Date is calculated, never typed — always derived from the (possibly
+      // just-updated) Pickup Date above, same rule as import. See computeLateBy().
+      recToSave.dropOffBy=computeLateBy(recToSave.pickupDate);
       recToSave.sgiNotes=document.getElementById('m-sgiNotes').value.trim();
       recToSave.mdrNotes=document.getElementById('m-mdrNotes').value.trim();
       recToSave.pieces=allPieces.map(p=>{
@@ -3883,6 +3942,28 @@ async function loadFromSharePoint(){
         syncAllToSharePoint(localPreserve).catch(e=>console.error('Retry sync failed:',e));
       } else {
         toast('Loaded '+valid.length+' records from SharePoint','s');
+      }
+      // One-time cleanup: fix any Reference field that still has a "/" left over from
+      // before saveModal() started normalizing on save (only ever happened when SGI
+      // manually added a record). Self-healing \u2014 once every record's been fixed this
+      // finds nothing and does nothing, so it's safe to leave running on every load.
+      const slashRecs = records.filter(r=>r.soIds && r.soIds.includes('/'));
+      if(slashRecs.length){
+        slashRecs.forEach(r=>{ r.soIds = normalizeRef(r.soIds); r._dirty = true; });
+        localStorage.setItem('mdr_v5', JSON.stringify(records));
+        console.log(`[MDR] Reference field cleanup: converted "/" to "," on ${slashRecs.length} existing record(s)`);
+        syncAllToSharePoint(slashRecs).catch(e=>console.error('Reference slash-fix sync failed:',e));
+      }
+      // One-time cleanup: Late By Date used to come straight from the report. It's now
+      // always calculated from Pickup Date (3 business days — see computeLateBy()), so
+      // bring every existing record in line with that. Self-healing — once every record
+      // matches the calculated value this finds nothing and does nothing.
+      const lateByRecs = records.filter(r=>r.pickupDate && r.dropOffBy!==computeLateBy(r.pickupDate));
+      if(lateByRecs.length){
+        lateByRecs.forEach(r=>{ r.dropOffBy = computeLateBy(r.pickupDate); r._dirty = true; });
+        localStorage.setItem('mdr_v5', JSON.stringify(records));
+        console.log(`[MDR] Late By Date cleanup: recalculated from Pickup Date on ${lateByRecs.length} existing record(s)`);
+        syncAllToSharePoint(lateByRecs).catch(e=>console.error('Late By Date fix sync failed:',e));
       }
       // Retry any deletes that haven't confirmed yet, same reasoning as the edit retry above.
       if(pendingDeletes.length){

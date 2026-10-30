@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-10-30-reference-slash-normalize` (October 30, 2026)
+**Build:** `2026-10-30-late-by-calculated` (October 30, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -166,6 +166,16 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-10-30-late-by-calculated`
+
+- Late by Date is now calculated by the tracker (Pickup Date + 3 business days, weekends never count) instead of coming from the report. No Pickup Date means no Late By Date.
+- No longer editable by anyone, MDR or SGI — it's a plain calculated value in the table and the Add/Edit form.
+- One-time cleanup: every existing record's Late By Date gets recalculated from its Pickup Date on the next load.
+
+## Changes in `2026-10-30-reference-slash-cleanup`
+
+- One-time cleanup: existing records with a leftover "/" in the Reference field now get it converted to a comma automatically the next time the app loads.
 
 ## Changes in `2026-10-30-reference-slash-normalize`
 
