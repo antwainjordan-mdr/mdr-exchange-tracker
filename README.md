@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-10-30-confirmed-void-import` (October 30, 2026)
+**Build:** `2026-10-30-confirmed-void-filename-fix` (October 30, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -114,8 +114,8 @@ Next to the buttons, the **presence bar** shows who else has the tracker open (s
 
 Brightree's second daily export — jobs it has already resolved — lists each one as **Confirmed** or **Void**. Loading it is what actually gets a resolved job off of SGI's Pending queue and print.
 
-1. Export the report as **`Confirmed & Void_data.csv`**. The file must be named exactly that.
-2. Click **Load Confirmed/Void** and pick it.
+1. Export the Confirmed & Void report from Brightree.
+2. Click **Load Confirmed/Void** and pick it. The filename just needs to contain "Confirmed" and "Void" and end in `.csv` — small naming differences (spacing, a re-download's `(1)`, etc.) are fine.
 3. The app:
    - matches each row to an existing record the same way **Load Daily** does (patient plus at least one shared reference, Entry ID, or job #).
    - on a match, fills in **Closed (Brightree)** (and **Verified** for a Confirmed row, or the full **No Pickup** behavior — every piece checked, qty 0, Date Returned stamped — for a Void row), but **only for fields that aren't already set**. Nothing you or SGI already marked by hand gets overwritten or undone, and piece quantities SGI already checked in are left exactly as they are.
@@ -163,6 +163,10 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-10-30-confirmed-void-filename-fix`
+
+- Fixed: **Load Confirmed/Void** was rejecting the real exported file because its name had to match one exact string. It now just checks the filename contains "Confirmed" and "Void" and ends in `.csv`.
 
 ## Changes in `2026-10-30-confirmed-void-import`
 

@@ -874,9 +874,16 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-confirmed-void-import';
+const BUILD = '2026-10-30-confirmed-void-filename-fix';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-confirmed-void-filename-fix',
+    date:'Oct 30, 2026',
+    items:[
+      'Fixed: "Load Confirmed/Void" was rejecting the real exported file because its name didn\'t match one exact string. It now just checks the filename contains "Confirmed" and "Void" and ends in .csv.',
+    ]
+  },
   {
     build:'2026-10-30-confirmed-void-import',
     date:'Oct 30, 2026',
@@ -1600,8 +1607,12 @@ function loadConfirmedVoid(text){
 function handleLoadConfirmedVoid(e){
   const f=e.target.files[0];
   if(!f){ toast('No file selected','e'); return; }
-  if(f.name.toLowerCase() !== 'confirmed & void_data.csv'){
-    toast('Wrong file — please load "Confirmed & Void_data.csv" only','e');
+  // Tolerant match instead of one exact string — browsers/exports vary this name
+  // slightly (" & " vs "_and_", a re-download's " (1)" suffix, stray spaces, etc).
+  // Still refuses an obviously wrong file (e.g. data.csv) since that has neither word.
+  const fn=f.name.toLowerCase();
+  if(!(fn.includes('confirmed') && fn.includes('void') && fn.endsWith('.csv'))){
+    toast('Wrong file — please load the Confirmed & Void CSV (filename should contain "Confirmed" and "Void")','e');
     e.target.value='';
     return;
   }
