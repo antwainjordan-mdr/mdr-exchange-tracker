@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-10-14-export-split-return-tz` (October 14, 2026)
+**Build:** `2026-10-30-confirmed-void-import` (October 30, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -40,7 +40,8 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 | Refresh | All | Reloads every record from SharePoint. |
 | **Export as: CSV** (green) | All | Downloads the rows **on screen** as a CSV (see Exporting). |
 | **Export as: PDF** (red) | All | Prints or saves the rows on screen as a PDF report. |
-| Load Daily | MDR | Imports today's `data.csv` from Power BI (see Load Daily). |
+| Load Daily | MDR | Imports today's `data.csv` from Power BI (see Load Daily). Refuses the file if it contains anything other than "New" rows. |
+| Load Confirmed/Void | MDR | Imports Brightree's `Confirmed & Void_data.csv` and resolves matching jobs (see Load Confirmed/Void). |
 | Add Record | All | Adds a job by hand. |
 | Clear Cache | All | Wipes this browser's saved data and tokens and reloads. Fixes most odd behavior. You sign in again after. |
 | App Log | MDR | Who did what, and when (sign-ins, loads, exports, refreshes). |
@@ -79,7 +80,7 @@ Next to the buttons, the **presence bar** shows who else has the tracker open (s
 | Job Closed (SGI) | Checking it stamps Date Returned with today's date. |
 | No Pickup | Marks the job as nothing collected: every piece is checked with qty 0, and Date Returned and Job Closed are stamped. Shows an X. |
 | Verified (MDR RCV) | MDR confirms the items were received. SGI can see it but can't change it. |
-| Confirmed (Portal) | MDR's final sign-off. It moves the record to Complete for both sides. |
+| Closed (Brightree) | MDR's final sign-off (same field that used to show as "Confirmed (Portal)" — renamed, same behavior). It moves the record to Complete for both sides. Checked by hand, or automatically by **Load Confirmed/Void**. |
 | SGI Notes / MDR Notes | Free text, saved when you leave the box. SGI can read MDR notes but not edit them. |
 | Activity (clock icon) | That record's full change history from SharePoint. |
 
@@ -107,6 +108,20 @@ Next to the buttons, the **presence bar** shows who else has the tracker open (s
    - saves only the new or changed records to SharePoint, and puts a timestamped copy of the CSV in SharePoint Documents under **Daily Uploads**.
 4. **Rebookings:** if the same patient and reference come in with a **different** job #, the app keeps them as two separate records and shows a list so you can check them.
 5. If SharePoint isn't connected, a red banner says the records were saved locally only. **Don't refresh** until it clears.
+6. **Wrong-file guard:** if `data.csv` contains any row whose status isn't "New" (because Brightree has already resolved it), the import is refused with a warning instead of silently loading an already-resolved job back into the queue. Download the correct report and try again.
+
+## Load Confirmed/Void (MDR)
+
+Brightree's second daily export — jobs it has already resolved — lists each one as **Confirmed** or **Void**. Loading it is what actually gets a resolved job off of SGI's Pending queue and print.
+
+1. Export the report as **`Confirmed & Void_data.csv`**. The file must be named exactly that.
+2. Click **Load Confirmed/Void** and pick it.
+3. The app:
+   - matches each row to an existing record the same way **Load Daily** does (patient plus at least one shared reference, Entry ID, or job #).
+   - on a match, fills in **Closed (Brightree)** (and **Verified** for a Confirmed row, or the full **No Pickup** behavior — every piece checked, qty 0, Date Returned stamped — for a Void row), but **only for fields that aren't already set**. Nothing you or SGI already marked by hand gets overwritten or undone, and piece quantities SGI already checked in are left exactly as they are.
+   - creates a new record, already resolved, for any row that doesn't match an existing one.
+   - a row that matches a patient but carries a conflicting, different job # is kept separate (same rebooking-style safety as Load Daily) and listed in the console.
+4. Once a job is marked Closed (Brightree), it moves to Complete for both MDR and SGI and drops out of the default Pending view and print.
 
 ## Exporting
 
@@ -148,6 +163,13 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-10-30-confirmed-void-import`
+
+- New **Load Confirmed/Void** button (MDR only): imports Brightree's `Confirmed & Void_data.csv` and matches it onto existing records the same way Load Daily does.
+- **Confirmed (Portal)** is now called **Closed (Brightree)** everywhere it appears (header, legend, audit log). Same field, same behavior — just renamed to match where it's now set from.
+- Loading Confirmed/Void auto-fills Closed (Brightree) on a match (plus Verified for a Confirmed row, or the full No Pickup behavior for a Void row) — only for fields not already set, so nothing already marked by hand is overwritten. A row with no match gets a new record created, already resolved.
+- **Load Daily now refuses to import** `data.csv` if it contains anything other than "New" rows, with a warning telling you to download the correct report instead.
 
 ## Changes in `2026-10-14-export-split-return-tz`
 

@@ -481,6 +481,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 
     
     <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="handleLoadDaily(event)"></label>
+    <label class="btn btn-daily btn-sm mdr-only" title="Load the Confirmed &amp; Void PowerBI CSV">✅ Load Confirmed/Void<input type="file" id="fi-confirmedvoid" accept=".csv" onchange="handleLoadConfirmedVoid(event)"></label>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
     </button>
@@ -517,7 +518,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div class="li"><div class="lbar" style="background:var(--yellow)"></div>Mixed</div>
   <div class="li"><span style="width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block"></span>All Done</div>
 
-  <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Confirmed (Portal) &nbsp;<span style="color:var(--red)">✕</span> No Pickup &nbsp;<span style="color:#f41617">■</span> Overdue</div>
+  <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Closed (Brightree) &nbsp;<span style="color:var(--red)">✕</span> No Pickup &nbsp;<span style="color:#f41617">■</span> Overdue</div>
 </div>
 
 <!-- TOOLBAR -->
@@ -540,7 +541,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 </div><!-- /sticky-top -->
 
 <!-- TABLE -->
-<!-- Columns: Patient | Job# | Pieces | Reference | Date Returned | Job Closed | No Pickup | SGI Notes | MDR Notes | Late by Date | Confirmed | Verified | Status | Pickup Date | actions -->
+<!-- Columns: Patient | Job# | Pieces | Reference | Date Returned | Job Closed | No Pickup | SGI Notes | MDR Notes | Late by Date | Closed (Brightree) | Verified | Status | Pickup Date | actions -->
 <div class="twrap">
   <table>
     <thead>
@@ -557,7 +558,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:160px">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
         <th class="ctr" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
-        <th class="ctr th-mdr-only" style="min-width:80px">Confirmed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Portal)</span></th>
+        <th class="ctr th-mdr-only" style="min-width:80px">Closed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Brightree)</span></th>
         <th style="min-width:80px;text-align:center">Activity</th>
         <th class="no-print" style="min-width:50px"></th>
       </tr>
@@ -873,9 +874,19 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-14-export-split-return-tz';
+const BUILD = '2026-10-30-confirmed-void-import';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-confirmed-void-import',
+    date:'Oct 30, 2026',
+    items:[
+      'New "Load Confirmed/Void" button (MDR only): loads Brightree\'s second daily export — jobs already resolved as Confirmed or Void — and matches them onto existing records the same way Load Daily does.',
+      'Confirmed (Portal) is now called "Closed (Brightree)" everywhere it appears (header, legend, audit log) — same field, same behavior, just renamed to match where it\'s now set from.',
+      'Loading Confirmed/Void auto-fills Closed (Brightree) on a match (and Verified for a Confirmed row, or the full No Pickup behavior for a Void row) — but only if that field isn\'t already set, so nothing you\'ve already marked by hand gets overwritten. A row with no matching record gets a new one created, already resolved.',
+      'Load Daily now refuses to import data.csv if it contains anything other than "New" rows — it warns you to download the correct report instead of silently loading already-resolved jobs back into the queue.',
+    ]
+  },
   {
     build:'2026-10-14-export-split-return-tz',
     date:'Oct 14, 2026',
@@ -1187,6 +1198,26 @@ function parseCSV(text){
 
 function loadDaily(text){
   const rows=parseCSV(text);if(!rows.length){toast('Daily CSV empty','e');return 0;}
+  // Guard: data.csv (Load Daily) is only ever supposed to carry "New" rows — anything
+  // Brightree has already resolved belongs in the Confirmed & Void file instead. If this
+  // file has non-New rows in it, it's the wrong report (or downloaded before Brightree
+  // finished tagging it) — block the import with a warning rather than silently loading
+  // already-resolved jobs back into the daily/pending queue.
+  const statusKey0=Object.keys(rows[0]||{}).find(k=>k.trim().toLowerCase()==='pickup/exchange status');
+  if(statusKey0){
+    const counts={};
+    rows.forEach(r=>{
+      const v=(r[statusKey0]||'').trim();
+      if(v && v.toLowerCase()!=='new') counts[v]=(counts[v]||0)+1;
+    });
+    const badTotal=Object.values(counts).reduce((a,b)=>a+b,0);
+    if(badTotal){
+      const summary=Object.entries(counts).map(([k,n])=>`${n} ${k}`).join(', ');
+      toast(`⚠ Not loaded — data.csv has ${badTotal} row(s) that aren't "New" (${summary}). Please download the correct report and upload again.`,'e');
+      console.warn('[MDR] Load Daily blocked — non-New rows present:',counts);
+      return 0;
+    }
+  }
   function col(row,...names){
     for(const n of names){const k=Object.keys(row).find(k=>k.trim().toLowerCase()===n.toLowerCase());if(k&&row[k]!==undefined)return row[k].trim();}
     return'';
@@ -1416,6 +1447,195 @@ function showRebookModal(list){
 function closeRebookModal(){
   const ov=document.getElementById('rebookOverlay');
   if(ov) ov.classList.remove('open');
+}
+
+// ══════════════════════════════════
+//  LOAD CONFIRMED/VOID
+// ══════════════════════════════════
+// Brightree's second daily export: jobs it has already resolved, tagged Confirmed or
+// Void in the "Pickup/Exchange Status" column. Matches onto existing records the same
+// way Load Daily does (patient + shared reference, Entry ID, or Job#), then auto-fills
+// a small set of fields so the job finally drops out of SGI's Pending queue — it does
+// NOT touch piece-level data for a Confirmed match (SGI's own check-in work stays as-is).
+// Every auto-fill below is "if not already marked" — it only fills a blank/unchecked
+// field, never undoes something a person already set by hand.
+function loadConfirmedVoid(text){
+  const rows=parseCSV(text);if(!rows.length){toast('Confirmed/Void CSV empty','e');return 0;}
+  function col(row,...names){
+    for(const n of names){const k=Object.keys(row).find(k=>k.trim().toLowerCase()===n.toLowerCase());if(k&&row[k]!==undefined)return row[k].trim();}
+    return'';
+  }
+  // ── Identity helpers — same logic as loadDaily's findMatch (patient + shared
+  // reference, Entry ID, or Job#; a conflicting non-blank Job# on both sides keeps
+  // them separate rather than merging two different jobs together). ──
+  function normName(s){
+    return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+  }
+  function normIdStr(s){
+    return (s==null?'':String(s)).trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,'');
+  }
+  function refTokens(s){
+    return new Set((s||'').toLowerCase().split(/[\s,;|\/]+/).map(t=>normIdStr(t)).filter(Boolean));
+  }
+  function patientMatch(aName,aId,bName,bId){
+    const idA=normIdStr(aId), idB=normIdStr(bId);
+    if(idA && idB) return idA===idB;
+    const nA=normName(aName);
+    return !!nA && nA===normName(bName);
+  }
+  function refOverlap(aSet,bSet){
+    if(!aSet.size||!bSet.size) return false;
+    for(const t of aSet) if(bSet.has(t)) return true;
+    return false;
+  }
+  const noMatches=[]; // rows that matched no existing record (a new record gets created for each)
+  const conflicts=[]; // rows that matched a patient but with a conflicting non-blank Job# (kept separate)
+  const touchedIds=new Set();
+  function findMatch(inc){
+    const incJob=normIdStr(inc.jobNum);
+    for(const r of records){
+      if(!patientMatch(inc.patientName, inc.patientId, r.patientName, r.patientId)) continue;
+      const exJob=normIdStr(r.jobNum);
+      const sameByRef   = refOverlap(inc.refSet, refTokens(r.soIds));
+      const sameByEntry = inc.entryId && r.entryId && normIdStr(inc.entryId)===normIdStr(r.entryId);
+      const sameByJob   = incJob && exJob && incJob===exJob;
+      if(!(sameByRef||sameByEntry||sameByJob)) continue;
+      if(incJob && exJob && incJob!==exJob){
+        conflicts.push({patient:r.patientName||inc.patientName, oldJob:exJob, newJob:incJob});
+        continue;
+      }
+      return r;
+    }
+    return null;
+  }
+
+  let matched=0,created=0,skipped=0,unknownStatus=0;
+
+  rows.forEach(row=>{
+    let rawName=col(row,'patient name','patientname');
+    let patientName=rawName,patientId='';
+    const nl=rawName.indexOf('\n');
+    if(nl>-1){patientName=rawName.slice(0,nl).trim();patientId=rawName.slice(nl+1).trim();}
+    const rawPieces=col(row,'pieces');
+    const pieces=parsePiecesDaily(rawPieces);
+    const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
+    const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
+    const pickupDate=normDate(col(row,'pickup date','pickupdate'));
+    const dropOffBy=normDate(col(row,'dropoff by','drop off by','dropoffby','late by date'));
+    const entryId=col(row,'entry id','entryid','entry_id','EntryID');
+    const status=col(row,'pickup/exchange status','pickup exchange status').toLowerCase();
+
+    if(status!=='confirmed' && status!=='void'){
+      unknownStatus++;
+      console.warn('[MDR] Confirmed/Void row skipped — unrecognized status:',status||'(blank)',patientName);
+      return;
+    }
+
+    const inc={patientName,patientId,jobNum,soIds,entryId,refSet:refTokens(soIds)};
+    const ex=findMatch(inc);
+
+    if(ex){
+      let changed=false;
+      if(status==='void'){
+        if(!ex.noPickup){
+          (ex.pieces||[]).forEach(p=>{p.checked=true;p.receivedQty=0;});
+          ex.noPickup=true;
+          if(!ex.dateReturned) ex.dateReturned=tod();
+          changed=true;
+        }
+      }
+      // Both Confirmed and Void: if not already marked, close the job and (for Confirmed)
+      // mark it Verified. Closed (Brightree) is checked either way — it's driven purely by
+      // the PUEX showing resolved, not by which of the two statuses it resolved to.
+      if(!ex.jobClosed){
+        ex.jobClosed=true;
+        if(!ex.dateReturned) ex.dateReturned=tod();
+        changed=true;
+      }
+      if(status==='confirmed' && !ex.verified){ ex.verified=true; changed=true; }
+      if(!ex.confirmed){ ex.confirmed=true; changed=true; }
+      if(changed){ saveRecs(ex,{skipSync:true}); touchedIds.add(ex.id); matched++; }
+      else { skipped++; }
+      return;
+    }
+
+    // ── No existing record — create one, pre-resolved ──
+    noMatches.push({patient:patientName||'(unknown)', job:jobNum||'—', status});
+    if(status==='void'){
+      (pieces||[]).forEach(p=>{p.checked=true;p.receivedQty=0;});
+    }
+    const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
+    const locked=makeLockMap(obj);
+    const rec={
+      id:gid(),source:'daily',
+      patientName,patientId,jobNum,soIds,pickupDate,dropOffBy,
+      dateReturned:tod(),sgiNotes:'',mdrNotes:'',
+      jobClosed:true,confirmed:true,verified:status==='confirmed',noPickup:status==='void',
+      entryId,locked,pieces
+    };
+    records.push(rec);
+    created++;
+    touchedIds.add(rec.id);
+  });
+
+  saveRecs();
+  const parts=[];
+  if(matched) parts.push(`${matched} updated`);
+  if(created) parts.push(`${created} new`);
+  if(skipped) parts.push(`${skipped} unchanged`);
+  if(unknownStatus) parts.push(`${unknownStatus} skipped (unrecognized status)`);
+  const msg = parts.length ? `✓ Confirmed/Void loaded — ${parts.join(', ')}` : '⚪ Confirmed/Void loaded — no changes';
+  toast(msg, matched||created?'s':'i');
+  console.log('[MDR] Confirmed/Void load complete:', msg);
+  if(noMatches.length){
+    console.warn('[MDR] Confirmed/Void rows with no existing match — new record created for each:',noMatches);
+  }
+  if(conflicts.length){
+    console.warn('[MDR] Confirmed/Void rows kept separate — conflicting Job#:',conflicts);
+    toast(`⚠ ${conflicts.length} row(s) had a conflicting Job# and were kept separate — see console.`,'e');
+  }
+  return {count:matched+created, touchedIds:[...touchedIds]};
+}
+
+function handleLoadConfirmedVoid(e){
+  const f=e.target.files[0];
+  if(!f){ toast('No file selected','e'); return; }
+  if(f.name.toLowerCase() !== 'confirmed & void_data.csv'){
+    toast('Wrong file — please load "Confirmed & Void_data.csv" only','e');
+    e.target.value='';
+    return;
+  }
+  logAppAction('Load Confirmed/Void', `Loaded file: ${f.name}`);
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const text=ev.target.result;
+      const result=loadConfirmedVoid(text);
+      buildChips();renderTable();renderStats();
+      if(result.count > 0){
+        if(!spSiteId || !spListId){
+          try{ await ensureSPIds(); }catch(e){ console.error('ensureSPIds failed during Load Confirmed/Void:',e); }
+        }
+        if(spSiteId && spListId){
+          const touchedSet=new Set(result.touchedIds);
+          const toSync=records.filter(r=>touchedSet.has(r.id));
+          await syncAllToSharePoint(toSync);
+        } else {
+          setSyncStatus('error','⚠ Not connected to SharePoint — Confirmed/Void changes saved locally only. Do NOT refresh until this clears.');
+          toast('Not connected to SharePoint — records saved locally only','e');
+        }
+        await _flushAuditQueue();
+      } else {
+        _flushAuditQueue();
+      }
+    } catch(err){
+      toast('Error reading file: '+err.message,'e');
+      console.error('handleLoadConfirmedVoid error:',err);
+    }
+  };
+  reader.onerror=()=>toast('Failed to read file','e');
+  reader.readAsText(f);
+  e.target.value='';
 }
 
 function handleLoadDaily(e){
@@ -2582,7 +2802,7 @@ const AUDIT_FIELD_LABELS = {
   JobNum:'Job #', SoIds:'Reference', EntryId:'Entry ID', Source:'Source',
   PickupDate:'Pickup Date', DropOffBy:'Late by Date', DateReturned:'Date Returned',
   SgiNotes:'SGI Notes', MdrNotes:'MDR Notes', Pieces:'Pieces',
-  JobClosed:'Job Closed', Verified:'Verified', Confirmed:'Confirmed', Sealed:'Sealed',
+  JobClosed:'Job Closed', Verified:'Verified', Confirmed:'Closed (Brightree)', Sealed:'Sealed',
   NoPickup:'No Pickup'
 };
 
