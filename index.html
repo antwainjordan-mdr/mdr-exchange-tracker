@@ -536,6 +536,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <option value="complete">Complete</option>
   </select>
   <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Incomplete</button>
+  <button class="btn btn-sm sgi-only" id="btnHideReturned" onclick="toggleHideReturned()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can see what still needs your attention. View only — doesn't change any data.">Hide Returned Jobs</button>
   <div class="spills" id="spills"></div>
 </div>
 
@@ -553,10 +554,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:160px">Pieces / Items</th>
         <th style="min-width:120px">Reference</th>
         <th class="srt" onclick="sortBy('dateReturned')" style="min-width:120px">Date Returned ↕</th>
-        <th class="ctr" style="min-width:80px">
-          <button class="btn btn-xs sgi-only" id="btnHideReturned" onclick="event.stopPropagation();toggleHideReturned()" style="display:block;margin:0 auto 4px;background:transparent;color:var(--text2);border:1px solid var(--border);white-space:nowrap;" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can focus on what's still outstanding. View only — doesn't change any data.">Hide Returned Jobs</button>
-          Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span>
-        </th>
+        <th class="ctr" style="min-width:80px">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
         <th class="ctr" style="min-width:80px">No Pickup<br><span style="font-size:9px;color:var(--red);font-weight:400">(all items, qty 0)</span></th>
         <th style="min-width:160px">SGI Notes</th>
         <th style="min-width:160px">MDR Notes</th>
@@ -910,9 +908,16 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-hide-returned-jobs-toggle';
+const BUILD = '2026-10-30-hide-returned-jobs-toolbar';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-hide-returned-jobs-toolbar',
+    date:'Oct 30, 2026',
+    items:[
+      'Moved "Hide Returned Jobs" (SGI view only) out of the cramped Job Closed column header and onto the same toolbar row as Status and Hide Incomplete, next to Hide Incomplete. It was getting squeezed/clipped in the old spot, which is the most likely reason some SGI users couldn\'t see it even though it worked fine in MDR\'s SGI preview.',
+    ]
+  },
   {
     build:'2026-10-30-hide-returned-jobs-toggle',
     date:'Oct 30, 2026',
