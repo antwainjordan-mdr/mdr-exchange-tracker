@@ -535,6 +535,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <option value="processing" class="mdr-only">Processing</option>
     <option value="complete">Complete</option>
   </select>
+  <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Incomplete</button>
   <div class="spills" id="spills"></div>
 </div>
 
@@ -795,6 +796,17 @@ function initFlash(){
   updateFlashBtn(off);
 }
 
+function toggleHideOverdue(){
+  hideOverdue=!hideOverdue;
+  const btn=document.getElementById('btnHideOverdue');
+  if(btn){
+    btn.textContent = hideOverdue ? '🔴 Show Incomplete' : '🔴 Hide Incomplete';
+    btn.style.background = hideOverdue ? 'rgba(244,22,23,.12)' : 'transparent';
+  }
+  logAppAction('Hide Incomplete', hideOverdue?'Hid overdue rows from view':'Showing overdue rows again');
+  renderTable();
+}
+
 // ══════════════════════════════════
 //  ITEM LIBRARY
 // ══════════════════════════════════
@@ -849,6 +861,11 @@ let selectedRowId = null; // currently selected/locked row
 let sortCol='pickupDate',sortDir=1;
 let activeMon='all',rangeS='',rangeE='';
 let customOpen=false; // whether the "Custom" month chip has revealed the date-range pickers
+// "Hide Incomplete" toolbar toggle — hides rows the table is flashing red (late by date
+// passed, not complete, not closed — see isOverdue()). A plain view filter for right now;
+// not persisted across reloads on purpose, so nobody leaves it on and thinks a backlog is
+// smaller than it is.
+let hideOverdue=false;
 
 // ══════════════════════════════════
 //  CHANGELOG / "WHAT'S NEW"
@@ -874,9 +891,16 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-confirmed-void-dupe-match-fix';
+const BUILD = '2026-10-30-hide-incomplete-toggle';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-hide-incomplete-toggle',
+    date:'Oct 30, 2026',
+    items:[
+      'New "Hide Incomplete" button next to the Status filter: hides whatever rows the table is currently flashing red for (late by date passed, not complete, not closed) on top of your other filters. Click again to bring them back. It\'s a view toggle only — doesn\'t change any data, and resets on reload.',
+    ]
+  },
   {
     build:'2026-10-30-confirmed-void-dupe-match-fix',
     date:'Oct 30, 2026',
@@ -1807,6 +1831,14 @@ function rowStatus(rec){
   if(!hasProgress) return 'incomplete';
   return 'pending';
 }
+// Late by date has passed AND the record is neither complete nor job-closed. A closed
+// job can never be "late" — closing it stops the overdue state regardless of the late-by
+// date. Shared by the live table, the print/PDF export, and the "Hide Overdue" filter —
+// all three must agree on exactly which rows count as overdue.
+function isOverdue(r){
+  const status=rowStatus(r);
+  return !!(r.dropOffBy && status!=='complete' && !r.jobClosed && r.dropOffBy<=tod());
+}
 function pieceReceiptFlag(rec){
   // Purely descriptive indicator of how items came back — 'partial' (not everything
   // checked in yet), 'shortage', or 'overage'. NEVER used to decide rowStatus().
@@ -1844,6 +1876,9 @@ function filtered(){
   const sf=document.getElementById('statusF').value;
   return records.filter(r=>{
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
+    // "Hide Overdue" toggle — on top of whatever Status filter is selected, drop rows
+    // the live table is flashing red (late by date passed, not complete, not closed).
+    if(hideOverdue && isOverdue(r)) return false;
     if(sf!=='all'){
       const st=rowStatus(r);
       // rowStatus() never returns 'partial' — that's a separate, informational
@@ -2099,11 +2134,7 @@ function renderRow(r){
 
   let cls=`t-${rt}`;
   if(status==='complete')cls+=' r-complete';
-  // Red highlight if late by date has passed AND record is neither complete nor job-closed.
-  // A closed job can never be "late" — closing it stops the overdue state regardless of the late-by date.
-  if(r.dropOffBy && status !== 'complete' && !r.jobClosed){
-    if(r.dropOffBy <= tod()) cls += ' r-overdue';
-  }
+  if(isOverdue(r)) cls += ' r-overdue';
 
   const nameTag=r.source==='manual'?' <span class="tag-new">NEW</span>':'';
 
@@ -3310,10 +3341,9 @@ function exportPDF(){
 
   function buildRow(r){
     const rt=rowType(r);
-    const status=rowStatus(r);
     let cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':'';
-    // Same "flashing/overdue" rule as the live table — closed or completed records are never overdue.
-    if(r.dropOffBy && status!=='complete' && !r.jobClosed && r.dropOffBy<=tod()) cls+=' pr-overdue';
+    // Same overdue rule as the live table — closed or completed records are never overdue.
+    if(isOverdue(r)) cls+=' pr-overdue';
     const piecesHtml=(r.pieces||[]).map(p=>
       `<div class="pt-piece">${esc(pieceAbbr(p))} ${esc(p.name)} ×${p.expectedQty}</div>`
     ).join('');

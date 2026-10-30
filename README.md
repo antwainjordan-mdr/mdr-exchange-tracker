@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-10-30-confirmed-void-dupe-match-fix` (October 30, 2026)
+**Build:** `2026-10-30-hide-incomplete-toggle` (October 30, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -63,6 +63,7 @@ Next to the buttons, the **presence bar** shows who else has the tracker open (s
 | Complete | Confirmed. | Confirmed. |
 | All Active | Everything. | Everything. |
 
+- **Hide Incomplete** (button next to Status): hides whatever rows the table is currently flashing red for — late by date passed, not complete, not closed — on top of whatever else is filtered. Click again to bring them back. View-only, changes no data, and resets on reload.
 - The **counter pills** (Incomplete, Pending, Partial, Processing, Complete, Memory Download) show totals for the current filters.
 - **Partial, Shortage and Overage** only describe how items came back. They never move a record between statuses.
 - The table loads 50 rows at a time and loads more as you scroll. Click a column header with ⇅ to sort.
@@ -164,6 +165,10 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-10-30-hide-incomplete-toggle`
+
+- New **Hide Incomplete** button next to the Status filter: hides whatever rows the table is currently flashing red for (late by date passed, not complete, not closed). Click again to bring them back. View toggle only — doesn't change any data, and resets on reload.
 
 ## Changes in `2026-10-30-confirmed-void-dupe-match-fix`
 
