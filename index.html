@@ -874,9 +874,16 @@ let customOpen=false; // whether the "Custom" month chip has revealed the date-r
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-confirmed-void-filename-fix';
+const BUILD = '2026-10-30-confirmed-void-dupe-match-fix';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-10-30-confirmed-void-dupe-match-fix',
+    date:'Oct 30, 2026',
+    items:[
+      'Fixed: "Load Confirmed/Void" only ever updated the FIRST matching record it found for a job. Where a pre-existing duplicate record already existed (e.g. a stray hand-added row alongside the real Daily-sourced one), that left whichever duplicate it didn\'t pick stuck in Pending. It now resolves every matching record for a job, not just one, and warns in the console (and a toast) when a patient had duplicates so you know which ones are worth cleaning up.',
+    ]
+  },
   {
     build:'2026-10-30-confirmed-void-filename-fix',
     date:'Oct 30, 2026',
@@ -1497,9 +1504,17 @@ function loadConfirmedVoid(text){
   }
   const noMatches=[]; // rows that matched no existing record (a new record gets created for each)
   const conflicts=[]; // rows that matched a patient but with a conflicting non-blank Job# (kept separate)
+  const dupeMatches=[]; // rows that matched MORE than one existing record (pre-existing duplicate data)
   const touchedIds=new Set();
-  function findMatch(inc){
+  // Returns EVERY existing record that matches, not just the first. Production data has
+  // pre-existing duplicates (e.g. a stray hand-added record sitting alongside the real
+  // Daily-sourced one for the same job) — updating only the first match leaves whichever
+  // duplicate wasn't picked stuck in Pending forever. Resolving every match is the safe
+  // behavior: it never leaves a stale duplicate behind, and never un-resolves anything
+  // (same "if not already marked" rule applies to each one individually).
+  function findMatches(inc){
     const incJob=normIdStr(inc.jobNum);
+    const out=[];
     for(const r of records){
       if(!patientMatch(inc.patientName, inc.patientId, r.patientName, r.patientId)) continue;
       const exJob=normIdStr(r.jobNum);
@@ -1511,9 +1526,9 @@ function loadConfirmedVoid(text){
         conflicts.push({patient:r.patientName||inc.patientName, oldJob:exJob, newJob:incJob});
         continue;
       }
-      return r;
+      out.push(r);
     }
-    return null;
+    return out;
   }
 
   let matched=0,created=0,skipped=0,unknownStatus=0;
@@ -1539,30 +1554,35 @@ function loadConfirmedVoid(text){
     }
 
     const inc={patientName,patientId,jobNum,soIds,entryId,refSet:refTokens(soIds)};
-    const ex=findMatch(inc);
+    const matches=findMatches(inc);
 
-    if(ex){
-      let changed=false;
-      if(status==='void'){
-        if(!ex.noPickup){
-          (ex.pieces||[]).forEach(p=>{p.checked=true;p.receivedQty=0;});
-          ex.noPickup=true;
+    if(matches.length){
+      if(matches.length>1){
+        dupeMatches.push({patient:patientName||'(unknown)', job:jobNum||'—', count:matches.length});
+      }
+      matches.forEach(ex=>{
+        let changed=false;
+        if(status==='void'){
+          if(!ex.noPickup){
+            (ex.pieces||[]).forEach(p=>{p.checked=true;p.receivedQty=0;});
+            ex.noPickup=true;
+            if(!ex.dateReturned) ex.dateReturned=tod();
+            changed=true;
+          }
+        }
+        // Both Confirmed and Void: if not already marked, close the job and (for Confirmed)
+        // mark it Verified. Closed (Brightree) is checked either way — it's driven purely by
+        // the PUEX showing resolved, not by which of the two statuses it resolved to.
+        if(!ex.jobClosed){
+          ex.jobClosed=true;
           if(!ex.dateReturned) ex.dateReturned=tod();
           changed=true;
         }
-      }
-      // Both Confirmed and Void: if not already marked, close the job and (for Confirmed)
-      // mark it Verified. Closed (Brightree) is checked either way — it's driven purely by
-      // the PUEX showing resolved, not by which of the two statuses it resolved to.
-      if(!ex.jobClosed){
-        ex.jobClosed=true;
-        if(!ex.dateReturned) ex.dateReturned=tod();
-        changed=true;
-      }
-      if(status==='confirmed' && !ex.verified){ ex.verified=true; changed=true; }
-      if(!ex.confirmed){ ex.confirmed=true; changed=true; }
-      if(changed){ saveRecs(ex,{skipSync:true}); touchedIds.add(ex.id); matched++; }
-      else { skipped++; }
+        if(status==='confirmed' && !ex.verified){ ex.verified=true; changed=true; }
+        if(!ex.confirmed){ ex.confirmed=true; changed=true; }
+        if(changed){ saveRecs(ex,{skipSync:true}); touchedIds.add(ex.id); matched++; }
+        else { skipped++; }
+      });
       return;
     }
 
@@ -1596,6 +1616,10 @@ function loadConfirmedVoid(text){
   console.log('[MDR] Confirmed/Void load complete:', msg);
   if(noMatches.length){
     console.warn('[MDR] Confirmed/Void rows with no existing match — new record created for each:',noMatches);
+  }
+  if(dupeMatches.length){
+    console.warn('[MDR] Confirmed/Void rows that matched MORE THAN ONE existing record (pre-existing duplicates — all were resolved, but these patients have duplicate rows worth cleaning up):',dupeMatches);
+    toast(`⚠ ${dupeMatches.length} patient(s) had duplicate existing records — all copies were resolved, see console.`,'e');
   }
   if(conflicts.length){
     console.warn('[MDR] Confirmed/Void rows kept separate — conflicting Job#:',conflicts);
