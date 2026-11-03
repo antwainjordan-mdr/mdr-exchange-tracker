@@ -11,6 +11,8 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 | File | Purpose |
 |---|---|
 | `index.html` | The whole app (single file). This is what GitHub Pages serves. |
+| `index-offline.html` | A standalone offline/demo copy — no Microsoft sign-in, no SharePoint. See "Offline demo build" below. |
+| `offline-sample-csv/data.csv`, `offline-sample-csv/Confirmed___Void_data.csv` | Anonymized sample data for the offline build — real job/date/piece data with every patient name swapped for a fake one. |
 | `README.md` | This file. |
 
 `data.csv` (the daily Power BI export) is **not** part of the app and must never be committed to the repo. You pick it from your PC with **Load Daily**.
@@ -29,6 +31,19 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 - Click your email (the chip in the header) to **sign out**. Signing out also clears the records cached in that browser.
 - **Opening a saved copy from a drive** (for example `Y:\MDR Apps\Exchange Tracker\index.html`) shows a locked screen with an **Open live site** button. Sign-in only works on the live site.
 - After a fresh sign-in, a **What's New** box shows the latest update. **Updates** in the header shows the full history.
+
+## Offline demo build
+
+`index-offline.html` is a separate copy of the app for testing or demoing without Microsoft sign-in or SharePoint. Everything else — the table, filters, stats, CSV import/export, PDF export — works exactly the same as the live site.
+
+- **Open it directly in a browser** — just double-click the file, no server or sign-in needed.
+- Instead of "Sign in with Microsoft," you'll see a small **Continue as MDR / Continue as SGI** screen. Pick whichever side you want to test.
+- Load the sample data with the app's own buttons, same as always: **Load Daily** → `offline-sample-csv/data.csv`, **Load Confirmed/Void** → `offline-sample-csv/Confirmed___Void_data.csv`.
+  - Those two CSVs are your real daily/Confirmed-Void data with **every patient name replaced by a fake one** (job numbers, dates, pieces, and statuses are untouched). Safe to hand to someone else for a demo.
+- Nothing in offline mode touches SharePoint. Whatever you load or change stays only in that browser's local storage — close the tab or clear your browser data and it's gone.
+- Switching roles (MDR/SGI) means reloading the page — there's no sign-out button, just refresh and pick again.
+- `data.csv` now also has **6 synthetic rows at the bottom** simulating SGI's manual Appsmith entries (a patient returning something that wasn't picked up last order, or a malfunctioning unit) — blank Job #, Entry ID, and Pickup Date, just like the real ones. Two reuse an existing sample patient (Davis, Fernando / Lee, Veronica) to test the dateless-return-for-an-existing-patient case; four are brand-new patients for the standalone case.
+  - **Tested result:** these load without errors and sit under Pending (no Late By Date, since that's calculated from Pickup Date and there isn't one). The two "reused patient" rows did **not** merge into that patient's existing record — they came in as a second, separate record — because the matching logic requires a shared reference/Job#/Entry ID on top of the name match, and these manual rows have none. Worth knowing if you're trying to track down why a dateless SGI entry shows up as a duplicate instead of combining with the original order.
 
 ## The header buttons
 
@@ -61,13 +76,15 @@ Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the mo
 
 | Status | MDR view | SGI view |
 |---|---|---|
-| Incomplete | Not Job Closed, and the Late By Date has already passed — **or** Partial and not yet Confirmed (see below). | Same — no longer MDR-only. |
-| Pending | Job Closed but not yet Confirmed, **or** still open but the Late By Date hasn't passed yet — **or** Partial and not yet Confirmed (see below). | Same. |
+| Incomplete | Not Job Closed, and the Late By Date has already passed — **or** Partial and not yet Confirmed (see below). | Same. |
+| Pending | **Every still-open job, including late/Incomplete ones** — so MDR warehouse staff watching Pending (or 1:1 Match) never miss something SGI physically returned without updating the system. Use **Hide Late & Incomplete** to actually hide the late ones from view when wanted. | Job Closed but not yet Confirmed, **or** still open but the Late By Date hasn't passed yet — **or** Partial and not yet Confirmed. |
 | Partial | Multi-piece job with at least one piece checked but not all of them — Job Closed or not. A Partial, not-yet-Confirmed job shows under **both** Pending and Incomplete at once (deliberately — so it can't be missed under either filter), regardless of Job Closed or the Late By Date, until every piece is explicitly checked or the job is Confirmed. Leaving a piece unchecked is never treated as "not picked up" — that's a separate, explicit checkbox (No Pickup). | Same. |
 | Processing | ⚠️ Deprecated — logic removed. Chip and dropdown option stay visible but always show/match 0 records until it's rebuilt. | (not shown) |
 | Complete | Confirmed (set by Load Confirmed/Void, either a Confirmed or a Void row). | Same. |
 | No Pick up | No Pickup is checked, regardless of other status. | Same. |
 | All Active | Everything. | Everything. |
+
+**Every stat badge now counts only what's actually in the table right now** — including the Status dropdown and whichever chip filter is active, not just search/Hide-toggle/date-range. Selecting a Status (e.g. Complete) drops every other badge to match what's really on screen for that selection. **1:1 Match** and **Memory Download** both exclude jobs already pulled off the Confirmed/Void CSV.
 
 - **Hide Late & Incomplete** (button next to Status, was "Hide Incomplete"): hides whatever rows the table is currently flashing red for — late by date passed, not complete, not closed — on top of whatever else is filtered. Click again to bring them back. View-only, changes no data, and resets on reload.
 - **Hide Returned Jobs** (button next to Hide Late & Incomplete, SGI view only): hides any job already Job Closed — i.e. already returned to MDR — so SGI can see what still needs attention instead of scrolling past jobs just waiting on MDR to confirm. Click again to bring them back. View-only, never affects MDR's view.
@@ -179,6 +196,36 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 - Sign-in rebuilt on the authorization code flow with PKCE (plain `fetch`, no library). Tokens no longer travel in the URL.
 - Token renewal now uses a refresh token instead of a hidden iframe, so browsers that block third-party cookies no longer break it.
 - Same "Session expired" fallback, same roles and domains, no change to how the app looks.
+- `index-offline.html` is not affected (it has no Microsoft sign-in).
+
+## Changes in `2026-11-03-sticky-header-fix`
+
+Fixes the sticky header added in `2026-11-03-mdr-code-review-fixes` just below — it was pinning a few rows down into the table instead of staying at the top of the screen. Root cause: the table's horizontal-scroll wrapper (`.twrap`) was silently also capturing vertical scroll (setting only `overflow-x` makes the browser compute `overflow-y` the same way), so the header was anchoring to that wrapper's own position instead of the page. The table area now has its own bounded scroll pane with the header genuinely pinned to its top, both directions, with columns guaranteed to line up with the data since the header and rows share the exact same table. Full writeup in section 5 of the Code Review Findings doc.
+
+## Changes in `2026-11-03-mdr-code-review-fixes`
+
+From a full code review pass (dead code, confusing/overlapping logic, cosmetic consistency). Full findings and your answers are in the "MDR Exchange Tracker — Code Review Findings" doc.
+
+- Table column headers now stay stuck to the top of the screen while scrolling, instead of disappearing.
+- MDR: "All Active" now excludes Confirmed/Void jobs by default — new **Show Completed PUEXs** button brings them back; **Hide Completed PUEXs** is the MDR-side equivalent of SGI's Hide Returned Jobs.
+- A single-piece job not yet checked in now matches the "Partial" Status filter and Pending+Incomplete dual-bucket rule, same as its own row chip already did.
+- The quick "Add Items" popup now logs to the App Log, and its piece picker now works the same as the full Add/Edit Record screen (quantity box, can re-add the same item).
+- Manually adding a piece now fills in the received quantity with what you typed instead of leaving it blank.
+- Removed 5 unused CSS rules — no visible effect.
+
+Held back for separate scoping (real new features, not fixes): the "🔕None" button click/double-click spec, and the SGI-vs-Brightree side-by-side comparison tab. The duplicate-merge matching question is still open, per your note to circle back.
+
+## New: offline demo build (November 3, 2026)
+
+- Added `index-offline.html` — a standalone copy with no Microsoft sign-in or SharePoint dependency, for local testing/demo use. See "Offline demo build" above.
+- Added anonymized sample CSVs (`offline-sample-csv/`) — real job data with every patient name swapped for a fake one, for use with the offline build.
+
+## Changes in `2026-11-03-mdr-pending-counts-match-view`
+
+- **MDR**: every still-open job (including late/Incomplete ones) now shows under Pending too, so MDR warehouse staff watching Pending or 1:1 Match never miss something SGI physically returned without updating the system. "Hide Late & Incomplete" still hides those from view when wanted; Incomplete is still there as the narrower, late-only lens.
+- **1:1 Match** now excludes jobs already pulled off the Confirmed/Void CSV.
+- **Memory Download** now excludes jobs already pulled off the Confirmed/Void CSV too (fixes it counting one extra that was already resolved).
+- Every stat badge now counts only what's actually in the table right now, including the Status dropdown and chip filter — not just search/Hide-toggle/date-range.
 
 ## Changes in `2026-11-03-partial-dual-bucket`
 
