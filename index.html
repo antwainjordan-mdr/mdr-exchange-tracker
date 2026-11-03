@@ -110,10 +110,9 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 .spill-active{border-color:var(--accent,#a78bfa);background:var(--surface3,var(--surface2));}
 
 /* LEGEND */
-.marquee-banner{width:100%;overflow:hidden;background:#1b2340;color:#fff;white-space:nowrap;border-bottom:2px solid var(--accent,#a78bfa);}
-.marquee-track{display:inline-flex;animation:marquee-scroll 32s linear infinite;}
-.marquee-text{padding:6px 48px;font-size:12px;font-weight:600;}
-@keyframes marquee-scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.marquee-banner{width:100%;background:#1b2340;color:#fff;border-bottom:2px solid var(--accent,#a78bfa);text-align:center;}
+.marquee-track{display:block;}
+.marquee-text{display:block;padding:8px 24px;font-size:24px;font-weight:600;line-height:1.3;}
 .mdr-banner{width:100%;padding:6px 16px;font-size:12px;font-weight:600;color:#fff;text-align:center;white-space:normal;}
 .legend{display:flex;gap:10px;padding:5px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
 .li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);}
@@ -455,9 +454,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 </head>
 <body>
 <div class="sticky-top">
-<!-- SGI-ONLY MARQUEE — always visible, cannot be hidden by any toggle. See renderBanners()/sgiMarqueeText(). -->
+<!-- SGI-ONLY BANNER — always visible, cannot be hidden by any toggle. Static (not scrolling), per request. See renderBanners()/sgiMarqueeText(). -->
 <div id="sgiMarquee" class="marquee-banner" style="display:none">
-  <div class="marquee-track"><span class="marquee-text"></span><span class="marquee-text" aria-hidden="true"></span></div>
+  <div class="marquee-track"><span class="marquee-text"></span></div>
 </div>
 <!-- MDR-ONLY BANNER — tied to the shared "Hide/Show Late & Incomplete" button. See renderBanners()/mdrBannerText(). -->
 <div id="mdrBanner" class="mdr-banner" style="display:none"><span class="mdr-banner-text"></span></div>
@@ -544,10 +543,10 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <span class="flbl">Status:</span>
   <select class="fsel" id="statusF" onchange="chipFilter=null;renderTable()">
     <option value="all">All Active</option>
-    <option value="incomplete" class="mdr-only">Incomplete</option>
+    <option value="incomplete">Incomplete</option>
     <option value="pending" selected>Pending</option>
     <option value="partial">Partial</option>
-    <option value="processing" class="mdr-only">Processing</option>
+    <option value="processing" class="mdr-only">⚠️ Processing</option>
     <option value="complete">Complete</option>
     <option value="nopickup">No Pick up</option>
   </select>
@@ -965,16 +964,35 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-03-marquee-partial-nopickup';
+const BUILD = '2026-11-03-status-bucket-rebuild';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-11-03-status-bucket-rebuild',
+    date:'Nov 3, 2026',
+    items:[
+      'Rebuilt how Complete/Pending/Incomplete are decided, for both MDR and SGI: Complete is Confirmed (from Load Confirmed/Void); Job Closed but not yet Confirmed is Pending; everything still open splits on the Late By Date — not yet due is Pending, already past due is Incomplete.',
+      '"Incomplete" is no longer MDR-only — SGI now sees it too, with the same rule.',
+      'Partial and No Pick up stay as separate, overlapping counters/filters on top of the above — a record can be both Partial and Incomplete (or Partial and Pending) at once without being double-counted in either bucket.',
+      '"Processing" (MDR) is deprecated: its logic was removed, so the chip and Status dropdown option always show/match 0 records now. Both stay visible, marked with ⚠️, until it\'s rebuilt.',
+    ]
+  },
+  {
+    build:'2026-11-03-static-banner-11match',
+    date:'Nov 3, 2026',
+    items:[
+      'The SGI top banner is now a static strip (no scrolling) with twice-as-large text.',
+      'The MDR "don\'t print before SGI returns" reminder no longer shows for antwainjordan@mdr.net.',
+      'New "1:1 Match" stat chip (both sides): jobs where every piece came back checked at exactly the expected quantity — no shortage, no overage. Click it to filter the table to those jobs and sort by Pickup Date, same click-to-flip-sort behavior as Partial and Memory Download.',
+    ]
+  },
   {
     build:'2026-11-03-marquee-partial-nopickup',
     date:'Nov 3, 2026',
     items:[
       'New "Last Updated" timestamp next to the Exchange/Pickup/Mixed/All Done legend — shows the most recent of Load Daily or Load Confirmed/Void.',
       'The Month/Custom date filter now defaults to a Custom range from 30 days ago through 7 days from today on every fresh load, instead of "All".',
-      'New always-on scrolling banner across the very top of the page for SGI, with 4 messages that change based on the Hide Late & Incomplete / Hide Returned Jobs buttons and the active date filter. It cannot be hidden.',
+      'New always-on banner across the very top of the page for SGI, with 4 messages that change based on the Hide Late & Incomplete / Hide Returned Jobs buttons and the active date filter. It cannot be hidden.',
       'The Pending/Partial/Complete/No Pick up counters now reflect only the records in the current search, Hide-toggle and date-range scope — not every record in the tracker.',
       'New "Partial" option in the Status dropdown (both sides): a multi-piece job with at least one but not all pieces checked, Job Closed or not. The Partial stat chip is now clickable — click to filter the table to Partial and sort by Pickup Date, click again to flip the sort direction, a third click clears it. The Memory Download chip got the same click-to-filter-and-sort behavior.',
       'New "No Pick up" status, counter, and Status dropdown option for any record with No Pickup checked.',
@@ -1970,29 +1988,27 @@ function computeLateBy(pickupDate){
   return pickupDate ? addBusinessDays(pickupDate, 3) : '';
 }
 
+// Rebuilt per the Nov 2026 Q&A (doc section 11): Complete is driven purely by Confirmed
+// (set by Load Confirmed/Void on either a Confirmed or a Void row — see loadConfirmedVoid()).
+// Everything else now splits the same way for MDR and SGI: Job Closed moves a record to
+// Pending (waiting on Brightree to confirm/void it); if it's not closed, the Late By Date
+// decides Pending (not yet due) vs. Incomplete (already past due). Partial/Shortage/
+// Overage (pieceReceiptFlag()) and the stricter Partial-status rule (isPartialStatus())
+// stay orthogonal to this — a record can be Partial AND Pending, or Partial AND
+// Incomplete, at the same time; they're separate filters/counters layered on top, never
+// a reason to double-count a record or move it between these 3 buckets.
+// Processing (MDR-only) is intentionally no longer computed here — the chip/dropdown
+// option stay visible (marked ⚠️) but will always show/match 0 records until it's
+// rebuilt, per "make visible but does nothing."
 function rowStatus(rec){
-  // Status (Incomplete/Pending/Processing/Complete) is decided ONLY by Job Closed,
-  // Verified, Confirmed, Date Returned, and whether any piece has been checked.
-  // Partial/Shortage/Overage are a separate, purely informational measure of how
-  // items were actually received — see pieceReceiptFlag() — and must never move a
-  // record in or out of Incomplete/Pending/Processing/Complete.
-  if(isSGI()){
-    // Only Confirmed moves a record out of Pending for SGI. Closed alone isn't
-    // enough, and Verified alone isn't enough — this is what lets MDR leave a
-    // closed, even verified, job sitting visibly unresolved in SGI's queue by
-    // simply not checking Confirmed yet (e.g. while a note is still open).
-    // Incomplete is an MDR-only concept — SGI only ever sees Pending or Complete.
-    return rec.confirmed ? 'complete' : 'pending';
-  }
-  // MDR: complete=Confirmed, processing=Closed+Verified.
   if(rec.confirmed) return 'complete';
-  if(rec.jobClosed && rec.verified) return 'processing';
-  // Incomplete = literally no progress yet: no piece checked, no Date Returned,
-  // not Job Closed, not Verified, not Confirmed. The moment any piece is checked
-  // (or any of those fields is set) the record moves to Pending instead.
-  const hasProgress = (rec.pieces||[]).some(p=>p.checked) || !!rec.dateReturned || !!rec.jobClosed || !!rec.verified || !!rec.confirmed;
-  if(!hasProgress) return 'incomplete';
-  return 'pending';
+  if(rec.jobClosed) return 'pending';
+  return isPastLateDate(rec) ? 'incomplete' : 'pending';
+}
+// Late By Date has passed — same threshold (<=today) as the old overdue check, so
+// "Hide Late & Incomplete" / the red flashing rows stay in sync with this bucket.
+function isPastLateDate(rec){
+  return !!(rec.dropOffBy && rec.dropOffBy<=tod());
 }
 // Late by date has passed AND the record is neither complete nor job-closed. A closed
 // job can never be "late" — closing it stops the overdue state regardless of the late-by
@@ -2025,6 +2041,15 @@ function isPartialStatus(rec){
   if(pieces.length<=1) return false;
   const chk=pieces.filter(p=>p.checked).length;
   return chk>0 && chk<pieces.length;
+}
+// "1:1 Match" — every piece checked in with the exact expected quantity (no shortage,
+// no overage, nothing left unchecked). Same underlying data as pieceReceiptFlag()/
+// pieceVariance(), just read the other way around: a record with NO Partial/Shortage/
+// Overage flag at all, and at least one piece to begin with.
+function isExactMatch(rec){
+  const pieces=rec.pieces||[];
+  if(!pieces.length) return false;
+  return pieces.every(p=>p.checked && p.receivedQty!==null && p.receivedQty!==undefined && p.receivedQty===p.expectedQty);
 }
 function pieceVariance(p){
   // Returns: 'shortage' | 'overage' | 'match' | 'uncounted'
@@ -2072,6 +2097,7 @@ function filtered(){
     // dropdown entirely — it's its own filter lens.
     if(chipFilter==='partial') return isPartialStatus(r);
     if(chipFilter==='memdl') return !!(r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload));
+    if(chipFilter==='exact') return isExactMatch(r);
     if(sf==='all') return true;
     if(sf==='partial') return isPartialStatus(r);
     if(sf==='nopickup') return !!r.noPickup;
@@ -2258,8 +2284,8 @@ function renderStats(){
   // on screen before the Status tab or a chip click narrows the table further.
   const base=baseFiltered();
   const comp=base.filter(r=>rowStatus(r)==='complete').length;
-  const proc=base.filter(r=>rowStatus(r)==='processing').length; // MDR-only concept; always 0 for SGI
-  const inc=base.filter(r=>rowStatus(r)==='incomplete').length; // MDR-only concept; always 0 for SGI
+  const proc=base.filter(r=>rowStatus(r)==='processing').length; // Processing is deprecated — rowStatus() never returns it anymore, so this is always 0 (MDR-only chip, ⚠️-marked)
+  const inc=base.filter(r=>rowStatus(r)==='incomplete').length; // now shown to both MDR and SGI — see rowStatus()
   // "Partial" here uses isPartialStatus() — the stricter multi-piece some-but-not-all-checked
   // rule used by the Status dropdown/chip filter — NOT the older pieceReceiptFlag() indicator,
   // which stays untouched elsewhere (per-row chip, CSV/PDF export) and measures something
@@ -2272,13 +2298,19 @@ function renderStats(){
   // anything from Pending.
   const pend=base.length - comp - proc - inc;
   const memDl=base.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
+  // "1:1 Match" — every piece on the job came back checked at exactly the expected
+  // quantity (no shortage, no overage). Clicking it filters + sorts by Pickup Date,
+  // same click-again-to-flip-sort / third-click-clears pattern as Partial and Memory
+  // Download. Visible to both MDR and SGI.
+  const exact=base.filter(r=>isExactMatch(r)).length;
   document.getElementById('spills').innerHTML=`
-    ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--red)"></div><strong>${inc}</strong> Incomplete</div>`:''}
+    <div class="spill"><div class="dot" style="background:var(--red)"></div><strong>${inc}</strong> Incomplete</div>
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
     <div class="spill spill-click${chipFilter==='partial'?' spill-active':''}" onclick="toggleChipFilter('partial')" title="Click to filter to Partial, click again to flip sort order by Pickup Date"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial${chipFilter==='partial'?(chipSortDir===1?' ↑':' ↓'):''}</div>
-    ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> Processing</div>`:''}
+    ${isMDR()?`<div class="spill" title="Deprecated — being rebuilt, always shows 0 for now"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> ⚠️ Processing</div>`:''}
     <div class="spill"><div class="dot" style="background:var(--green)"></div><strong>${comp}</strong> Complete</div>
     <div class="spill"><div class="dot" style="background:var(--red)"></div><strong>${noPick}</strong> No Pick up</div>
+    <div class="spill spill-click${chipFilter==='exact'?' spill-active':''}" onclick="toggleChipFilter('exact')" title="Click to filter to jobs returned with the exact amount exchanged/picked up, click again to flip sort order by Pickup Date"><div class="dot" style="background:var(--blue)"></div><strong>${exact}</strong> 1:1 Match${chipFilter==='exact'?(chipSortDir===1?' ↑':' ↓'):''}</div>
     ${(isMDR()&&memDl)?`<div class="spill spill-click${chipFilter==='memdl'?' spill-active':''}" onclick="toggleChipFilter('memdl')" title="Click to filter to Memory Download, click again to flip sort order by Pickup Date"><div class="dot" style="background:var(--purple,#a78bfa)"></div><strong>${memDl}</strong> Memory Download${chipFilter==='memdl'?(chipSortDir===1?' ↑':' ↓'):''}</div>`:''}`;
 }
 
@@ -3795,7 +3827,9 @@ function applyRoleUI(){
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='');
     const sf=document.getElementById('statusF');
-    if(sf&&(sf.value==='processing'||sf.value==='incomplete')) sf.value='all';
+    // "Incomplete" is no longer an MDR-only concept — SGI gets it too now (see
+    // rowStatus()) — so only "Processing" (still MDR-only, now deprecated) gets reset.
+    if(sf&&sf.value==='processing') sf.value='all';
   } else {
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
@@ -4484,8 +4518,9 @@ async function showSignedIn(email){
   applyRoleUI();
   // MDR-only "don't print before SGI returns" reminder — shows once per page load,
   // every load, per the Q&A doc. Closing it (X or outside click) is logged to the
-  // App Log only; it never blocks anything else from loading.
-  if(isMDR()) showPrintWarningModal();
+  // App Log only; it never blocks anything else from loading. Excluded for
+  // antwainjordan@mdr.net by request — he doesn't need his own reminder.
+  if(isMDR() && email.toLowerCase()!=='antwainjordan@mdr.net') showPrintWarningModal();
   scheduleTokenRefresh();
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
