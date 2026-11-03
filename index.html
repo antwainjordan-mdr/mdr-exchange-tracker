@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="20260902010000">
+<meta name="version" content="20261103120000">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -74,7 +74,6 @@ body{font-family:var(--font-main);background:var(--bg);color:var(--text);min-hei
 .btn-pdf{background:linear-gradient(135deg,#c62828,#b71c1c);color:#fff;}
 .btn-sm{padding:5px 10px;font-size:11px;border-radius:6px;}
 .export-split{display:inline-flex;flex-direction:column;align-items:stretch;gap:2px;}
-.export-split-lbl{font-size:9px;line-height:1;color:var(--text3);text-align:center;letter-spacing:.3px;}
 .export-split-btns{display:inline-flex;}
 .btn-exp-csv{background:linear-gradient(135deg,#2e7d32,#1b5e20);color:#fff;border-radius:6px 0 0 6px;}
 .btn-exp-pdf{border-radius:0 6px 6px 0;}
@@ -113,7 +112,7 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 .marquee-banner{width:100%;background:#1b2340;color:#fff;border-bottom:2px solid var(--accent,#a78bfa);text-align:center;}
 .marquee-track{display:block;}
 .marquee-text{display:block;padding:8px 24px;font-size:24px;font-weight:600;line-height:1.3;}
-.mdr-banner{width:100%;padding:6px 16px;font-size:12px;font-weight:600;color:#fff;text-align:center;white-space:normal;}
+.mdr-banner{width:100%;padding:8px 24px;font-size:24px;font-weight:600;line-height:1.3;color:#fff;text-align:center;white-space:normal;}
 .legend{display:flex;gap:10px;padding:5px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
 .li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);}
 .lbar{width:3px;height:12px;border-radius:2px;}
@@ -121,9 +120,25 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 
 /* TABLE */
 .sticky-top{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.15);}
-.twrap{padding:0 16px 12px;overflow-x:auto;}
+/* `overflow-x:auto` alone used to live here, but per the CSS spec, setting only one
+   overflow axis to a non-"visible" value forces the OTHER axis to compute to "auto" too —
+   so .twrap was silently also becoming an overflow-y:auto container. That made .twrap
+   itself (not the page) the "nearest scrolling ancestor" for the sticky thead below, and
+   since .twrap never actually scrolled on its own (it just grew to fit all the rows), the
+   sticky header ended up pinned a fixed distance from .twrap's OWN top edge — frozen in
+   the document instead of tracking the viewport as you scrolled the page. That's the "header
+   sandwiched a few rows down" bug. Fix: make .twrap genuinely scrollable (bounded height,
+   overflow:auto on both axes) so it's a real scroll container the sticky header can pin
+   inside of correctly, with its own horizontal+vertical scrollbars doing double duty for
+   both the header row and the data rows together — same element, so a column is always
+   exactly as wide in the header as in the body, scroll position included.
+*/
+.twrap{padding:0 16px 12px;overflow:auto;height:calc(100vh - var(--sticky-top-h,160px));box-sizing:border-box;}
 table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:1280px;}
-thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);}
+/* top:0 here is relative to .twrap's own scrollport (see .twrap above) — not the page —
+   so the header just pins to the top of that pane. No more needing this value to stay in
+   lockstep with the fixed banner/toolbar's height like the old top:var(--sticky-top-h) did. */
+thead th{background:var(--surface);color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;text-align:center;white-space:nowrap;user-select:none;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:5;}
 thead th.srt{cursor:pointer;}
 thead th.srt:hover{color:var(--text);}
 thead th.ctr{text-align:center;}
@@ -157,7 +172,6 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .pname-link{font-weight:600;font-size:12px;line-height:1.3;color:var(--text);text-decoration:none;border-bottom:1px dashed rgba(232,234,246,.3);transition:color .15s,border-color .15s;}
 .pname-link:hover{color:var(--accent);border-bottom-color:var(--accent);}
 .pid{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;}
-.jnum{font-family:var(--font-mono);font-size:11px;color:var(--text2);}
 .tracklink{color:var(--red);text-decoration:none;font-family:var(--font-main);font-size:11px;border-bottom:1px dashed var(--red);transition:opacity .15s;}
 .tracklink:hover{opacity:.75;}
 .reflinks{display:flex;flex-direction:column;gap:3px;align-items:center;}
@@ -165,7 +179,6 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .reflink:hover{opacity:.75;}
 .refplain{font-family:var(--font-mono);font-size:11px;color:var(--text2);}
 .tag-new{font-size:9px;background:rgba(56,217,169,.15);color:var(--green);border-radius:3px;padding:1px 4px;font-weight:600;}
-.tag-csv{font-size:9px;background:rgba(79,142,247,.15);color:var(--blue);border-radius:3px;padding:1px 4px;font-weight:600;}
 
 /* REFERENCE */
 .refcell{min-width:120px;max-width:160px;word-wrap:break-word;white-space:normal;font-family:var(--font-mono);font-size:11px;color:var(--text2);line-height:1.6;text-align:center;}
@@ -211,7 +224,6 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .plocki{font-size:9px;color:var(--lock-icon);flex-shrink:0;}
 .pname2{flex:1;font-size:11px;color:var(--text);min-width:0;line-height:1.3;}
 .qwrap{display:flex;align-items:center;gap:3px;flex-shrink:0;}
-.ql{font-size:9px;color:var(--text3);}
 .qrcv{width:38px;background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:2px 4px;color:var(--text);font-family:var(--font-main);font-size:11px;text-align:center;outline:none;}
 .qrcv::placeholder{color:var(--text3);opacity:.8;}
 .qrcv:focus{border-color:var(--accent);}
@@ -255,7 +267,6 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .ntxt.hv{border-color:rgba(247,201,72,.5);background:rgba(247,201,72,.04);}
 
 /* ROW ACTIONS */
-.racts{display:flex;flex-direction:column;gap:3px;align-items:flex-end;}
 .delbtn{background:none;border:none;color:var(--text3);cursor:pointer;padding:3px;border-radius:4px;font-size:12px;}
 .delbtn:hover{color:var(--red);}
 
@@ -552,6 +563,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   </select>
   <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Late &amp; Incomplete</button>
   <button class="btn btn-sm sgi-only" id="btnHideReturned" onclick="toggleHideReturned()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can see what still needs your attention. View only — doesn't change any data.">Hide Returned Jobs</button>
+  <button class="btn btn-sm mdr-only" id="btnHideResolved" onclick="toggleHideResolved()" style="background:rgba(230,81,0,.15);color:var(--text2);border:1px solid var(--border);" title="Confirmed/Void jobs are already fully resolved — hidden from All Active by default so old, done jobs don't pile up in the main view. Click to bring them back. View only — doesn't change any data.">Show Completed PUEXs</button>
   <div class="spills" id="spills"></div>
 </div>
 
@@ -847,6 +859,17 @@ function toggleHideReturned(){
   renderTable();
 }
 
+function toggleHideResolved(){
+  hideResolved=!hideResolved;
+  const btn=document.getElementById('btnHideResolved');
+  if(btn){
+    btn.textContent = hideResolved ? 'Show Completed PUEXs' : 'Hide Completed PUEXs';
+    btn.style.background = hideResolved ? 'rgba(230,81,0,.15)' : 'transparent';
+  }
+  logAppAction('Hide Completed PUEXs', hideResolved?'Hid Confirmed/Void jobs from view':'Showing Confirmed/Void jobs again');
+  renderTable();
+}
+
 // ══════════════════════════════════
 //  ITEM LIBRARY
 // ══════════════════════════════════
@@ -939,6 +962,12 @@ let hideOverdue=false;
 // checked there's nothing left for SGI to act on — this just lets them filter it out of
 // view to see what still needs attention. Never applies to MDR (see applyRoleUI).
 let hideReturned=false;
+// "Hide Completed PUEXs" — MDR-only toggle. Confirmed/Void jobs are fully resolved
+// (pulled off the Confirmed/Void CSV), so the default view hides them so old, done jobs
+// don't pile up forever under "All Active." Defaults ON (hidden) — click to bring them
+// back when you need to look one up. Checked in baseFiltered(), so it applies no matter
+// which Status/chip filter is active, same as Hide Overdue/Hide Returned Jobs.
+let hideResolved=true;
 
 // ══════════════════════════════════
 //  CHANGELOG / "WHAT'S NEW"
@@ -964,9 +993,48 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-03-partial-dual-bucket';
+const BUILD = '2026-11-03-pkce-sign-in';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-11-03-pkce-sign-in',
+    date:'Nov 3, 2026',
+    items:[
+      'Sign-in was rebuilt on Microsoft\'s current recommended method (authorization code with PKCE). Sign-in looks the same, but sessions should last longer and expire less often, and browsers that block third-party cookies no longer interrupt them.',
+      'If a session does expire, the same "Session expired" screen appears and one click signs you back in.',
+    ]
+  },
+  {
+    build:'2026-11-03-sticky-header-fix',
+    date:'Nov 3, 2026',
+    items:[
+      'Fixed the sticky column header added earlier today — it was getting stuck a few rows down into the table instead of staying pinned to the top of the screen. Root cause: the table\'s horizontal-scroll wrapper was silently also capturing vertical scroll (a CSS quirk with mixing overflow-x and overflow-y), so the header was anchoring to that wrapper\'s own position instead of the page. The table area now has its own bounded scroll pane with the header genuinely pinned to its top, both horizontally and vertically, with columns guaranteed to line up with the data since the header and rows share the exact same table layout.',
+    ]
+  },
+  {
+    build:'2026-11-03-mdr-code-review-fixes',
+    date:'Nov 3, 2026',
+    items:[
+      'Table column headers now stay stuck to the top of the screen while scrolling through the list, instead of scrolling away.',
+      'MDR: "All Active" now excludes Confirmed/Void jobs by default (they\'re already fully resolved) — a new "Show Completed PUEXs" button brings them back when you need to look one up.',
+      'MDR: new "Hide Completed PUEXs" toggle, the MDR-side equivalent of SGI\'s "Hide Returned Jobs".',
+      'A single-piece job that\'s not yet checked in now matches the "Partial" Status filter and the Pending+Incomplete dual-bucket rule, same as its own row chip already did — previously only multi-piece jobs counted.',
+      'The quick "Add Items" popup now logs to the App Log, same as the full Add/Edit Record screen — popup edits used to leave no trace.',
+      'The quick "Add Items" popup\'s piece picker now matches the full Add/Edit Record screen: you can set a quantity before adding, and add the same item twice (e.g. once Exchange, once Pickup).',
+      'Manually adding a piece (either screen) now fills in the received quantity with what you typed, instead of leaving it blank.',
+      'Removed 5 unused CSS rules left over from earlier rounds of changes — no visible effect.',
+    ]
+  },
+  {
+    build:'2026-11-03-mdr-pending-counts-match-view',
+    date:'Nov 3, 2026',
+    items:[
+      'MDR: every still-open job (including late/Incomplete ones) now shows under Pending too, so MDR warehouse staff watching Pending or 1:1 Match never miss something SGI physically returned without updating the system. "Hide Late & Incomplete" still hides those from view when wanted; Incomplete itself is still there as the narrower, late-only lens.',
+      '1:1 Match now excludes jobs already pulled off the Confirmed/Void CSV.',
+      'Memory Download now excludes jobs already pulled off the Confirmed/Void CSV too (fixes it counting one extra that was already resolved).',
+      'Every stat badge (Incomplete, Pending, Partial, Complete, No Pick up, 1:1 Match, Memory Download) now counts only what\'s actually in the table right now — including the Status dropdown and chip filter, not just search/Hide-toggle/date-range. Selecting a Status now drops every other badge to match what\'s really on screen.',
+    ]
+  },
   {
     build:'2026-11-03-partial-dual-bucket',
     date:'Nov 3, 2026',
@@ -1151,7 +1219,7 @@ const CHANGELOG = [
 ];
 // Shown once per fresh, interactive sign-in — NOT on a page refresh while already
 // signed in. The distinction is WHERE this gets called from, not anything tracked
-// in storage: handleFragmentToken() (just completed an Azure AD login redirect) calls
+// in storage: handleAuthCode() (just completed an Azure AD login redirect) calls
 // this; the "cached session" restore path in initMSAL() (a plain refresh) does not.
 function showWhatsNewOnLogin(){
   if(!CHANGELOG.length) return;
@@ -2028,6 +2096,14 @@ function isPastLateDate(rec){
 // than silently landing in only one of the two.
 function isPendingBucket(rec){
   if(rec.confirmed) return false;
+  // MDR: every still-open job lives under Pending — including the late/Incomplete
+  // ones — so MDR warehouse staff watching the Pending tab (or 1:1 Match) never miss
+  // something SGI physically returned without updating the system, and never tell
+  // someone "not on sheet" when it's actually just sitting late. "Hide Late &
+  // Incomplete" is still there to actually hide those from view when wanted (e.g. for
+  // a clean print); Incomplete itself stays available as the narrower, late-only lens
+  // for Antwain to work from directly.
+  if(isMDR()) return true;
   if(isPartialStatus(rec)) return true;
   return rec.jobClosed || !isPastLateDate(rec);
 }
@@ -2040,9 +2116,11 @@ function isIncompleteBucket(rec){
 // job can never be "late" — closing it stops the overdue state regardless of the late-by
 // date. Shared by the live table, the print/PDF export, and the "Hide Overdue" filter —
 // all three must agree on exactly which rows count as overdue.
+// This is exactly rowStatus()==='incomplete' — same confirmed/jobClosed/late-date checks,
+// just written out longhand before. Kept as its own named function since "isOverdue" reads
+// better at the call sites than "rowStatus()==='incomplete'" would.
 function isOverdue(r){
-  const status=rowStatus(r);
-  return !!(r.dropOffBy && status!=='complete' && !r.jobClosed && r.dropOffBy<=tod());
+  return rowStatus(r)==='incomplete';
 }
 function pieceReceiptFlag(rec){
   // Purely descriptive indicator of how items came back — 'partial' (not everything
@@ -2058,14 +2136,18 @@ function pieceReceiptFlag(rec){
   return null;
 }
 // The "Partial" Status filter option — distinct from pieceReceiptFlag() (the existing
-// informational Partial/Shortage/Overage chip, which stays untouched). This is a
-// stricter, explicit rule for the dropdown/filter/counter: a multi-piece job
-// (more than 1 piece) with at least one piece checked but not all of them, with or
-// without Job Closed.
+// informational Partial/Shortage/Overage chip, which stays untouched), but now matches
+// it exactly instead of diverging on single-piece jobs. A multi-piece job (more than 1
+// piece) counts as Partial when at least one piece is checked but not all of them, with
+// or without Job Closed. A single-piece job counts as Partial when that one piece isn't
+// checked yet — same threshold pieceReceiptFlag() already used for its row chip, so a
+// row showing a "Partial" chip now always also matches the Partial filter/dual-bucket
+// rule, 1-piece jobs included.
 function isPartialStatus(rec){
   const pieces=rec.pieces||[];
-  if(pieces.length<=1) return false;
+  if(!pieces.length) return false;
   const chk=pieces.filter(p=>p.checked).length;
+  if(pieces.length===1) return chk===0;
   return chk>0 && chk<pieces.length;
 }
 // "1:1 Match" — every piece checked in with the exact expected quantity (no shortage,
@@ -2073,9 +2155,20 @@ function isPartialStatus(rec){
 // pieceVariance(), just read the other way around: a record with NO Partial/Shortage/
 // Overage flag at all, and at least one piece to begin with.
 function isExactMatch(rec){
+  // Jobs already pulled off the Confirmed/Void CSV are done and resolved — 1:1 Match is
+  // for jobs still being worked, so those are excluded here even if every piece happens
+  // to match exactly.
+  if(rec.confirmed) return false;
   const pieces=rec.pieces||[];
   if(!pieces.length) return false;
   return pieces.every(p=>p.checked && p.receivedQty!==null && p.receivedQty!==undefined && p.receivedQty===p.expectedQty);
+}
+// Same "already resolved via Confirmed/Void CSV" exclusion for the Memory Download
+// counter/chip — a device flagged for Memory Download that's already Confirmed or
+// Void doesn't need to keep showing up here.
+function isMemoryDownloadJob(rec){
+  if(rec.confirmed) return false;
+  return !!(rec.hasMemoryDownload || (rec.pieces||[]).some(p=>p.memoryDownload));
 }
 function pieceVariance(p){
   // Returns: 'shortage' | 'overage' | 'match' | 'uncounted'
@@ -2109,6 +2202,11 @@ function baseFiltered(){
     if(hideOverdue && isOverdue(r)) return false;
     // "Hide Returned Jobs" — SGI only. Job Closed means SGI already returned it.
     if(hideReturned && isSGI() && r.jobClosed) return false;
+    // "Hide Completed PUEXs" — MDR only, on by default. Confirmed/Void jobs are fully
+    // resolved; without this, "All Active" used to show them forever since nothing else
+    // in this pipeline checked rec.confirmed. SGI doesn't get a toggle for this (SGI
+    // never sets Confirmed/Void — that only happens via MDR's Confirmed/Void CSV import).
+    if(hideResolved && isMDR() && r.confirmed) return false;
     const pd=r.pickupDate||'';
     if(activeMon&&activeMon!=='all'&&!pd.startsWith(activeMon))return false;
     if(rangeS&&pd&&pd<rangeS)return false;
@@ -2122,7 +2220,7 @@ function filtered(){
     // The Partial/Memory Download stat chip, when active, overrides the Status
     // dropdown entirely — it's its own filter lens.
     if(chipFilter==='partial') return isPartialStatus(r);
-    if(chipFilter==='memdl') return !!(r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload));
+    if(chipFilter==='memdl') return isMemoryDownloadJob(r);
     if(chipFilter==='exact') return isExactMatch(r);
     if(sf==='all') return true;
     if(sf==='partial') return isPartialStatus(r);
@@ -2308,17 +2406,21 @@ function clearRange(){
 //  STATS
 // ══════════════════════════════════
 function renderStats(){
-  // All counters reflect ONLY the records in the current search/Hide-toggle/date-range
-  // scope (baseFiltered()) — NOT the full records list, and not further narrowed by the
-  // Status dropdown or chip filter either, so the badges always describe what's actually
-  // on screen before the Status tab or a chip click narrows the table further.
-  const base=baseFiltered();
+  // Counts now reflect exactly what's showing in the table right now: the FULL scope,
+  // including the Status dropdown and the active chip filter (filtered()) — not just
+  // search/Hide-toggle/date-range (baseFiltered()). A badge should never show a number
+  // for something that isn't actually in view right now — e.g. selecting Status=Complete
+  // should drop every other badge (Incomplete, Pending, etc.) to whatever's true among
+  // just the Complete rows on screen, usually 0.
+  const base=filtered();
   const comp=base.filter(r=>rowStatus(r)==='complete').length;
   const proc=base.filter(r=>rowStatus(r)==='processing').length; // Processing is deprecated — rowStatus() never returns it anymore, so this is always 0 (MDR-only chip, ⚠️-marked)
   // Pending and Incomplete use isPendingBucket()/isIncompleteBucket() — NOT a plain
   // rowStatus() split — because a Partial, not-yet-Confirmed record counts in BOTH at
-  // once (on purpose, so it can't be missed in either view). That means these two counts
-  // can overlap and no longer need to add up to base.length alongside comp/proc.
+  // once (on purpose, so it can't be missed in either view), and for MDR every
+  // still-open record counts as Pending too, regardless of how late it is. That means
+  // these two counts can overlap and no longer need to add up to base.length alongside
+  // comp/proc.
   const inc=base.filter(r=>isIncompleteBucket(r)).length;
   const pend=base.filter(r=>isPendingBucket(r)).length;
   // "Partial" here uses isPartialStatus() — the stricter multi-piece some-but-not-all-checked
@@ -2327,7 +2429,9 @@ function renderStats(){
   // different (discrepancy vs. expected, regardless of piece count).
   const part=base.filter(r=>isPartialStatus(r)).length;
   const noPick=base.filter(r=>r.noPickup).length;
-  const memDl=base.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
+  // Memory Download and 1:1 Match both exclude jobs already resolved via the
+  // Confirmed/Void CSV — see isMemoryDownloadJob()/isExactMatch().
+  const memDl=base.filter(r=>isMemoryDownloadJob(r)).length;
   // "1:1 Match" — every piece on the job came back checked at exactly the expected
   // quantity (no shortage, no overage). Clicking it filters + sorts by Pickup Date,
   // same click-again-to-flip-sort / third-click-clears pattern as Partial and Memory
@@ -3358,6 +3462,9 @@ function savePopup(){
   const tr = document.querySelector(`tr[data-id="${popupRecId}"]`);
   if(tr){ const td=tr.querySelector('.pcell'); if(td) td.innerHTML=renderPcell(rec); }
   refreshRowStatus(rec); renderStats();
+  // Same App Log entry the full Add/Edit modal writes on every save — the quick popup
+  // used to leave zero trace in the Activity Log for the exact same kind of edit.
+  logAppAction('Edit Record', `Edited (popup): ${rec.patientName||'Unknown'} (Job #${rec.jobNum||'—'})`);
   closePopup();
   toast('Saved','s');
 }
@@ -3387,21 +3494,30 @@ function renderPopupCurPieces(){
 
 function renderPopupPselList(){
   const q = (document.getElementById('popup-psearch').value||'').toLowerCase();
-  const used = new Set([...popupSrcPieces,...popupAddPieces].map(p=>p.name));
-  const list = LIB.filter(x=>!used.has(x.name)&&(!q||x.name.toLowerCase().includes(q)));
+  // Matches the full Add/Edit modal's list now: shows every library item, even one
+  // already on the record — same item can be added twice (once Exchange, once Pickup).
+  const list = LIB.filter(x=>!q||x.name.toLowerCase().includes(q));
   const c = document.getElementById('popup-psel');
   if(!list.length){ c.innerHTML=''; return; }
-  c.innerHTML = list.map(x=>`
-    <div style="display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:11px;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
+  c.innerHTML = list.map(x=>{
+    const safeId=x.name.replace(/[^a-zA-Z0-9]/g,'_');
+    return`
+    <div style="display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;" onclick="event.stopPropagation()">
       <span style="flex:1">${esc(x.name)}</span>
-      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Exchange')">EXC</button>
-      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Pickup')">PKP</button>
-    </div>`).join('');
+      <input type="number" class="popt-qty" id="popup-pq_${safeId}" value="1" min="1" style="width:34px;font-size:10px;" onclick="event.stopPropagation()">
+      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Exchange','${safeId}')">EXC</button>
+      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Pickup','${safeId}')">PKP</button>
+    </div>`;
+  }).join('');
 }
 
-function popupAddItem(name, type){
+function popupAddItem(name, type, safeId){
+  const qEl = safeId ? document.getElementById('popup-pq_'+safeId) : null;
+  const qty = qEl ? (parseInt(qEl.value)||1) : 1;
   const id = gid();
-  popupAddPieces.push({id,name,type,expectedQty:1,receivedQty:null,checked:false,fromSource:false});
+  // Received qty is filled in with the quantity you just typed, same as the full
+  // modal — not left blank/null to just visually fall back to the expected qty.
+  popupAddPieces.push({id,name,type,expectedQty:qty,receivedQty:qty,checked:false,fromSource:false});
   renderPopupCurPieces();
   renderPopupPselList();
 }
@@ -3515,7 +3631,9 @@ function addPieceModal(name,typeArg,safeId){
   const qEl=document.getElementById('pq_'+id);
   const type=typeArg||(typeEl?typeEl.value:'Exchange');
   const qty=qEl?parseInt(qEl.value)||1:1;
-  mAddPieces.push({id:gid(),name,type,expectedQty:qty,receivedQty:null,checked:false,fromSource:false});
+  // Received qty is filled in with the quantity just typed, not left null to just
+  // visually fall back to showing the expected qty as a placeholder.
+  mAddPieces.push({id:gid(),name,type,expectedQty:qty,receivedQty:qty,checked:false,fromSource:false});
   renderCurPieces();renderPselList();
   document.getElementById('m-psearch').value='';
 }
@@ -3855,6 +3973,8 @@ function applyRoleUI(){
     document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='none');
+    // "Hide Completed PUEXs" lives in the toolbar, not .hacts — needs its own line here.
+    document.querySelectorAll('.toolbar .mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='');
     const sf=document.getElementById('statusF');
     // "Incomplete" is no longer an MDR-only concept — SGI gets it too now (see
@@ -3864,6 +3984,7 @@ function applyRoleUI(){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='');
+    document.querySelectorAll('.toolbar .mdr-only').forEach(el=>el.style.display='');
     // SGI-only view toggles (e.g. Hide Returned Jobs) never apply to MDR — hidden, and
     // reset off so flipping MDR -> SGI preview -> MDR never leaves a stale filter active.
     document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='none');
@@ -3931,36 +4052,61 @@ function showSessionExpired(){
 function handleSessionExpired(){
   document.getElementById('sessionExpiredOverlay').classList.remove('show');
   // Clear tokens and sign in fresh
-  localStorage.removeItem('mdr_access_token');
-  localStorage.removeItem('mdr_id_token');
+  clearAuthStorage();
   msalSignIn();
 }
 
-async function getToken(){
-  const stored = localStorage.getItem('mdr_access_token');
-  if(stored) return stored;
-  const nonce = Math.random().toString(36).slice(2);
-  const redirectUri = window.location.origin + window.location.pathname;
-  window.location.href = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
-    + '?client_id=' + MDR_CLIENT_ID
-    + '&response_type=token+id_token'
-    + '&redirect_uri=' + encodeURIComponent(redirectUri)
-    + '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All')
-    + '&response_mode=fragment&nonce=' + nonce + '&prompt=none';
-  return null;
+// ── Sign-in: OAuth 2.0 authorization code flow + PKCE (no library) ──────────────
+// 1. msalSignIn() sends the browser to Microsoft with a code_challenge (S256).
+// 2. Microsoft returns ?code=...&state=... in the query string (no tokens in the URL).
+// 3. handleAuthCode() POSTs the code + code_verifier to the token endpoint.
+// 4. The response includes a refresh token. silentRefresh() trades it for a new access
+//    token ~5 min before expiry. No hidden iframe, so blocked third-party cookies
+//    can't break it. If the refresh token is rejected, the Session Expired screen shows.
+const AUTH_SCOPES = 'openid profile email offline_access User.Read Sites.ReadWrite.All';
+const TOKEN_URL = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/token';
+
+function authRedirectUri(){ return window.location.origin + window.location.pathname; }
+
+function clearAuthStorage(){
+  ['mdr_access_token','mdr_id_token','mdr_refresh_token','mdr_token_exp'].forEach(k=>localStorage.removeItem(k));
 }
 
-// ── Silent token refresh ──────────────────────────────────────────
-// Azure access tokens live ~1 hour (a fixed Microsoft default we can't extend).
-// To keep an all-day session without re-login, we silently fetch a fresh token
-// in a hidden iframe (prompt=none) a few minutes before expiry — no reload, no prompt.
-// Falls back to the normal re-login screen only if silent refresh isn't possible
-// (e.g. a browser that blocks third-party cookies in iframes).
-function storeTokenExpiry(token){
-  try{
-    const p=JSON.parse(atob(token.split('.')[1]));
-    if(p.exp) localStorage.setItem('mdr_token_exp', String(p.exp*1000));
-  }catch(e){}
+function b64url(bytes){
+  let bin=''; bytes.forEach(b=>{ bin+=String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function randomB64url(n){ return b64url(crypto.getRandomValues(new Uint8Array(n))); }
+async function pkceChallenge(verifier){
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return b64url(new Uint8Array(digest));
+}
+
+// Save a token response (from code exchange or refresh). Returns the access token.
+function storeTokenResponse(tr){
+  if(!tr || !tr.access_token) return null;
+  localStorage.setItem('mdr_access_token', tr.access_token);
+  if(tr.id_token) localStorage.setItem('mdr_id_token', tr.id_token);
+  if(tr.refresh_token) localStorage.setItem('mdr_refresh_token', tr.refresh_token);
+  const ms = (parseInt(tr.expires_in,10) || 3600) * 1000;
+  localStorage.setItem('mdr_token_exp', String(Date.now() + ms));
+  return tr.access_token;
+}
+
+async function postToken(params){
+  const r = await fetch(TOKEN_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams(params).toString()
+  });
+  let j = null;
+  try{ j = await r.json(); }catch(e){}
+  if(!r.ok || !j || j.error){
+    const err = new Error((j && (j.error_description || j.error)) || ('Token request failed (' + r.status + ')'));
+    err.code = j && j.error;
+    throw err;
+  }
+  return j;
 }
 
 function scheduleTokenRefresh(){
@@ -3969,58 +4115,50 @@ function scheduleTokenRefresh(){
   if(!exp) return;
   const refreshAt = exp - 5*60*1000;          // 5 minutes before expiry
   let delay = refreshAt - Date.now();
-  if(delay < 1000) delay = 1000;               // already close — refresh almost now
+  if(delay < 1000) delay = 1000;               // already close - refresh almost now
   window._tokenRefreshTimer = setTimeout(()=>{ silentRefresh(); }, delay);
 }
 
-// Returns a Promise<boolean> — true if a new token was obtained. De-duped so
+// Returns a Promise<boolean> - true if a new token was obtained. De-duped so
 // concurrent callers (timer + a 401) share one in-flight refresh.
 function silentRefresh(){
   if(window._silentRefreshPromise) return window._silentRefreshPromise;
-  window._silentRefreshPromise = new Promise((resolve)=>{
-    const redirectUri = window.location.origin + window.location.pathname;
-    const nonce = Math.random().toString(36).slice(2);
-    const url = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
-      + '?client_id=' + MDR_CLIENT_ID
-      + '&response_type=token+id_token'
-      + '&redirect_uri=' + encodeURIComponent(redirectUri)
-      + '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All')
-      + '&response_mode=fragment&nonce=' + nonce + '&prompt=none';
-    const iframe=document.createElement('iframe');
-    iframe.style.display='none';
-    iframe.setAttribute('aria-hidden','true');
-    let done=false;
-    const cleanup=(result)=>{
-      if(done) return; done=true;
-      try{ document.body.removeChild(iframe); }catch(e){}
-      window.removeEventListener('message', onMsg);
-      clearTimeout(to);
+  window._silentRefreshPromise = (async ()=>{
+    try{
+      const rt = localStorage.getItem('mdr_refresh_token');
+      if(!rt){ console.warn('[Auth] No refresh token - sign in needed'); return false; }
+      const tr = await postToken({
+        client_id: MDR_CLIENT_ID,
+        grant_type: 'refresh_token',
+        refresh_token: rt,
+        scope: AUTH_SCOPES
+      });
+      storeTokenResponse(tr);
+      scheduleTokenRefresh();
+      console.log('[Auth] Token refreshed');
+      return true;
+    }catch(e){
+      console.warn('[Auth] Refresh failed:', e.message || e);
+      // A rejected refresh token (expired/revoked) is dead - drop it so we don't loop.
+      if(e.code === 'invalid_grant' || e.code === 'interaction_required') localStorage.removeItem('mdr_refresh_token');
+      return false;
+    }finally{
       window._silentRefreshPromise = null;
-      resolve(result);
-    };
-    const onMsg=(ev)=>{
-      if(ev.origin!==window.location.origin) return;
-      if(!ev.data || !ev.data.__mdrSilentAuth) return;
-      const params=new URLSearchParams((ev.data.hash||'').replace('#',''));
-      const at=params.get('access_token'), it=params.get('id_token');
-      if(at){
-        localStorage.setItem('mdr_access_token', at);
-        if(it) localStorage.setItem('mdr_id_token', it);
-        storeTokenExpiry(at);
-        scheduleTokenRefresh();
-        console.log('[Auth] Token silently refreshed');
-        cleanup(true);
-      } else {
-        console.warn('[Auth] Silent refresh returned no token (login_required?)');
-        cleanup(false);
-      }
-    };
-    window.addEventListener('message', onMsg);
-    const to=setTimeout(()=>{ console.warn('[Auth] Silent refresh timed out'); cleanup(false); }, 20000);
-    iframe.src=url;
-    document.body.appendChild(iframe);
-  });
+    }
+  })();
   return window._silentRefreshPromise;
+}
+
+async function getToken(){
+  const stored = localStorage.getItem('mdr_access_token');
+  if(!stored) return null;
+  const exp = parseInt(localStorage.getItem('mdr_token_exp')||'0', 10);
+  // Within a minute of expiry (or already past it): refresh before using it.
+  if(exp && exp - Date.now() < 60*1000 && localStorage.getItem('mdr_refresh_token')){
+    const ok = await silentRefresh();
+    if(ok) return localStorage.getItem('mdr_access_token');
+  }
+  return stored;
 }
 
 // Core Graph fetch with automatic back-off on throttling (429) and transient 503s.
@@ -4391,25 +4529,37 @@ async function spRefresh(){
 
 async function msalSignIn(){
   document.getElementById('authErrMsg').textContent = '';
-  const redirectUri = window.location.origin + window.location.pathname;
-  const nonce = Math.random().toString(36).slice(2);
-  // Use MDR tenant ID (not /common) so guest tokens are scoped to MDR tenant
-  // This ensures SGI guest users get a token that can access MDR SharePoint
-  window.location.href = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
-    + '?client_id=' + MDR_CLIENT_ID
-    + '&response_type=token+id_token'
-    + '&redirect_uri=' + encodeURIComponent(redirectUri)
-    + '&scope=' + encodeURIComponent('openid profile email User.Read Sites.ReadWrite.All')
-    + '&response_mode=fragment'
-    + '&nonce=' + nonce
-    + '&prompt=select_account';
+  try{
+    const verifier = randomB64url(48);
+    const state = randomB64url(16);
+    const nonce = randomB64url(16);
+    const challenge = await pkceChallenge(verifier);
+    sessionStorage.setItem('mdr_pkce_verifier', verifier);
+    sessionStorage.setItem('mdr_pkce_state', state);
+    sessionStorage.setItem('mdr_pkce_nonce', nonce);
+    // Use MDR tenant ID (not /common) so guest tokens are scoped to MDR tenant
+    // This ensures SGI guest users get a token that can access MDR SharePoint
+    window.location.href = 'https://login.microsoftonline.com/' + MDR_TENANT_ID + '/oauth2/v2.0/authorize'
+      + '?client_id=' + MDR_CLIENT_ID
+      + '&response_type=code'
+      + '&redirect_uri=' + encodeURIComponent(authRedirectUri())
+      + '&scope=' + encodeURIComponent(AUTH_SCOPES)
+      + '&response_mode=query'
+      + '&state=' + state
+      + '&nonce=' + nonce
+      + '&code_challenge=' + challenge
+      + '&code_challenge_method=S256'
+      + '&prompt=select_account';
+  }catch(e){
+    console.error('Sign-in start failed:', e);
+    document.getElementById('authErrMsg').textContent = 'Could not start sign-in: ' + (e.message || e);
+  }
 }
 
 async function signOut(){
   if(!confirm('Sign out of MDR Exchange Tracker?')) return;
   await logAppAction('Sign Out', 'User signed out');
-  localStorage.removeItem('mdr_access_token');
-  localStorage.removeItem('mdr_id_token');
+  clearAuthStorage();
   localStorage.removeItem('mdr_user_email');
   await presenceLeave();
   currentUser = null; userRole = null; authenticatedRole = null; records = [];
@@ -4437,10 +4587,10 @@ function isSGI(){ return userRole === 'sgi'; }
 
 async function initMSAL(){
   try {
-    // Check if returning from OAuth redirect (fragment token flow)
-    const hash = window.location.hash;
-    if(hash && (hash.includes('access_token') || hash.includes('id_token'))){
-      await handleFragmentToken(hash);
+    // Returning from the Microsoft sign-in redirect (authorization code flow)?
+    const q = new URLSearchParams(window.location.search);
+    if(q.get('code') || q.get('error')){
+      await handleAuthCode(q);
       return;
     }
     // Check for cached session
@@ -4462,47 +4612,72 @@ async function initMSAL(){
   }
 }
 
-async function handleFragmentToken(hash){
-  const params = new URLSearchParams(hash.replace('#',''));
-  // We get id_token for identity and access_token for Graph
-  const idToken = params.get('id_token');
-  const accessToken = params.get('access_token');
+async function handleAuthCode(q){
+  const showErr = (msg)=>{
+    showAuthOverlay();
+    setTimeout(()=>{ const e=document.getElementById('authErrMsg'); if(e) e.textContent=msg; },300);
+  };
+  const verifier = sessionStorage.getItem('mdr_pkce_verifier');
+  const savedState = sessionStorage.getItem('mdr_pkce_state');
+  const savedNonce = sessionStorage.getItem('mdr_pkce_nonce');
+  ['mdr_pkce_verifier','mdr_pkce_state','mdr_pkce_nonce'].forEach(k=>sessionStorage.removeItem(k));
+  // Clean the URL right away so the code is never left in the address bar or history
+  history.replaceState(null,'', window.location.pathname);
+  if(q.get('error')){
+    showErr('Sign-in failed: ' + (q.get('error_description') || q.get('error')));
+    return;
+  }
+  if(!verifier || !savedState || q.get('state') !== savedState){
+    showErr('Sign-in could not be verified. Please try again.');
+    return;
+  }
+  let tr;
+  try{
+    tr = await postToken({
+      client_id: MDR_CLIENT_ID,
+      grant_type: 'authorization_code',
+      code: q.get('code'),
+      redirect_uri: authRedirectUri(),
+      code_verifier: verifier,
+      scope: AUTH_SCOPES
+    });
+  }catch(e){
+    console.error('Token exchange failed:', e);
+    showErr('Sign-in failed: ' + (e.message || e));
+    return;
+  }
+  const idToken = tr.id_token, accessToken = tr.access_token;
+  // Check the id_token nonce matches what we sent
+  try{
+    const idp = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if(savedNonce && idp.nonce && idp.nonce !== savedNonce){ showErr('Sign-in could not be verified. Please try again.'); return; }
+  }catch(e){}
   // Parse email from id_token (more reliable than access_token)
   const email = parseEmailFromToken(idToken) || parseEmailFromToken(accessToken);
-  if(!email){
-    showAuthOverlay();
-    setTimeout(()=>{ const e=document.getElementById('authErrMsg'); if(e) e.textContent='Could not read account info. Please try again.'; },300);
-    return;
-  }
+  if(!email){ showErr('Could not read account info. Please try again.'); return; }
   const domain = email.split('@')[1]?.toLowerCase();
-  if(domain !== MDR_DOMAIN && domain !== SGI_DOMAIN){
-    showAuthOverlay();
-    setTimeout(()=>{ const e=document.getElementById('authErrMsg'); if(e) e.textContent='Access denied for '+email; },300);
-    return;
-  }
-  // Store tokens
-  if(accessToken){ localStorage.setItem('mdr_access_token', accessToken); storeTokenExpiry(accessToken); }
-  if(idToken) localStorage.setItem('mdr_id_token', idToken);
+  if(domain !== MDR_DOMAIN && domain !== SGI_DOMAIN){ showErr('Access denied for '+email); return; }
+  storeTokenResponse(tr);
   localStorage.setItem('mdr_user_email', email);
   scheduleTokenRefresh();
-  // Clean the URL hash
-  history.replaceState(null,'', window.location.pathname);
   await showSignedIn(email);
-  showWhatsNewOnLogin(); // fresh interactive login just completed — show what's new
+  showWhatsNewOnLogin(); // fresh interactive login just completed - show what's new
 }
 
 function parseEmailFromToken(token){
   try{
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
     return payload.preferred_username || payload.email || payload.upn || null;
   } catch(e){ return null; }
 }
 
+let _mdrLogoHTML = null; // original MDR SVG badge markup, captured once before any SGI swap
 function applyBranding(role){
   const badge = document.querySelector('.logobadge');
   const title = document.querySelector('.apptitle');
   const sub = document.querySelector('.appsub');
   const html = document.documentElement;
+  if(badge && _mdrLogoHTML===null) _mdrLogoHTML = badge.innerHTML;
 
   if(role === 'sgi'){
     // SGI branding
@@ -4514,7 +4689,13 @@ function applyBranding(role){
     // Ensure theme attribute is set (triggers SGI CSS vars)
     if(!html.getAttribute('data-theme')) html.setAttribute('data-theme','dark');
   } else {
-    // MDR branding — logo already set as SVG in HTML
+    // MDR branding — restore the original SVG logo (toggleRoleView() can get here
+    // after the SGI branch above swapped it for the SGI image) and reset the
+    // badge's own background, which the SGI branch also overrides.
+    if(badge){
+      if(_mdrLogoHTML) badge.innerHTML = _mdrLogoHTML;
+      badge.style.background = 'transparent';
+    }
     if(title) title.textContent = 'Exchange Tracker';
     if(sub) sub.textContent = 'Pickup & Exchange Management';
     html.removeAttribute('data-brand');
@@ -4779,13 +4960,6 @@ function updateStickyHeight(){
 
 window.addEventListener('DOMContentLoaded', () => {
   // Build marker now lives up top, right next to BUILD/CHANGELOG — see that block.
-  // Silent-refresh iframe context: this page was loaded inside the hidden refresh
-  // iframe. Hand the token in the URL fragment back to the parent and do NOT boot
-  // the full app here.
-  if(window.top !== window.self && /[#&](access_token|id_token|error)=/.test(window.location.hash)){
-    try{ window.parent.postMessage({__mdrSilentAuth:true, hash:window.location.hash}, window.location.origin); }catch(e){}
-    return;
-  }
   initTheme(); initLib(); initFlash();
   // Reflect the default Custom date range (30 days back / 7 days ahead — see
   // _defaultRangeStart/_defaultRangeEnd near the top of the script) in the date-range UI
