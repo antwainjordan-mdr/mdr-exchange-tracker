@@ -105,8 +105,16 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 .spill{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 9px;font-size:11px;color:var(--text2);}
 .spill .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .spill strong{color:var(--text);}
+.spill-click{cursor:pointer;user-select:none;}
+.spill-click:hover{border-color:var(--accent,#a78bfa);}
+.spill-active{border-color:var(--accent,#a78bfa);background:var(--surface3,var(--surface2));}
 
 /* LEGEND */
+.marquee-banner{width:100%;overflow:hidden;background:#1b2340;color:#fff;white-space:nowrap;border-bottom:2px solid var(--accent,#a78bfa);}
+.marquee-track{display:inline-flex;animation:marquee-scroll 32s linear infinite;}
+.marquee-text{padding:6px 48px;font-size:12px;font-weight:600;}
+@keyframes marquee-scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.mdr-banner{width:100%;padding:6px 16px;font-size:12px;font-weight:600;color:#fff;text-align:center;white-space:normal;}
 .legend{display:flex;gap:10px;padding:5px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
 .li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);}
 .lbar{width:3px;height:12px;border-radius:2px;}
@@ -447,6 +455,12 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 </head>
 <body>
 <div class="sticky-top">
+<!-- SGI-ONLY MARQUEE — always visible, cannot be hidden by any toggle. See renderBanners()/sgiMarqueeText(). -->
+<div id="sgiMarquee" class="marquee-banner" style="display:none">
+  <div class="marquee-track"><span class="marquee-text"></span><span class="marquee-text" aria-hidden="true"></span></div>
+</div>
+<!-- MDR-ONLY BANNER — tied to the shared "Hide/Show Late & Incomplete" button. See renderBanners()/mdrBannerText(). -->
+<div id="mdrBanner" class="mdr-banner" style="display:none"><span class="mdr-banner-text"></span></div>
 <!-- HEADER -->
 <header class="hdr">
   <div class="logo">
@@ -471,11 +485,10 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
     </button>
-    <div class="export-split" role="group" aria-label="Export as">
-      <span class="export-split-lbl">Export as</span>
+    <div class="export-split" role="group" aria-label="Export">
       <span class="export-split-btns">
-        <button class="btn btn-sm btn-exp-csv" onclick="exportReportCSV()" title="Download the rows on screen as a CSV (same columns as the PDF, plus Job Closed, No Pickup, Verified)">CSV</button>
-        <button class="btn btn-sm btn-pdf btn-exp-pdf" onclick="exportPDF()" title="Print or save the rows on screen as a PDF">PDF</button>
+        <button class="btn btn-sm btn-exp-csv" onclick="mdrExportArrivalNotice();exportReportCSV()" title="Download the rows on screen as a CSV (same columns as the PDF, plus Job Closed, No Pickup, Verified)">CSV</button>
+        <button class="btn btn-sm btn-pdf btn-exp-pdf" onclick="mdrExportArrivalNotice();exportPDF()" title="Print or save the rows on screen as a PDF">PDF</button>
       </span>
     </div>
 
@@ -517,6 +530,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div class="li"><div class="lbar" style="background:var(--purple)"></div>Pickup</div>
   <div class="li"><div class="lbar" style="background:var(--yellow)"></div>Mixed</div>
   <div class="li"><span style="width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block"></span>All Done</div>
+  <span id="lastUpdatedTxt" class="li" style="margin-left:10px;color:var(--text3);"></span>
 
   <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Closed (Brightree) &nbsp;<span style="color:var(--red)">✕</span> No Pickup &nbsp;<span style="color:#f41617">■</span> Overdue</div>
 </div>
@@ -528,14 +542,16 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <input type="text" id="searchQ" placeholder="Search patient, job #, reference, equipment, serial #…" oninput="onSearchInput()">
   </div>
   <span class="flbl">Status:</span>
-  <select class="fsel" id="statusF" onchange="renderTable()">
+  <select class="fsel" id="statusF" onchange="chipFilter=null;renderTable()">
     <option value="all">All Active</option>
     <option value="incomplete" class="mdr-only">Incomplete</option>
     <option value="pending" selected>Pending</option>
+    <option value="partial">Partial</option>
     <option value="processing" class="mdr-only">Processing</option>
     <option value="complete">Complete</option>
+    <option value="nopickup">No Pick up</option>
   </select>
-  <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Incomplete</button>
+  <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Late &amp; Incomplete</button>
   <button class="btn btn-sm sgi-only" id="btnHideReturned" onclick="toggleHideReturned()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can see what still needs your attention. View only — doesn't change any data.">Hide Returned Jobs</button>
   <div class="spills" id="spills"></div>
 </div>
@@ -571,6 +587,19 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
     <p style="margin-top:10px;font-size:14px">No records found</p>
     <small style="font-size:11px;color:var(--text3)">Load a CSV or add a patient manually</small>
+  </div>
+</div>
+
+<!-- MDR-ONLY "DON'T PRINT BEFORE SGI RETURNS" ACKNOWLEDGMENT MODAL — see showPrintWarningModal() -->
+<div class="moverlay" id="ackOverlay" onclick="ackOverlayClick(event)">
+  <div class="modal" style="max-width:440px;">
+    <div class="mhdr" style="justify-content:flex-end;border-bottom:none;padding-bottom:0;">
+      <button class="closebtn" onclick="closeAckModal('x')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" style="align-items:center;text-align:center;padding-top:0;">
+      <div style="font-size:26px;">⚠️</div>
+      <div id="ackModalText" style="font-weight:700;font-size:14px;line-height:1.55;"></div>
+    </div>
   </div>
 </div>
 
@@ -801,10 +830,10 @@ function toggleHideOverdue(){
   hideOverdue=!hideOverdue;
   const btn=document.getElementById('btnHideOverdue');
   if(btn){
-    btn.textContent = hideOverdue ? '🔴 Show Incomplete' : '🔴 Hide Incomplete';
+    btn.textContent = hideOverdue ? '🔴 Show Late & Incomplete' : '🔴 Hide Late & Incomplete';
     btn.style.background = hideOverdue ? 'rgba(244,22,23,.12)' : 'transparent';
   }
-  logAppAction('Hide Incomplete', hideOverdue?'Hid overdue rows from view':'Showing overdue rows again');
+  logAppAction('Hide Late & Incomplete', hideOverdue?'Hid overdue rows from view':'Showing overdue rows again');
   renderTable();
 }
 
@@ -871,8 +900,36 @@ function ensureLib(name){if(!LIB.find(x=>x.name===name)){LIB.push({name,isFromDa
 let records=[];
 let selectedRowId = null; // currently selected/locked row
 let sortCol='pickupDate',sortDir=1;
-let activeMon='all',rangeS='',rangeE='';
-let customOpen=false; // whether the "Custom" month chip has revealed the date-range pickers
+// Last time the tracker was updated by either Load Daily or Load Confirmed/Void — whichever
+// happened most recently, shown as a single unlabeled-source timestamp next to the legend
+// (per the Q&A doc). Persisted so it survives a reload.
+let lastUpdatedAt=(()=>{ try{ return localStorage.getItem('mdr_last_updated')||''; }catch(e){ return ''; } })();
+function markLastUpdated(){
+  lastUpdatedAt=new Date().toISOString();
+  try{ localStorage.setItem('mdr_last_updated', lastUpdatedAt); }catch(e){}
+  renderLastUpdated();
+}
+function renderLastUpdated(){
+  const el=document.getElementById('lastUpdatedTxt');
+  if(!el) return;
+  const d=lastUpdatedAt?new Date(lastUpdatedAt):null;
+  if(!d||isNaN(d.getTime())){ el.textContent=''; return; }
+  const mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'), yy=String(d.getFullYear()).slice(-2);
+  let h=d.getHours(); const ap=h>=12?'PM':'AM'; h=h%12; if(h===0)h=12;
+  const mi=String(d.getMinutes()).padStart(2,'0');
+  el.textContent=`Last Updated: ${mm}/${dd}/${yy} ${h}:${mi} ${ap}`;
+}
+// Default date scope: Custom range from 30 days ago through 7 days from today, active
+// from first load (per the Q&A doc). The "All" Month chip is still one click away if the
+// user wants to clear back to everything.
+const _defaultRangeStart=(()=>{ const d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().slice(0,10); })();
+const _defaultRangeEnd=(()=>{ const d=new Date(); d.setDate(d.getDate()+7); return d.toISOString().slice(0,10); })();
+let activeMon='',rangeS=_defaultRangeStart,rangeE=_defaultRangeEnd;
+let customOpen=true; // Custom range starts open/active by default — see _defaultRangeStart/_defaultRangeEnd above
+// Clicking the Partial or Memory Download stat chip narrows the table to just those
+// records and sorts by Pickup Date; clicking the SAME chip again flips the sort
+// direction, a third click turns it back off. null | 'partial' | 'memdl'.
+let chipFilter=null, chipSortDir=1;
 // "Hide Incomplete" toolbar toggle — hides rows the table is flashing red (late by date
 // passed, not complete, not closed — see isOverdue()). A plain view filter for right now;
 // not persisted across reloads on purpose, so nobody leaves it on and thinks a backlog is
@@ -908,9 +965,25 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-10-30-late-by-calculated';
+const BUILD = '2026-11-03-marquee-partial-nopickup';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-11-03-marquee-partial-nopickup',
+    date:'Nov 3, 2026',
+    items:[
+      'New "Last Updated" timestamp next to the Exchange/Pickup/Mixed/All Done legend — shows the most recent of Load Daily or Load Confirmed/Void.',
+      'The Month/Custom date filter now defaults to a Custom range from 30 days ago through 7 days from today on every fresh load, instead of "All".',
+      'New always-on scrolling banner across the very top of the page for SGI, with 4 messages that change based on the Hide Late & Incomplete / Hide Returned Jobs buttons and the active date filter. It cannot be hidden.',
+      'The Pending/Partial/Complete/No Pick up counters now reflect only the records in the current search, Hide-toggle and date-range scope — not every record in the tracker.',
+      'New "Partial" option in the Status dropdown (both sides): a multi-piece job with at least one but not all pieces checked, Job Closed or not. The Partial stat chip is now clickable — click to filter the table to Partial and sort by Pickup Date, click again to flip the sort direction, a third click clears it. The Memory Download chip got the same click-to-filter-and-sort behavior.',
+      'New "No Pick up" status, counter, and Status dropdown option for any record with No Pickup checked.',
+      'Added a row number to the Job # column in the table, CSV export, and PDF export — the first visible row is always 1.',
+      'Removed the "Export as" label above the CSV/PDF buttons.',
+      'MDR now sees a reminder on every page load not to print the report before SGI\'s data is back in, until it\'s closed (X or clicking outside it) — logged to the App Log. Clicking CSV or PDF also shows a brief "SGI approximate arrival" notice, also logged to the App Log only.',
+      '"Hide Incomplete" is now "Hide Late & Incomplete" / "Show Late & Incomplete" (same button, both sides). MDR now also sees its own 2-state reminder banner about SGI\'s incomplete PUEXs tied to that same button — informational text only, no Teams integration is actually wired up.',
+    ]
+  },
   {
     build:'2026-10-30-late-by-calculated',
     date:'Oct 30, 2026',
@@ -1233,12 +1306,12 @@ function exportReportCSV(){
   if(!rows.length){toast('No records to export','e');return;}
   logAppAction('Export CSV',`Exported ${rows.length} records to CSV`);
   const yn=v=>v?'Yes':'No';
-  const head=['Pickup Date','Patient','Patient ID','Job #','Pieces / Items','Reference','Notes','Job Closed','No Pickup','Verified'];
+  const head=['#','Pickup Date','Patient','Patient ID','Job #','Pieces / Items','Reference','Notes','Job Closed','No Pickup','Verified'];
   const lines=[head.map(csvEsc).join(',')];
-  rows.forEach(r=>{
+  rows.forEach((r,i)=>{
     const pieces=(r.pieces||[]).map(p=>`${pieceAbbr(p)} ${p.name} ×${p.expectedQty}`).join('\n');
     lines.push([
-      r.pickupDate?fmtDate(r.pickupDate):'', r.patientName||'', r.patientId||'', r.jobNum||'',
+      i+1, r.pickupDate?fmtDate(r.pickupDate):'', r.patientName||'', r.patientId||'', r.jobNum||'',
       pieces, r.soIds||'', exportNotesText(r), yn(r.jobClosed), yn(r.noPickup), yn(r.verified)
     ].map(csvEsc).join(','));
   });
@@ -1733,6 +1806,7 @@ function handleLoadConfirmedVoid(e){
     try{
       const text=ev.target.result;
       const result=loadConfirmedVoid(text);
+      markLastUpdated();
       buildChips();renderTable();renderStats();
       if(result.count > 0){
         if(!spSiteId || !spListId){
@@ -1774,6 +1848,7 @@ function handleLoadDaily(e){
     try{
       const text=ev.target.result;
       const result=loadDaily(text);
+      markLastUpdated();
       buildChips();renderTable();renderStats();
       if(result.count > 0){
         // spSiteId/spListId are normally set by loadFromSharePoint() at sign-in, but if
@@ -1940,6 +2015,17 @@ function pieceReceiptFlag(rec){
   if(hasShort) return 'shortage';
   return null;
 }
+// The "Partial" Status filter option — distinct from pieceReceiptFlag() (the existing
+// informational Partial/Shortage/Overage chip, which stays untouched). This is a
+// stricter, explicit rule for the dropdown/filter/counter: a multi-piece job
+// (more than 1 piece) with at least one piece checked but not all of them, with or
+// without Job Closed.
+function isPartialStatus(rec){
+  const pieces=rec.pieces||[];
+  if(pieces.length<=1) return false;
+  const chk=pieces.filter(p=>p.checked).length;
+  return chk>0 && chk<pieces.length;
+}
 function pieceVariance(p){
   // Returns: 'shortage' | 'overage' | 'match' | 'uncounted'
   if(p.receivedQty===null||p.receivedQty===undefined)return'uncounted';
@@ -1959,9 +2045,12 @@ function esc(s){if(!s&&s!==0)return'';return String(s).replace(/&/g,'&amp;').rep
 // ─────────────────────────────────────
 // SECTION 9: FILTERING & SORT
 // ─────────────────────────────────────
-function filtered(){
+// Everything EXCEPT the Status dropdown and the Partial/Memory Download chip filter —
+// search, the Hide toggles, and the Month/Custom date range. This is the shared scope
+// the stat counters are computed from (see renderStats()), so the badges always reflect
+// what's actually in view before the Status tab narrows it further.
+function baseFiltered(){
   const q=document.getElementById('searchQ').value.trim().toLowerCase();
-  const sf=document.getElementById('statusF').value;
   return records.filter(r=>{
     if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
     // "Hide Overdue" toggle — on top of whatever Status filter is selected, drop rows
@@ -1969,24 +2058,119 @@ function filtered(){
     if(hideOverdue && isOverdue(r)) return false;
     // "Hide Returned Jobs" — SGI only. Job Closed means SGI already returned it.
     if(hideReturned && isSGI() && r.jobClosed) return false;
-    if(sf!=='all'){
-      const st=rowStatus(r);
-      // rowStatus() never returns 'partial' — that's a separate, informational
-      // measure now (see pieceReceiptFlag()) that never affects which bucket a
-      // record is in — so this is a plain match against Incomplete/Pending/Processing/Complete.
-      // NOTE: must fall through, not `return` here directly — an early return would
-      // skip every check below it (month, date range).
-      if(st!==sf) return false;
-    }
     const pd=r.pickupDate||'';
     if(activeMon&&activeMon!=='all'&&!pd.startsWith(activeMon))return false;
     if(rangeS&&pd&&pd<rangeS)return false;
     if(rangeE&&pd&&pd>rangeE)return false;
     return true;
-  }).sort((a,b)=>{
+  });
+}
+function filtered(){
+  const sf=document.getElementById('statusF').value;
+  let rows=baseFiltered().filter(r=>{
+    // The Partial/Memory Download stat chip, when active, overrides the Status
+    // dropdown entirely — it's its own filter lens.
+    if(chipFilter==='partial') return isPartialStatus(r);
+    if(chipFilter==='memdl') return !!(r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload));
+    if(sf==='all') return true;
+    if(sf==='partial') return isPartialStatus(r);
+    if(sf==='nopickup') return !!r.noPickup;
+    // rowStatus() never returns 'partial'/'nopickup' — those are handled above —
+    // so this is a plain match against Incomplete/Pending/Processing/Complete.
+    return rowStatus(r)===sf;
+  });
+  if(chipFilter){
+    // Chip-driven sort: Pickup Date only, direction flips on repeat clicks.
+    return rows.slice().sort((a,b)=>{
+      const av=a.pickupDate||'', bv=b.pickupDate||'';
+      return av<bv?-chipSortDir:av>bv?chipSortDir:0;
+    });
+  }
+  return rows.slice().sort((a,b)=>{
     let av=a[sortCol]||'',bv=b[sortCol]||'';
     return av<bv?-sortDir:av>bv?sortDir:0;
   });
+}
+// Clicking the Partial or Memory Download stat chip. Same chip: ascending → descending →
+// off. A different chip: switches straight to that chip, ascending.
+// Human-readable label for whichever date scope is currently active — substituted into
+// the SGI marquee and MDR banner text (ask #3/#10) wherever they say "[date range]".
+function dateRangeLabel(){
+  if(rangeS || rangeE){
+    const fmt=d=>{ if(!d) return '…'; const dt=new Date(d+'T00:00:00'); return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}/${String(dt.getFullYear()).slice(-2)}`; };
+    return `${fmt(rangeS)} – ${fmt(rangeE)}`;
+  }
+  if(activeMon && activeMon!=='all'){
+    const mo=rollingMonths().find(m=>m.ym===activeMon);
+    return mo ? mo.label : activeMon;
+  }
+  return 'All Dates';
+}
+// The currently-selected Status dropdown option's visible label — substituted into the
+// SGI marquee's "none hidden" message where it says "All [Status] jobs".
+function statusFilterLabel(){
+  const sel=document.getElementById('statusF');
+  if(!sel) return 'Active';
+  const opt=sel.options[sel.selectedIndex];
+  return opt?opt.textContent.trim():'Active';
+}
+// SGI-only marquee text — 4 states driven by the Hide Late & Incomplete / Hide Returned
+// Jobs toggles, per the Q&A doc. Only one message is ever shown at a time: the combined
+// "both hidden"/"neither hidden" messages override the individual ones.
+function sgiMarqueeText(){
+  const dr=dateRangeLabel();
+  if(hideOverdue && hideReturned){
+    return `All options have been hidden for ${dr} for "Late & Incomplete" and "Jobs Returned" for ${dr}. Use all options to filter results & show past, present or future Jobs. When jobs are returned for the day, click "Show Late & Incomplete" and update jobs to reduce the risk of lost supplies, equipment, or claims.`;
+  }
+  if(!hideOverdue && !hideReturned){
+    return `The tracker is currently showing All ${statusFilterLabel()} jobs for ${dr}. This includes all returns not processed by MdR systems & jobs that may be late, lost or no exchanges has been made. To print a list of current & future jobs, click "Hide Late & Incomplete" & "Hide Returned Jobs". This will show only pending jobs that have yet been performed or returned before the "Late By Date".`;
+  }
+  if(hideOverdue && !hideReturned){
+    return `Late & Incomplete jobs requested by MdR for ${dr} have been hidden. These jobs are either late, lost or no exchange has been made. Please investigate & update tracker within 3 business days of the "Late By Date" to reduce the risk of lost supplies, equipment, or claims.`;
+  }
+  // !hideOverdue && hideReturned
+  return `Supplies and/or equipment returning to MdR for ${dr} have been hidden & marked with "Job Closed" or "No Pickup". If "Job Closed" or "No Pickup" is marked and visible, MdR has not processed or confirmed in their systems. MdR may reach out if discrepancies occur, otherwise disregard and use "Hide Returned Job" to filter the list to show pending or future returns.`;
+}
+// MDR-only banner text — 2 states driven by the same shared Hide/Show Late & Incomplete
+// button, but describing SGI's incomplete PUEXs rather than MDR's own jobs (ask #10).
+// Informational only — no actual Teams integration is wired up here.
+function mdrBannerText(){
+  const dr=dateRangeLabel();
+  const variant = hideOverdue ? 'have been hidden' : 'are visible and highlighted in red';
+  return `Late & Incomplete jobs from SGI for ${dr} ${variant}. If there are Incomplete PUEXs returned by SGI & that have a 1:1 match for PUEXs, update in BT & notify Antwain via Teams. Partial returns will be worked by Antwain and a correspondent at SGI or directly with the PCG.`;
+}
+function renderBanners(){
+  const sgiEl=document.getElementById('sgiMarquee');
+  if(sgiEl){
+    if(isSGI()){
+      sgiEl.style.display='block';
+      const txt=sgiMarqueeText();
+      sgiEl.querySelectorAll('.marquee-text').forEach(el=>el.textContent=txt);
+    } else {
+      sgiEl.style.display='none';
+    }
+  }
+  const mdrEl=document.getElementById('mdrBanner');
+  if(mdrEl){
+    if(isMDR()){
+      mdrEl.style.display='block';
+      mdrEl.style.background = hideOverdue ? '#7a1f1f' : '#1f6b3a';
+      const txtEl=mdrEl.querySelector('.mdr-banner-text');
+      if(txtEl) txtEl.textContent=mdrBannerText();
+    } else {
+      mdrEl.style.display='none';
+    }
+  }
+  setTimeout(updateStickyHeight, 0);
+}
+function toggleChipFilter(kind){
+  if(chipFilter===kind){
+    if(chipSortDir===1){ chipSortDir=-1; }
+    else { chipFilter=null; chipSortDir=1; }
+  } else {
+    chipFilter=kind; chipSortDir=1;
+  }
+  renderTable();
 }
 function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}renderTable();}
 
@@ -2068,26 +2252,34 @@ function clearRange(){
 //  STATS
 // ══════════════════════════════════
 function renderStats(){
-  const comp=records.filter(r=>rowStatus(r)==='complete').length;
-  const proc=records.filter(r=>rowStatus(r)==='processing').length; // MDR-only concept; always 0 for SGI
-  const inc=records.filter(r=>rowStatus(r)==='incomplete').length; // MDR-only concept; always 0 for SGI
-  // Partial is purely a measure of how many orders came back with a discrepancy —
-  // it has no bearing on Incomplete/Pending/Processing/Complete (see pieceReceiptFlag()), so
-  // it's computed independently here rather than via rowStatus().
-  const part=records.filter(r=>pieceReceiptFlag(r)).length;
+  // All counters reflect ONLY the records in the current search/Hide-toggle/date-range
+  // scope (baseFiltered()) — NOT the full records list, and not further narrowed by the
+  // Status dropdown or chip filter either, so the badges always describe what's actually
+  // on screen before the Status tab or a chip click narrows the table further.
+  const base=baseFiltered();
+  const comp=base.filter(r=>rowStatus(r)==='complete').length;
+  const proc=base.filter(r=>rowStatus(r)==='processing').length; // MDR-only concept; always 0 for SGI
+  const inc=base.filter(r=>rowStatus(r)==='incomplete').length; // MDR-only concept; always 0 for SGI
+  // "Partial" here uses isPartialStatus() — the stricter multi-piece some-but-not-all-checked
+  // rule used by the Status dropdown/chip filter — NOT the older pieceReceiptFlag() indicator,
+  // which stays untouched elsewhere (per-row chip, CSV/PDF export) and measures something
+  // different (discrepancy vs. expected, regardless of piece count).
+  const part=base.filter(r=>isPartialStatus(r)).length;
+  const noPick=base.filter(r=>r.noPickup).length;
   // "Pending" is every record that isn't Complete, Processing, or Incomplete —
   // i.e. everything still outstanding with at least some progress made. A record
-  // flagged Partial is still counted here too, since Partial never removes
+  // flagged Partial or No Pick up is still counted here too, since neither removes
   // anything from Pending.
-  const pend=records.length - comp - proc - inc;
-  const memDl=records.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
+  const pend=base.length - comp - proc - inc;
+  const memDl=base.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
   document.getElementById('spills').innerHTML=`
     ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--red)"></div><strong>${inc}</strong> Incomplete</div>`:''}
     <div class="spill"><div class="dot" style="background:var(--text2)"></div><strong>${pend}</strong> Pending</div>
-    <div class="spill"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial</div>
+    <div class="spill spill-click${chipFilter==='partial'?' spill-active':''}" onclick="toggleChipFilter('partial')" title="Click to filter to Partial, click again to flip sort order by Pickup Date"><div class="dot" style="background:var(--yellow)"></div><strong>${part}</strong> Partial${chipFilter==='partial'?(chipSortDir===1?' ↑':' ↓'):''}</div>
     ${isMDR()?`<div class="spill"><div class="dot" style="background:var(--accent)"></div><strong>${proc}</strong> Processing</div>`:''}
     <div class="spill"><div class="dot" style="background:var(--green)"></div><strong>${comp}</strong> Complete</div>
-    ${(isMDR()&&memDl)?`<div class="spill" title="Records that include a Memory Download item — MDR only"><div class="dot" style="background:var(--purple,#a78bfa)"></div><strong>${memDl}</strong> Memory Download</div>`:''}`;
+    <div class="spill"><div class="dot" style="background:var(--red)"></div><strong>${noPick}</strong> No Pick up</div>
+    ${(isMDR()&&memDl)?`<div class="spill spill-click${chipFilter==='memdl'?' spill-active':''}" onclick="toggleChipFilter('memdl')" title="Click to filter to Memory Download, click again to flip sort order by Pickup Date"><div class="dot" style="background:var(--purple,#a78bfa)"></div><strong>${memDl}</strong> Memory Download${chipFilter==='memdl'?(chipSortDir===1?' ↑':' ↓'):''}</div>`:''}`;
 }
 
 // ══════════════════════════════════
@@ -2150,6 +2342,7 @@ function onSearchInput(){
 function renderTable(){
   const tbody=document.getElementById('tbody'),empty=document.getElementById('emptyState');
   const rows=filtered();
+  renderBanners();
 
   // Reset the lazy-load window whenever the active filter criteria change (new
   // search text, status/type switch, month chip, date range) so switching
@@ -2165,7 +2358,7 @@ function renderTable(){
   const searchActive=!!document.getElementById('searchQ').value.trim();
   const visibleRows=searchActive?rows:rows.slice(0,tableRenderLimit);
 
-  tbody.innerHTML=visibleRows.map(r=>renderRow(r)).join('');
+  tbody.innerHTML=visibleRows.map((r,i)=>renderRow(r,i+1)).join('');
   renderStats();
   // Re-apply role UI after DOM rebuild so hidden columns stay hidden
   if(userRole) applyRoleUI();
@@ -2217,7 +2410,7 @@ function setupTableLazyLoad(totalCount, shownCount, searchActive){
   _tableObserver.observe(tr);
 }
 
-function renderRow(r){
+function renderRow(r,rowNum){
   const status=rowStatus(r);
   const rt=rowType(r);
 
@@ -2270,7 +2463,7 @@ function renderRow(r){
           :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
       <div class="pid">${esc(r.patientId)}</div>
     </td>
-    <td style="text-align:center">${renderJobLink(r.jobNum)}</td>
+    <td style="text-align:center"><span class="row-num" style="display:block;font-size:9px;color:var(--text3);line-height:1.1">${rowNum||''}</span>${renderJobLink(r.jobNum)}</td>
     <td class="pcell">${renderPcell(r)}</td>
     <td>${refHtml}</td>
     <td class="ret-cell${r.dateReturned?' has-date':''}">${retHtml}</td>
@@ -3453,7 +3646,7 @@ function exportPDF(){
     <th class="pc-notes">Notes</th>
   </tr></thead>`;
 
-  function buildRow(r){
+  function buildRow(r,idx){
     const rt=rowType(r);
     let cls=rt==='exchange'?'pr-exchange':rt==='pickup'?'pr-pickup':rt==='mixed'?'pr-mixed':'';
     // Same overdue rule as the live table — closed or completed records are never overdue.
@@ -3466,7 +3659,7 @@ function exportPDF(){
     return`<tr class="${cls}">
       <td class="pc-pickup">${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td class="pc-patient"><div class="pt-name">${esc(r.patientName)}</div><div class="pt-id">${esc(r.patientId)}</div></td>
-      <td class="pc-job">${esc(r.jobNum)||'—'}</td>
+      <td class="pc-job"><span style="display:block;font-size:7.5pt;color:#888">${idx||''}</span>${esc(r.jobNum)||'—'}</td>
       <td class="pc-pieces">${piecesHtml||'<span style="color:#999">No items</span>'}</td>
       <td class="pc-ref">${formatRefPrint(r.soIds)}</td>
       <td class="pc-notes"><div class="pt-notes">${esc(notes)}</div></td>
@@ -3479,7 +3672,7 @@ function exportPDF(){
       <div class="print-hdr">${esc(hdrText)}</div>
       <table class="print-table">
         ${theadHtml}
-        <tbody>${rows.map(buildRow).join('')}</tbody>
+        <tbody>${rows.map((r,i)=>buildRow(r,i+1)).join('')}</tbody>
       </table>
     </div>`;
 
@@ -3500,6 +3693,39 @@ function toast(msg,t='i'){
   const c=document.getElementById('toasts'),el=document.createElement('div');
   el.className=`toast ${t}`;el.innerHTML=`<span>${{s:'✓',e:'✕',i:'ℹ'}[t]||'•'}</span> ${msg}`;
   c.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
+
+// ══════════════════════════════════
+//  MDR-ONLY PRINT WARNING MODAL + EXPORT NOTICE (ask #9)
+// ══════════════════════════════════
+// Centered overlay shown once per page load for MDR users, reminding them not to print
+// before SGI's return data is in. Closes only via the X button or a click outside the
+// modal text — closing it is logged to the App Log, nothing else is gated on it.
+function showPrintWarningModal(){
+  const p=ctParts(new Date());
+  const dateStr=`${p.month}/${p.day}/${p.year.slice(-2)}`;
+  const el=document.getElementById('ackModalText');
+  if(el) el.textContent=`DO NOT PRINT REPORT BEFORE SGI RETURNS for ${dateStr}. UPDATE MAY OCCUR UP TO THE TIME OF RETURNS. THIS WILL REDUCE QUESTIONS & ISSUES WITH PUEXs. MSG ACKNOWLEDGE WHEN CLOSED.`;
+  const ov=document.getElementById('ackOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeAckModal(via){
+  const ov=document.getElementById('ackOverlay');
+  if(ov) ov.classList.remove('open');
+  logAppAction('Print Warning Acknowledged', via==='x' ? 'Closed via X button' : 'Closed via outside click');
+}
+function ackOverlayClick(e){
+  if(e.target===document.getElementById('ackOverlay')) closeAckModal('outside');
+}
+// Brief "SGI approximate arrival" notice when MDR clicks either export button — shown as
+// a toast, logged to the App Log only (no blocking modal, no change to the export itself).
+function mdrExportArrivalNotice(){
+  if(!isMDR()) return;
+  const p=ctParts(new Date());
+  let h=parseInt(p.hour,10); const ap=h>=12?'PM':'AM'; h=h%12; if(h===0)h=12;
+  const stamp=`${p.month}/${p.day}/${p.year.slice(-2)} ${h}:${p.minute} ${ap}`;
+  toast(`SGI approximate arrival is ${stamp}`,'i');
+  logAppAction('Export Notice', `SGI approximate arrival shown: ${stamp}`);
 }
 
 // ══════════════════════════════════
@@ -4256,6 +4482,10 @@ async function showSignedIn(email){
 
   hideAuthOverlay();
   applyRoleUI();
+  // MDR-only "don't print before SGI returns" reminder — shows once per page load,
+  // every load, per the Q&A doc. Closing it (X or outside click) is logged to the
+  // App Log only; it never blocks anything else from loading.
+  if(isMDR()) showPrintWarningModal();
   scheduleTokenRefresh();
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
@@ -4492,6 +4722,16 @@ window.addEventListener('DOMContentLoaded', () => {
     return;
   }
   initTheme(); initLib(); initFlash();
+  // Reflect the default Custom date range (30 days back / 7 days ahead — see
+  // _defaultRangeStart/_defaultRangeEnd near the top of the script) in the date-range UI
+  // on first paint, since the inputs have no value until JS sets one.
+  (()=>{
+    const rs=document.getElementById('rangeS'), re=document.getElementById('rangeE'), rg=document.getElementById('rangegrp');
+    if(rs) rs.value=rangeS;
+    if(re) re.value=rangeE;
+    if(rg) rg.style.display='flex';
+  })();
+  renderLastUpdated();
   // Click on empty table area clears selection
   document.addEventListener('click', e=>{
     if(!e.target.closest('tr[data-id]') && !e.target.closest('.modal') && !e.target.closest('.popup-modal')){

@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-10-30-late-by-calculated` (October 30, 2026)
+**Build:** `2026-11-03-marquee-partial-nopickup` (November 3, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -38,8 +38,8 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 | Light / Dark Mode | All | Switches the theme. Remembered per browser. |
 | Flash: On / Off | All | Turns the red pulsing on overdue rows on or off. |
 | Refresh | All | Reloads every record from SharePoint. |
-| **Export as: CSV** (green) | All | Downloads the rows **on screen** as a CSV (see Exporting). |
-| **Export as: PDF** (red) | All | Prints or saves the rows on screen as a PDF report. |
+| **CSV** (green) | All | Downloads the rows **on screen** as a CSV (see Exporting). |
+| **PDF** (red) | All | Prints or saves the rows on screen as a PDF report. MDR also gets a brief "SGI approximate arrival" notice when clicking either export button, logged to the App Log. |
 | Load Daily | MDR | Imports today's `data.csv` from Power BI (see Load Daily). Refuses the file if it contains anything other than "New" rows. |
 | Load Confirmed/Void | MDR | Imports Brightree's `Confirmed & Void_data.csv` and resolves matching jobs (see Load Confirmed/Void). |
 | Add Record | All | Adds a job by hand. |
@@ -49,9 +49,13 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 
 Next to the buttons, the **presence bar** shows who else has the tracker open (seen in the last 10 minutes). The **sync light** shows Saved, Syncing, Synced or an error.
 
+Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the most recent time the tracker was refreshed by either Load Daily or Load Confirmed/Void.
+
+**MDR only:** on every page load, a reminder pops up not to print the report before SGI's data is back in. Close it with the X or by clicking outside it — that's logged to the App Log, and it doesn't block anything else from loading.
+
 ## Filters
 
-- **Month chips:** All, plus the current month and the two before it. **Custom** opens start and end date pickers. Months and ranges filter on **Pickup Date**.
+- **Month chips:** All, plus the current month and the two before it. **Custom** opens start and end date pickers. Months and ranges filter on **Pickup Date**. On a fresh load, the filter now defaults to **Custom: 30 days ago through 7 days from today** instead of All.
 - **Search:** patient name, patient ID, job #, reference numbers, piece names and serial numbers. It searches every matching record, not only the rows already loaded on screen.
 - **Status:**
 
@@ -59,20 +63,24 @@ Next to the buttons, the **presence bar** shows who else has the tracker open (s
 |---|---|---|
 | Incomplete | No progress at all: no piece checked, no Date Returned, not closed, verified or confirmed. | (not shown) |
 | Pending | Some progress, but not Closed + Verified yet. | Anything MDR has **not** Confirmed yet. |
+| Partial | Multi-piece job with at least one piece checked but not all of them — Job Closed or not. | Same. |
 | Processing | Job Closed **and** Verified, waiting for Confirmed. | (not shown) |
 | Complete | Confirmed. | Confirmed. |
+| No Pick up | No Pickup is checked, regardless of other status. | Same. |
 | All Active | Everything. | Everything. |
 
-- **Hide Incomplete** (button next to Status): hides whatever rows the table is currently flashing red for — late by date passed, not complete, not closed — on top of whatever else is filtered. Click again to bring them back. View-only, changes no data, and resets on reload.
-- **Hide Returned Jobs** (button next to Hide Incomplete, SGI view only): hides any job already Job Closed — i.e. already returned to MDR — so SGI can see what still needs attention instead of scrolling past jobs just waiting on MDR to confirm. Click again to bring them back. View-only, never affects MDR's view.
-- The **counter pills** (Incomplete, Pending, Partial, Processing, Complete, Memory Download) show totals for the current filters.
-- **Partial, Shortage and Overage** only describe how items came back. They never move a record between statuses.
+- **Hide Late & Incomplete** (button next to Status, was "Hide Incomplete"): hides whatever rows the table is currently flashing red for — late by date passed, not complete, not closed — on top of whatever else is filtered. Click again to bring them back. View-only, changes no data, and resets on reload.
+- **Hide Returned Jobs** (button next to Hide Late & Incomplete, SGI view only): hides any job already Job Closed — i.e. already returned to MDR — so SGI can see what still needs attention instead of scrolling past jobs just waiting on MDR to confirm. Click again to bring them back. View-only, never affects MDR's view.
+- The **counter pills** (Incomplete, Pending, Partial, Processing, Complete, No Pick up, Memory Download) now only count the records in the current search/Hide-toggle/date-range scope, not every record in the tracker. Click **Partial** or **Memory Download** to filter the table down to just those records, sorted by Pickup Date — click again to flip the sort direction, a third click clears the filter.
+- **Partial, Shortage and Overage** chips on each row only describe how items came back; they never move a record between statuses. (The Partial *Status filter and counter* above is a separate, stricter rule.)
 - The table loads 50 rows at a time and loads more as you scroll. Click a column header with ⇅ to sort.
+- **Scrolling banner (SGI only):** an always-visible banner across the very top of the page reports whether Late & Incomplete and/or Returned Jobs are currently hidden or shown, for the active date range. It cannot be hidden. **MDR** sees its own separate banner tied to the same Hide/Show Late & Incomplete button, about SGI's incomplete PUEXs — informational text only.
 
 ## Reading a row
 
 | Column | Notes |
 |---|---|
+| # (Job #) | A plain row number — the first visible row is always 1. Changes as filters/sorting change which rows are visible. |
 | Pickup Date | Click to set or change. |
 | Patient | Name and patient ID. **NEW** marks rows from a Daily load. 🔒 means the value came from the source file and is locked. |
 | Job # | SGI job number. MDR: it links to SGI RapidShip tracking. |
@@ -128,9 +136,9 @@ Brightree's second daily export — jobs it has already resolved — lists each 
 
 ## Exporting
 
-Both halves of **Export as** use exactly the rows on screen (current month, range, status and search).
+Both the CSV and PDF buttons use exactly the rows on screen (current month, range, status and search).
 
-- **CSV** columns: Pickup Date, Patient, Patient ID, Job #, Pieces / Items, Reference, Notes, Job Closed, No Pickup, Verified. The last three are Yes/No. The Notes text matches the PDF: No Pickup, ★ Memory Download (MDR only), SGI notes, quantity differences and MDR notes. The file is named `MDR_Exchange_Report_YYYY-MM-DD.csv` and opens cleanly in Excel.
+- **CSV** columns: #, Pickup Date, Patient, Patient ID, Job #, Pieces / Items, Reference, Notes, Job Closed, No Pickup, Verified. The last three are Yes/No. The Notes text matches the PDF: No Pickup, ★ Memory Download (MDR only), SGI notes, quantity differences and MDR notes. The file is named `MDR_Exchange_Report_YYYY-MM-DD.csv` and opens cleanly in Excel.
 - **PDF** opens the print dialog with a one-table report. Rows are colored by type, and overdue rows are marked. Choose **Save as PDF** to keep a file.
 
 ## Dates and time zone
@@ -166,6 +174,19 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-11-03-marquee-partial-nopickup`
+
+- New **Last Updated** timestamp next to the Exchange/Pickup/Mixed/All Done legend — the most recent of Load Daily or Load Confirmed/Void.
+- The Month/Custom date filter now defaults to **Custom: 30 days ago through 7 days from today** on a fresh load, instead of All.
+- New always-on scrolling banner across the very top of the page, **SGI only**: reports whether Late & Incomplete and/or Returned Jobs are hidden or shown, for the active date range. Cannot be hidden.
+- The **Pending/Partial/Complete/No Pick up** counters now reflect only the records in the current search/Hide-toggle/date-range scope, not every record.
+- New **Partial** Status dropdown option (both sides): a multi-piece job with at least one but not all pieces checked, Job Closed or not. The **Partial** stat chip is now clickable — filters the table to Partial, sorted by Pickup Date; click again to flip the sort, a third click clears it. The **Memory Download** chip got the same behavior.
+- New **No Pick up** status, counter, and Status dropdown option for any record with No Pickup checked.
+- Added a row number to the Job # column — table, CSV export, and PDF export. The first visible row is always 1.
+- Removed the "Export as" label above the CSV/PDF buttons.
+- **MDR**: a reminder now shows on every page load not to print the report before SGI's data is back in, until closed (X or outside click) — logged to the App Log. Clicking CSV or PDF also shows a brief "SGI approximate arrival" notice, logged to the App Log only.
+- **"Hide Incomplete"** is now **"Hide Late & Incomplete"** / **"Show Late & Incomplete"** (same button, both sides). MDR also now sees its own 2-state banner about SGI's incomplete PUEXs tied to that same button — informational text only, no Teams integration is actually wired up.
 
 ## Changes in `2026-10-30-late-by-calculated`
 
