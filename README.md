@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-11-03-marquee-partial-nopickup` (November 3, 2026)
+**Build:** `2026-11-03-partial-dual-bucket` (November 3, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -51,7 +51,7 @@ Next to the buttons, the **presence bar** shows who else has the tracker open (s
 
 Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the most recent time the tracker was refreshed by either Load Daily or Load Confirmed/Void.
 
-**MDR only:** on every page load, a reminder pops up not to print the report before SGI's data is back in. Close it with the X or by clicking outside it — that's logged to the App Log, and it doesn't block anything else from loading.
+**MDR only:** on every page load, a reminder pops up not to print the report before SGI's data is back in. Close it with the X or by clicking outside it — that's logged to the App Log, and it doesn't block anything else from loading. (This reminder does not show for antwainjordan@mdr.net.)
 
 ## Filters
 
@@ -61,20 +61,20 @@ Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the mo
 
 | Status | MDR view | SGI view |
 |---|---|---|
-| Incomplete | No progress at all: no piece checked, no Date Returned, not closed, verified or confirmed. | (not shown) |
-| Pending | Some progress, but not Closed + Verified yet. | Anything MDR has **not** Confirmed yet. |
-| Partial | Multi-piece job with at least one piece checked but not all of them — Job Closed or not. | Same. |
-| Processing | Job Closed **and** Verified, waiting for Confirmed. | (not shown) |
-| Complete | Confirmed. | Confirmed. |
+| Incomplete | Not Job Closed, and the Late By Date has already passed — **or** Partial and not yet Confirmed (see below). | Same — no longer MDR-only. |
+| Pending | Job Closed but not yet Confirmed, **or** still open but the Late By Date hasn't passed yet — **or** Partial and not yet Confirmed (see below). | Same. |
+| Partial | Multi-piece job with at least one piece checked but not all of them — Job Closed or not. A Partial, not-yet-Confirmed job shows under **both** Pending and Incomplete at once (deliberately — so it can't be missed under either filter), regardless of Job Closed or the Late By Date, until every piece is explicitly checked or the job is Confirmed. Leaving a piece unchecked is never treated as "not picked up" — that's a separate, explicit checkbox (No Pickup). | Same. |
+| Processing | ⚠️ Deprecated — logic removed. Chip and dropdown option stay visible but always show/match 0 records until it's rebuilt. | (not shown) |
+| Complete | Confirmed (set by Load Confirmed/Void, either a Confirmed or a Void row). | Same. |
 | No Pick up | No Pickup is checked, regardless of other status. | Same. |
 | All Active | Everything. | Everything. |
 
 - **Hide Late & Incomplete** (button next to Status, was "Hide Incomplete"): hides whatever rows the table is currently flashing red for — late by date passed, not complete, not closed — on top of whatever else is filtered. Click again to bring them back. View-only, changes no data, and resets on reload.
 - **Hide Returned Jobs** (button next to Hide Late & Incomplete, SGI view only): hides any job already Job Closed — i.e. already returned to MDR — so SGI can see what still needs attention instead of scrolling past jobs just waiting on MDR to confirm. Click again to bring them back. View-only, never affects MDR's view.
-- The **counter pills** (Incomplete, Pending, Partial, Processing, Complete, No Pick up, Memory Download) now only count the records in the current search/Hide-toggle/date-range scope, not every record in the tracker. Click **Partial** or **Memory Download** to filter the table down to just those records, sorted by Pickup Date — click again to flip the sort direction, a third click clears the filter.
+- The **counter pills** (Incomplete, Pending, Partial, Processing, Complete, No Pick up, 1:1 Match, Memory Download) now only count the records in the current search/Hide-toggle/date-range scope, not every record in the tracker. Click **Partial**, **1:1 Match**, or **Memory Download** to filter the table down to just those records, sorted by Pickup Date — click again to flip the sort direction, a third click clears the filter. **1:1 Match** means every piece on the job came back checked at exactly the expected quantity (no shortage, no overage).
 - **Partial, Shortage and Overage** chips on each row only describe how items came back; they never move a record between statuses. (The Partial *Status filter and counter* above is a separate, stricter rule.)
 - The table loads 50 rows at a time and loads more as you scroll. Click a column header with ⇅ to sort.
-- **Scrolling banner (SGI only):** an always-visible banner across the very top of the page reports whether Late & Incomplete and/or Returned Jobs are currently hidden or shown, for the active date range. It cannot be hidden. **MDR** sees its own separate banner tied to the same Hide/Show Late & Incomplete button, about SGI's incomplete PUEXs — informational text only.
+- **Top banner (SGI only):** a static, always-visible banner across the very top of the page reports whether Late & Incomplete and/or Returned Jobs are currently hidden or shown, for the active date range. It cannot be hidden. **MDR** sees its own separate banner tied to the same Hide/Show Late & Incomplete button, about SGI's incomplete PUEXs — informational text only.
 
 ## Reading a row
 
@@ -174,6 +174,24 @@ Sign-in uses the older "implicit" flow. It works, but Microsoft now recommends M
 1. In Azure (app registration), add the live address as a **Single-page application** redirect URI.
 2. Swap the hand-written sign-in code for Microsoft's MSAL browser library.
 3. That removes the hidden-iframe token refresh, which can break when a browser blocks third-party cookies.
+
+## Changes in `2026-11-03-partial-dual-bucket`
+
+- A Partial, not-yet-Confirmed job now shows under **both** the Pending and Incomplete filters/counters at once, regardless of Job Closed or the Late By Date — so it can't be missed under either view until every piece is explicitly checked or the job is Confirmed.
+- Leaving a piece unchecked is still just "not yet verified" — never treated as "not picked up." That stays its own explicit checkbox (No Pickup).
+
+## Changes in `2026-11-03-status-bucket-rebuild`
+
+- Rebuilt how Complete/Pending/Incomplete are decided, for both MDR and SGI: Complete is Confirmed; Job Closed but not yet Confirmed is Pending; everything still open splits on the Late By Date (not yet due = Pending, past due = Incomplete).
+- **Incomplete is no longer MDR-only** — SGI sees it too now, with the same rule.
+- Partial and No Pick up stay as separate, overlapping counters/filters — a record can be Partial AND Incomplete (or Partial AND Pending) at once, without being double-counted.
+- **Processing** (MDR) is deprecated — logic removed, chip and dropdown option stay visible (marked ⚠️) but always show/match 0 records until it's rebuilt.
+
+## Changes in `2026-11-03-static-banner-11match`
+
+- The SGI top banner is now a static strip (no scrolling) with twice-as-large text.
+- The MDR "don't print before SGI returns" reminder no longer shows for antwainjordan@mdr.net.
+- New **1:1 Match** stat chip (both sides): jobs where every piece came back checked at exactly the expected quantity. Click to filter + sort by Pickup Date, same behavior as Partial and Memory Download.
 
 ## Changes in `2026-11-03-marquee-partial-nopickup`
 

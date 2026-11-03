@@ -964,9 +964,17 @@ let hideReturned=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-03-status-bucket-rebuild';
+const BUILD = '2026-11-03-partial-dual-bucket';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-11-03-partial-dual-bucket',
+    date:'Nov 3, 2026',
+    items:[
+      'A Partial, not-yet-Confirmed job now shows up under BOTH the Pending and Incomplete filters/counters at once — regardless of Job Closed or the Late By Date — so a half-checked-in return (e.g. one piece marked but the rest left blank, or a job legitimately split across two return days) can\'t be missed under either view. It stays showing in both until every piece is explicitly checked or the job is Confirmed.',
+      'Leaving a piece unchecked is still just "not yet verified" — it is never treated as "not picked up." That stays a separate, explicit checkbox (No Pickup).',
+    ]
+  },
   {
     build:'2026-11-03-status-bucket-rebuild',
     date:'Nov 3, 2026',
@@ -2010,6 +2018,24 @@ function rowStatus(rec){
 function isPastLateDate(rec){
   return !!(rec.dropOffBy && rec.dropOffBy<=tod());
 }
+// Per the follow-up: a Partial, not-yet-Confirmed record should count toward — and show
+// up under — BOTH the Pending and the Incomplete view at once, regardless of Job Closed
+// or the Late By Date, so it can't be missed under either filter until it's fully
+// resolved (every piece explicitly checked) or Confirmed. This deliberately overrides
+// the single-bucket split in rowStatus() for exactly this case — leaving a piece
+// unchecked is NOT the same as marking it not picked up (that's still just unverified),
+// so a half-checked-in job is surfaced everywhere it could be missed, on purpose, rather
+// than silently landing in only one of the two.
+function isPendingBucket(rec){
+  if(rec.confirmed) return false;
+  if(isPartialStatus(rec)) return true;
+  return rec.jobClosed || !isPastLateDate(rec);
+}
+function isIncompleteBucket(rec){
+  if(rec.confirmed) return false;
+  if(isPartialStatus(rec)) return true;
+  return !rec.jobClosed && isPastLateDate(rec);
+}
 // Late by date has passed AND the record is neither complete nor job-closed. A closed
 // job can never be "late" — closing it stops the overdue state regardless of the late-by
 // date. Shared by the live table, the print/PDF export, and the "Hide Overdue" filter —
@@ -2101,8 +2127,12 @@ function filtered(){
     if(sf==='all') return true;
     if(sf==='partial') return isPartialStatus(r);
     if(sf==='nopickup') return !!r.noPickup;
-    // rowStatus() never returns 'partial'/'nopickup' — those are handled above —
-    // so this is a plain match against Incomplete/Pending/Processing/Complete.
+    // Pending and Incomplete use isPendingBucket()/isIncompleteBucket() instead of a
+    // plain rowStatus() match, because a Partial-and-not-yet-Confirmed record needs to
+    // show up under BOTH — see those functions for why.
+    if(sf==='pending') return isPendingBucket(r);
+    if(sf==='incomplete') return isIncompleteBucket(r);
+    // Only Complete/Processing left — a plain rowStatus() match.
     return rowStatus(r)===sf;
   });
   if(chipFilter){
@@ -2285,18 +2315,18 @@ function renderStats(){
   const base=baseFiltered();
   const comp=base.filter(r=>rowStatus(r)==='complete').length;
   const proc=base.filter(r=>rowStatus(r)==='processing').length; // Processing is deprecated — rowStatus() never returns it anymore, so this is always 0 (MDR-only chip, ⚠️-marked)
-  const inc=base.filter(r=>rowStatus(r)==='incomplete').length; // now shown to both MDR and SGI — see rowStatus()
+  // Pending and Incomplete use isPendingBucket()/isIncompleteBucket() — NOT a plain
+  // rowStatus() split — because a Partial, not-yet-Confirmed record counts in BOTH at
+  // once (on purpose, so it can't be missed in either view). That means these two counts
+  // can overlap and no longer need to add up to base.length alongside comp/proc.
+  const inc=base.filter(r=>isIncompleteBucket(r)).length;
+  const pend=base.filter(r=>isPendingBucket(r)).length;
   // "Partial" here uses isPartialStatus() — the stricter multi-piece some-but-not-all-checked
   // rule used by the Status dropdown/chip filter — NOT the older pieceReceiptFlag() indicator,
   // which stays untouched elsewhere (per-row chip, CSV/PDF export) and measures something
   // different (discrepancy vs. expected, regardless of piece count).
   const part=base.filter(r=>isPartialStatus(r)).length;
   const noPick=base.filter(r=>r.noPickup).length;
-  // "Pending" is every record that isn't Complete, Processing, or Incomplete —
-  // i.e. everything still outstanding with at least some progress made. A record
-  // flagged Partial or No Pick up is still counted here too, since neither removes
-  // anything from Pending.
-  const pend=base.length - comp - proc - inc;
   const memDl=base.filter(r=>r.hasMemoryDownload || (r.pieces||[]).some(p=>p.memoryDownload)).length;
   // "1:1 Match" — every piece on the job came back checked at exactly the expected
   // quantity (no shortage, no overage). Clicking it filters + sorts by Pickup Date,
