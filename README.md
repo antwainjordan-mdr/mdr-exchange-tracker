@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-11-03-pkce-sign-in` (November 3, 2026)
+**Build:** `2026-11-04-completed-tab` (November 4, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -57,6 +57,7 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 | **PDF** (red) | All | Prints or saves the rows on screen as a PDF report. MDR also gets a brief "SGI approximate arrival" notice when clicking either export button, logged to the App Log. |
 | Load Daily | MDR | Imports today's `data.csv` from Power BI (see Load Daily). Refuses the file if it contains anything other than "New" rows. |
 | Load Confirmed/Void | MDR | Imports Brightree's `Confirmed & Void_data.csv` and resolves matching jobs (see Load Confirmed/Void). |
+| **✓ Completed** | MDR | Opens the Completed tab — a separate, read-only comparison of Confirmed/Void jobs (see Completed tab below). |
 | Add Record | All | Adds a job by hand. |
 | Clear Cache | All | Wipes this browser's saved data and tokens and reloads. Fixes most odd behavior. You sign in again after. |
 | App Log | MDR | Who did what, and when (sign-ins, loads, exports, refreshes). |
@@ -82,7 +83,7 @@ Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the mo
 | Processing | ⚠️ Deprecated — logic removed. Chip and dropdown option stay visible but always show/match 0 records until it's rebuilt. | (not shown) |
 | Complete | Confirmed (set by Load Confirmed/Void, either a Confirmed or a Void row). | Same. |
 | No Pick up | No Pickup is checked, regardless of other status. | Same. |
-| All Active | Everything. | Everything. |
+| All Active | Everything **except** Confirmed/Void jobs — those are sealed onto the separate **✓ Completed** tab instead (see below). | Everything. |
 
 **Every stat badge now counts only what's actually in the table right now** — including the Status dropdown and whichever chip filter is active, not just search/Hide-toggle/date-range. Selecting a Status (e.g. Complete) drops every other badge to match what's really on screen for that selection. **1:1 Match** and **Memory Download** both exclude jobs already pulled off the Confirmed/Void CSV.
 
@@ -151,6 +152,16 @@ Brightree's second daily export — jobs it has already resolved — lists each 
    - if a row matched more than one existing record, it's listed in the console (and a toast warns you) — worth a look to clean up the duplicate, even though both copies are now resolved.
 4. Once a job is marked Closed (Brightree), it moves to Complete for both MDR and SGI and drops out of the default Pending view and print.
 
+## Completed tab (MDR)
+
+Click **✓ Completed** in the toolbar to open a separate, read-only view of every Confirmed/Void job — this replaces the old "Hide Completed PUEXs" toggle. "All Active" no longer has a way to bring these back into the main table; this tab is where they live now. Click **← Back to Active** to return.
+
+- **Two "Pieces / Items" columns, side by side.** The left one is what SGI originally selected, exactly as it came in on the Daily report, and it's never touched again, even after the job is voided. The right one is what that Confirmed/Void CSV row itself reported — the confirmed quantity for a Confirmed row, or 0 for a Void row.
+- **Total Qty Confirmed/Voided** sums the right-hand column.
+- **Match:** a record matched normally (patient plus a shared reference, Entry ID, or job #) shows **1:1 Match**. A Confirmed/Void CSV row that didn't match anything existing — so it has no real "SGI selected" side to compare against — shows **No Match** in red, with the specific reason(s) underneath: No matching Patient ID, No matching Job #, and/or No matching PUEX/reference.
+- Everything on this page is plain text. No checkboxes, no editable fields, no Select All — these records are sealed.
+- **Previously:** loading a Void row used to overwrite the record's own piece quantities with 0 right then and there, which meant the original SGI-selected quantity was gone for good the next time that CSV was re-imported. That's fixed — a Void import no longer touches the record's own pieces at all, so the left column always has the real original data to compare against.
+
 ## Exporting
 
 Both the CSV and PDF buttons use exactly the rows on screen (current month, range, status and search).
@@ -190,6 +201,13 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `2026-11-04-completed-tab`
+
+- MDR: new **✓ Completed** tab replaces the old "Hide Completed PUEXs" toggle — a separate, read-only view of every Confirmed/Void record. Left "Pieces / Items" column is what SGI originally selected, right is what the Confirmed/Void CSV itself reported (0 for Void, the confirmed qty for Confirmed), plus a Total Qty Confirmed/Voided column.
+- "All Active" now always excludes Confirmed/Void jobs — no toggle needed, they live on the Completed tab instead.
+- A Confirmed/Void CSV row with no matching Patient ID, Job #, or reference now shows **No Match** on the Completed tab (same red styling as Late & Incomplete), with the specific reason(s) listed underneath.
+- Fixed: importing a Void status used to overwrite the record's own piece quantities with 0, permanently losing what SGI had originally entered on the next re-import. That data is now preserved untouched — it's the left column on the Completed tab.
 
 ## Changes in `2026-11-03-pkce-sign-in`
 

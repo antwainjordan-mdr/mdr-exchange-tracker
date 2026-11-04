@@ -563,7 +563,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   </select>
   <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Late &amp; Incomplete</button>
   <button class="btn btn-sm sgi-only" id="btnHideReturned" onclick="toggleHideReturned()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can see what still needs your attention. View only — doesn't change any data.">Hide Returned Jobs</button>
-  <button class="btn btn-sm mdr-only" id="btnHideResolved" onclick="toggleHideResolved()" style="background:rgba(230,81,0,.15);color:var(--text2);border:1px solid var(--border);" title="Confirmed/Void jobs are already fully resolved — hidden from All Active by default so old, done jobs don't pile up in the main view. Click to bring them back. View only — doesn't change any data.">Show Completed PUEXs</button>
+  <button class="btn btn-sm mdr-only" id="btnCompletedView" onclick="toggleCompletedView()" style="background:rgba(56,217,169,.15);color:var(--text2);border:1px solid var(--border);" title="Confirmed/Void jobs are sealed off the main view — this opens a separate, read-only comparison of what SGI selected vs. what was confirmed/voided.">✓ Completed</button>
   <div class="spills" id="spills"></div>
 </div>
 
@@ -598,6 +598,34 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
     <p style="margin-top:10px;font-size:14px">No records found</p>
     <small style="font-size:11px;color:var(--text3)">Load a CSV or add a patient manually</small>
+  </div>
+</div>
+
+<!-- COMPLETED TAB (MDR-only) — sealed, read-only comparison of what SGI selected
+     (left "Pieces / Items" column, from rec.pieces — never touched by a Confirmed/Void
+     import) vs. what that Confirmed/Void CSV itself reported (right "Pieces / Items"
+     column, from rec.resolvedPieces). No checkboxes, no inputs, no Select All — every
+     cell here is plain text. See toggleCompletedView() / renderCompletedTable(). -->
+<div class="twrap" id="completedWrap" style="display:none">
+  <table>
+    <thead>
+      <tr>
+        <th style="min-width:120px">Pickup Date</th>
+        <th style="min-width:140px">Patient</th>
+        <th style="min-width:90px">Job #</th>
+        <th style="min-width:160px">Pieces / Items<br><span style="font-size:9px;color:var(--text3);font-weight:400">(SGI selected)</span></th>
+        <th style="min-width:160px">Pieces / Items<br><span style="font-size:9px;color:var(--text3);font-weight:400">(Confirmed / Voided)</span></th>
+        <th style="min-width:120px">Reference</th>
+        <th class="ctr" style="min-width:90px">Total Qty<br><span style="font-size:9px;color:var(--text3);font-weight:400">Confirmed/Voided</span></th>
+        <th style="min-width:120px">Match</th>
+      </tr>
+    </thead>
+    <tbody id="completedTbody"></tbody>
+  </table>
+  <div id="completedEmptyState" class="empty" style="display:none">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    <p style="margin-top:10px;font-size:14px">No completed/void records yet</p>
+    <small style="font-size:11px;color:var(--text3)">Load a Confirmed/Void CSV to populate this view</small>
   </div>
 </div>
 
@@ -859,14 +887,20 @@ function toggleHideReturned(){
   renderTable();
 }
 
-function toggleHideResolved(){
-  hideResolved=!hideResolved;
-  const btn=document.getElementById('btnHideResolved');
-  if(btn){
-    btn.textContent = hideResolved ? 'Show Completed PUEXs' : 'Hide Completed PUEXs';
-    btn.style.background = hideResolved ? 'rgba(230,81,0,.15)' : 'transparent';
-  }
-  logAppAction('Hide Completed PUEXs', hideResolved?'Hid Confirmed/Void jobs from view':'Showing Confirmed/Void jobs again');
+// toggleHideResolved() / hideResolved removed — "All Active" now always excludes
+// Confirmed/Void jobs (see baseFiltered()), and those records live on the
+// MDR-only Completed tab instead (see toggleCompletedView()).
+function toggleCompletedView(){
+  completedView=!completedView;
+  const btn=document.getElementById('btnCompletedView');
+  if(btn) btn.textContent = completedView ? '← Back to Active' : '✓ Completed';
+  document.querySelector('.twrap').style.display = completedView ? 'none' : '';
+  const cw=document.getElementById('completedWrap');
+  if(cw) cw.style.display = completedView ? '' : 'none';
+  document.querySelectorAll('.toolbar .flbl,.toolbar .fsel,#btnHideOverdue').forEach(el=>{
+    el.style.display = completedView ? 'none' : '';
+  });
+  logAppAction('Completed tab', completedView?'Opened the Completed (Confirmed/Void) view':'Returned to the Active view');
   renderTable();
 }
 
@@ -962,12 +996,10 @@ let hideOverdue=false;
 // checked there's nothing left for SGI to act on — this just lets them filter it out of
 // view to see what still needs attention. Never applies to MDR (see applyRoleUI).
 let hideReturned=false;
-// "Hide Completed PUEXs" — MDR-only toggle. Confirmed/Void jobs are fully resolved
-// (pulled off the Confirmed/Void CSV), so the default view hides them so old, done jobs
-// don't pile up forever under "All Active." Defaults ON (hidden) — click to bring them
-// back when you need to look one up. Checked in baseFiltered(), so it applies no matter
-// which Status/chip filter is active, same as Hide Overdue/Hide Returned Jobs.
-let hideResolved=true;
+// "Completed" tab — MDR-only. Confirmed/Void jobs (pulled off the Confirmed/Void CSV)
+// are fully resolved and sealed, so they never show in "All Active" (see baseFiltered())
+// and instead live on this separate, read-only view. Toggled by toggleCompletedView().
+let completedView=false;
 
 // ══════════════════════════════════
 //  CHANGELOG / "WHAT'S NEW"
@@ -993,9 +1025,19 @@ let hideResolved=true;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-03-pkce-sign-in';
+const BUILD = '2026-11-04-completed-tab';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-11-04-completed-tab',
+    date:'Nov 4, 2026',
+    items:[
+      'MDR: new "✓ Completed" tab replaces the old "Hide Completed PUEXs" toggle. It\'s a separate, read-only view of every Confirmed/Void record — left column shows what SGI originally selected, right column shows what that Confirmed/Void CSV row itself reported (0 for Void, the confirmed qty for Confirmed), plus a Total Qty Confirmed/Voided column. Nothing on this page is editable.',
+      '"All Active" now always excludes Confirmed/Void jobs (no toggle needed anymore) — they live on the Completed tab instead.',
+      'A record from the Confirmed/Void CSV with no matching Patient ID, Job #, or reference now gets flagged "No Match" on the Completed tab (in red, same styling as Late & Incomplete), with the specific reason(s) listed underneath.',
+      'Fixed: importing a Void status used to overwrite the record\'s own piece quantities with 0, permanently erasing what SGI had originally entered. That data is now preserved (it\'s the left column on the Completed tab) — only the new resolvedPieces field reflects the Void/Confirmed outcome.',
+    ]
+  },
   {
     build:'2026-11-03-pkce-sign-in',
     date:'Nov 3, 2026',
@@ -1257,7 +1299,15 @@ let mSrcPieces=[],mAddPieces=[];
 //   dateReturned, sgiNotes, mdrNotes,
 //   jobClosed:bool, confirmed:bool, verified:bool, noPickup:bool,
 //   locked:{field:true,...},
-//   pieces:[{id,name,type,expectedQty,receivedQty,checked,fromSource}] }
+//   pieces:[{id,name,type,expectedQty,receivedQty,checked,fromSource}],
+//   resolvedPieces:[{...}] — ONLY set once a Confirmed/Void CSV row has matched this
+//     record (see loadConfirmedVoid()); the CSV's own reported pieces/qty for that row.
+//     Never derived from or written back onto `pieces` — that stays exactly what SGI
+//     selected. The Completed tab (renderCompletedTable()) reads pieces for its left
+//     column and resolvedPieces for its right column.
+//   matchReasons:[string] — ONLY set on a record a Confirmed/Void CSV row created from
+//     scratch because nothing existing matched it; why, in plain text (e.g. "No matching
+//     Patient ID"). Drives the "No Match" flag on the Completed tab. }
 
 function isLocked(rec,field){
   if(rec.source==='manual')return false;
@@ -1756,6 +1806,25 @@ function loadConfirmedVoid(text){
     for(const t of aSet) if(bSet.has(t)) return true;
     return false;
   }
+  // For a Confirmed/Void row that matched nothing — checks each identity signal
+  // independently against every existing record so the Completed tab can show WHY,
+  // e.g. "No matching Patient ID" / "No matching Job #" / "No matching PUEX/reference".
+  // More than one can come back true at once; all of them get shown.
+  function completedMatchReasons(inc){
+    const reasons=[];
+    const incJob=normIdStr(inc.jobNum);
+    if(!records.some(r=>patientMatch(inc.patientName,inc.patientId,r.patientName,r.patientId))){
+      reasons.push('No matching Patient ID');
+    }
+    if(incJob && !records.some(r=>normIdStr(r.jobNum)===incJob)){
+      reasons.push('No matching Job #');
+    }
+    if(inc.refSet.size && !records.some(r=>refOverlap(inc.refSet,refTokens(r.soIds)))){
+      reasons.push('No matching PUEX/reference');
+    }
+    if(!reasons.length) reasons.push('No matching record found');
+    return reasons;
+  }
   const noMatches=[]; // rows that matched no existing record (a new record gets created for each)
   const conflicts=[]; // rows that matched a patient but with a conflicting non-blank Job# (kept separate)
   const dupeMatches=[]; // rows that matched MORE than one existing record (pre-existing duplicate data)
@@ -1816,9 +1885,17 @@ function loadConfirmedVoid(text){
       }
       matches.forEach(ex=>{
         let changed=false;
+        // Confirmed/Void used to zero out ex.pieces directly here on a Void status —
+        // that destroyed whatever SGI had actually entered (the Daily-side quantities),
+        // with no way to get it back once the CSV was re-imported. The Completed tab
+        // needs BOTH sides to still exist afterward: ex.pieces stays exactly what SGI
+        // selected (untouched, forever), and ex.resolvedPieces below holds what THIS
+        // Confirmed/Void CSV row itself reported — its own quantities (0 for Void rows,
+        // the confirmed qty for Confirmed rows), never derived from or written back onto
+        // ex.pieces. That's the left/right split the Completed tab reads from.
+        ex.resolvedPieces = pieces;
         if(status==='void'){
           if(!ex.noPickup){
-            (ex.pieces||[]).forEach(p=>{p.checked=true;p.receivedQty=0;});
             ex.noPickup=true;
             if(!ex.dateReturned) ex.dateReturned=tod();
             changed=true;
@@ -1834,17 +1911,21 @@ function loadConfirmedVoid(text){
         }
         if(status==='confirmed' && !ex.verified){ ex.verified=true; changed=true; }
         if(!ex.confirmed){ ex.confirmed=true; changed=true; }
+        // resolvedPieces is new data on every import even when nothing else changed
+        // (the CSV's own reported quantities can differ run to run), so it's always saved.
+        changed=true;
         if(changed){ saveRecs(ex,{skipSync:true}); touchedIds.add(ex.id); matched++; }
         else { skipped++; }
       });
       return;
     }
 
-    // ── No existing record — create one, pre-resolved ──
-    noMatches.push({patient:patientName||'(unknown)', job:jobNum||'—', status});
-    if(status==='void'){
-      (pieces||[]).forEach(p=>{p.checked=true;p.receivedQty=0;});
-    }
+    // ── No existing record — create one, pre-resolved. There's no Daily/SGI-side
+    // counterpart for this row at all, so it has nothing to show in the Completed
+    // tab's left column — flag WHY no match was found (see completedMatchReasons)
+    // so that shows up as the small "No Match" reason text instead of a blank cell. ──
+    const matchReasons = completedMatchReasons(inc);
+    noMatches.push({patient:patientName||'(unknown)', job:jobNum||'—', status, reasons:matchReasons});
     const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
     const locked=makeLockMap(obj);
     const rec={
@@ -1852,7 +1933,7 @@ function loadConfirmedVoid(text){
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy:computeLateBy(pickupDate),
       dateReturned:tod(),sgiNotes:'',mdrNotes:'',
       jobClosed:true,confirmed:true,verified:status==='confirmed',noPickup:status==='void',
-      entryId,locked,pieces
+      entryId,locked,pieces,resolvedPieces:pieces,matchReasons
     };
     records.push(rec);
     created++;
@@ -2202,11 +2283,11 @@ function baseFiltered(){
     if(hideOverdue && isOverdue(r)) return false;
     // "Hide Returned Jobs" — SGI only. Job Closed means SGI already returned it.
     if(hideReturned && isSGI() && r.jobClosed) return false;
-    // "Hide Completed PUEXs" — MDR only, on by default. Confirmed/Void jobs are fully
-    // resolved; without this, "All Active" used to show them forever since nothing else
-    // in this pipeline checked rec.confirmed. SGI doesn't get a toggle for this (SGI
-    // never sets Confirmed/Void — that only happens via MDR's Confirmed/Void CSV import).
-    if(hideResolved && isMDR() && r.confirmed) return false;
+    // MDR: Confirmed/Void jobs are fully resolved and sealed onto the separate Completed
+    // tab (see renderCompletedTable()) — "All Active" always excludes them, no toggle.
+    // SGI never sets Confirmed/Void (that only happens via MDR's Confirmed/Void CSV
+    // import), so this never applies to SGI.
+    if(isMDR() && r.confirmed) return false;
     const pd=r.pickupDate||'';
     if(activeMon&&activeMon!=='all'&&!pd.startsWith(activeMon))return false;
     if(rangeS&&pd&&pd<rangeS)return false;
@@ -2506,6 +2587,10 @@ function onSearchInput(){
 }
 
 function renderTable(){
+  // Every existing call site just calls renderTable() after an edit/filter/load — rather
+  // than teaching each one about the Completed tab, redirect here so they all keep working
+  // unchanged whichever view is currently open.
+  if(completedView){ renderCompletedTable(); renderStats(); return; }
   const tbody=document.getElementById('tbody'),empty=document.getElementById('emptyState');
   const rows=filtered();
   renderBanners();
@@ -2574,6 +2659,53 @@ function setupTableLazyLoad(totalCount, shownCount, searchActive){
     }
   }, {rootMargin:'400px'}); // start loading before the sentinel is actually on-screen
   _tableObserver.observe(tr);
+}
+
+// ══════════════════════════════════
+//  COMPLETED TAB (MDR-only, read-only) — see toggleCompletedView()
+// ══════════════════════════════════
+// qtyField picks which quantity to show: 'expectedQty' for the left "SGI selected"
+// column (what was ordered), 'receivedQty' for the right "Confirmed / Voided" column
+// (what that Confirmed/Void CSV row itself reported — 0 for Void, the confirmed qty
+// for Confirmed). Plain text only, nothing clickable — these records are sealed.
+function completedPieceText(pieces,qtyField){
+  if(!pieces||!pieces.length) return '<span style="color:var(--text3)">No items</span>';
+  return pieces.map(p=>{
+    const qty = p[qtyField]!=null ? p[qtyField] : p.expectedQty;
+    return `<div>${esc(pieceAbbr(p))} ${esc(p.name)} ×${esc(qty)}</div>`;
+  }).join('');
+}
+function renderCompletedTable(){
+  const tbody=document.getElementById('completedTbody'), empty=document.getElementById('completedEmptyState');
+  if(!tbody) return;
+  const rows=records.filter(r=>isMDR()&&r.confirmed).slice().sort((a,b)=>{
+    const av=a.pickupDate||'', bv=b.pickupDate||'';
+    return av<bv?1:av>bv?-1:0; // most recent first
+  });
+  if(!rows.length){ tbody.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  tbody.innerHTML = rows.map(r=>{
+    const noMatch = Array.isArray(r.matchReasons) && r.matchReasons.length>0;
+    // resolvedPieces comes straight out of parsePiecesDaily() every time (same parser
+    // the Daily CSV uses), which always puts the parsed quantity in expectedQty and
+    // leaves receivedQty null — so the Confirmed/Void CSV's own reported qty, Void
+    // rows included (reported as 0 right in the CSV), lives in expectedQty, not
+    // receivedQty. Summing receivedQty here would silently total to 0 every time.
+    const totalQty = (r.resolvedPieces||[]).reduce((sum,p)=>sum+(Number(p.expectedQty)||0),0);
+    const matchCell = noMatch
+      ? `<div style="color:var(--red);font-weight:700;font-size:13px;">No Match</div><div style="font-size:9px;color:var(--text3);margin-top:2px;line-height:1.4;">${r.matchReasons.map(esc).join('<br>')}</div>`
+      : `<span style="color:var(--green);font-weight:600;">1:1 Match</span>`;
+    return `<tr class="${noMatch?'r-overdue':''}" data-id="${r.id}">
+      <td>${esc(fmtDate(r.pickupDate))||'—'}</td>
+      <td><div>${esc(r.patientName)}</div><div style="font-size:10px;color:var(--text3)">${esc(r.patientId)}</div></td>
+      <td>${esc(r.jobNum)||'—'}</td>
+      <td>${completedPieceText(r.pieces,'expectedQty')}</td>
+      <td>${completedPieceText(r.resolvedPieces,'expectedQty')}</td>
+      <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
+      <td class="ctr">${totalQty}</td>
+      <td>${matchCell}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderRow(r,rowNum){
@@ -3939,6 +4071,9 @@ function toggleRoleView(){
   const btn = document.getElementById('btnRoleToggle');
   if(userRole === 'mdr'){
     userRole = 'sgi';
+    // Completed tab is MDR-only — previewing as SGI while it's open would leave SGI
+    // looking at sealed Confirmed/Void data, so back out of it first.
+    if(completedView){ completedView=false; document.querySelector('.twrap').style.display=''; const cw=document.getElementById('completedWrap'); if(cw) cw.style.display='none'; const b=document.getElementById('btnCompletedView'); if(b) b.textContent='✓ Completed'; }
     btn.textContent = '👁 MDR View';
     btn.style.color = 'var(--green)';
     btn.style.borderColor = 'var(--green)';
@@ -3973,7 +4108,7 @@ function applyRoleUI(){
     document.querySelectorAll('.col-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.th-mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='none');
-    // "Hide Completed PUEXs" lives in the toolbar, not .hacts — needs its own line here.
+    // "Completed" tab button lives in the toolbar, not .hacts — needs its own line here.
     document.querySelectorAll('.toolbar .mdr-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='');
     const sf=document.getElementById('statusF');
@@ -4562,7 +4697,7 @@ async function signOut(){
   clearAuthStorage();
   localStorage.removeItem('mdr_user_email');
   await presenceLeave();
-  currentUser = null; userRole = null; authenticatedRole = null; records = [];
+  currentUser = null; userRole = null; authenticatedRole = null; records = []; completedView = false;
   localStorage.removeItem('mdr_v5');
   const chip = document.getElementById('userChip');
   if(chip) chip.style.display = 'none';
@@ -4993,7 +5128,7 @@ window.addEventListener('DOMContentLoaded', () => {
 const LIVE_URL = 'https://antwainjordan-mdr.github.io/mdr-exchange-tracker/';
 function showLocalFileLock(){
   try{ localStorage.removeItem('mdr_v5'); }catch(e){}   // never keep patient data cached under file://
-  records = []; userRole = null; authenticatedRole = null;
+  records = []; userRole = null; authenticatedRole = null; completedView = false;
   const auth = document.getElementById('authOverlay'); if(auth) auth.style.display = 'none';
   const lock = document.createElement('div');
   lock.id = 'localFileLock';
