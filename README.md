@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-11-06-completed-tab-icons` (November 6, 2026)
+**Build:** `2026-11-06-qol-batch` (November 6, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -215,6 +215,17 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `2026-11-06-qol-batch`
+
+- **Copy buttons** (live site only, not in the offline demo): hover over Patient ID, patient name, Job #, or any reference/SO number — in both MDR and SGI views — to see a small copy icon. Click it to copy that value, with a brief "Copied" confirmation. Locked fields are click-to-copy too, since clicking them no longer opens the record.
+- **Typeable date fields**: Pickup Date, Date Returned, and the Custom date range's Start/End fields are now text boxes you can type or paste into — accepts `M/D/YYYY`, `MM/DD/YY`, or `YYYY-MM-DD`, always displays as `MM/DD/YYYY`. The calendar icon is still there to pick a date the old way. Typing something that isn't a valid date reverts the field to its last good value on blur instead of saving. Calculated fields like Late By Date only recheck once you click/tab out of the field, never while you're still typing.
+- **Reference number spacing**: reference numbers now display with a space after each comma (`126244, 35645` instead of `126244,35645`) everywhere they're shown as a single line, including CSV exports. The stored data, and Load Daily/Confirmed-Void matching, are unchanged. Search now also ignores spaces and commas in reference numbers, so searching `126244 35645` or `126244, 35645` still finds a record stored as `126244,35645`.
+- **Collapsible Notes columns**: SGI Notes and MDR Notes can now be collapsed independently, or both at once, using the ◀ / ⬤ / ▶ buttons in the table header (left closes SGI, right closes MDR, center toggles both). Both always start expanded on page load/reload — the collapsed state is never remembered between sessions. Exports always include full note text regardless of what's collapsed on screen.
+- **Zoom lag investigated and fixed**: browser zoom (Ctrl +/- or pinch) fires a burst of resize events while it animates, and the app was recalculating the sticky table header's position on every single one of those events instead of once per zoom gesture — the fix coalesces that burst down to once per actual animation frame. If zooming still feels slow on your machine after this, let me know and I'll keep digging.
+- **App version label**: a small version label now sits next to the logo/app title (top-left), showing the current build date at a glance.
+- **"Last Updated" moved**: the "Last Updated" timestamp now sits next to the SGI/MDR view toggle button, in larger text, instead of being tucked into the legend row below the table.
+- **Oximeter quantity bug — investigated, not yet resolved**: a report that a record showed an expected oximeter quantity of 3 when the PUEX stated 1. Traced the daily-import parsing, the merge/dedup logic, and the Confirmed/Void round-trip and found no code path that sums piece quantities together — so the cause is still unconfirmed. If you can send a sample record (or the specific daily/Confirmed-Void CSV row) that shows the bad quantity, that'll make it much easier to pin down.
 
 ## Changes in `2026-11-06-completed-tab-icons`
 

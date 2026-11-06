@@ -200,6 +200,16 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .datepick::-webkit-datetime-edit-fields-wrapper{padding:0;}
 .datepick::-webkit-datetime-edit-year-field{min-width:32px;}
 .datepick::-webkit-inner-spin-button{display:none;}
+/* QOL: editable date fields — a text box you can type/paste into (Q4/Q5), with the
+   calendar button still beside it (a hidden native date input, opened via showPicker()
+   from the visible 📅 button, writes back into the text box on pick). */
+.dfield{display:inline-flex;align-items:center;gap:2px;}
+.dtext{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--text);font-family:var(--font-main);font-size:11px;outline:none;width:84px;}
+.dtext:focus{border-color:var(--accent);}
+.dtext.finput{width:auto;flex:1;}
+.calbtn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 5px;color:var(--text2);cursor:pointer;display:flex;align-items:center;font-size:11px;line-height:1;}
+.calbtn:hover{border-color:var(--accent);color:var(--accent);}
+.dhiddencal{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
 [data-theme="light"] .datepick{background:var(--surface2);}
 
 /* DATE RETURNED cell — red bg in print */
@@ -214,7 +224,8 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .plist{display:flex;flex-direction:column;gap:3px;}
 .pitem{display:flex;align-items:center;gap:5px;padding:4px 7px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);transition:border-color .1s,background .1s;}
 .pitem.p-ok{border-color:var(--green);background:rgba(56,217,169,.07);}
-.pitem.p-partial{border-color:var(--yellow);background:rgba(247,201,72,.07);}
+.pitem.p-partial{border-color:var(--yellow);background:rgba(247,201,72,.07);} /* shortage */
+.pitem.p-over{border-color:var(--red);background:rgba(239,68,68,.07);} /* overage */
 .pcb{appearance:none;width:14px;height:14px;border:2px solid var(--border);border-radius:3px;cursor:pointer;flex-shrink:0;position:relative;transition:all .15s;background:transparent;}
 .pcb:checked{background:var(--green);border-color:var(--green);}
 .pcb:checked::after{content:'';position:absolute;left:2px;top:-1px;width:5px;height:8px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg);}
@@ -228,7 +239,8 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .qrcv::placeholder{color:var(--text3);opacity:.8;}
 .qrcv:focus{border-color:var(--accent);}
 .qrcv.qmatch{border-color:var(--green);}
-.qrcv.qmis{border-color:var(--yellow);color:var(--yellow);}
+.qrcv.qshort{border-color:var(--yellow);color:var(--yellow);}
+.qrcv.qover{border-color:var(--red);color:var(--red);}
 .prmbtn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;line-height:1;}
 .prmbtn:hover{color:var(--red);}
 .pftr{display:flex;justify-content:flex-end;margin-top:4px;}
@@ -460,6 +472,18 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   }
 }
 
+/* QOL: collapsible SGI/MDR Notes columns (Q7-Q9c). The toggle lives in its own small
+   control column between "No Pickup" and "SGI Notes" so it's never itself hidden when
+   a Notes column collapses — otherwise collapsing would lock the user out of expanding
+   it again. Collapsing hides the WHOLE column (header + every row's cell), not just the
+   note text within it (Q8) — the column simply narrows away. */
+.ntogbtn{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text2);cursor:pointer;font-size:9px;padding:1px 3px;line-height:1.3;}
+.ntogbtn:hover{border-color:var(--accent);color:var(--accent);}
+.ntogbtn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.notes-toggle-td{padding:0;}
+table.hide-sgi-notes .col-sginotes{display:none;}
+table.hide-mdr-notes .col-mdrnotes{display:none;}
+
 
 </style>
 </head>
@@ -475,10 +499,11 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 <header class="hdr">
   <div class="logo">
     <div class="logobadge" style="background:transparent;padding:2px;"><svg width="100%" height="100%" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g><path d="M529.111,535.543l0,-264.557l58.955,0c56.752,0 62.738,-1.533 74.424,5.221c19.406,11.214 24.148,31.907 24.156,62.134c0.008,26.13 -13.672,42.456 -26.493,51.558c26.751,14.864 26.496,54.851 26.624,84.461l0,61.183l-61.093,0l0,-67.091c0,-40.077 -1.346,-50.943 -9.602,-53.157c-8.256,-2.213 -11.253,-1.204 -18.621,-1.204l-0,121.452l-68.35,0Zm97.458,-198.836c-0.072,-11.21 -4.269,-23.927 -11.946,-28.577c-8.863,-0 -12.941,-1.236 -17.162,-0c-0,11.909 0.203,13.682 -0,26.218c-0,25.116 0.027,27.695 -0,37.745c4.265,0.011 1.899,-0.016 17.162,-0c9.46,-7.54 11.946,-22.781 11.946,-35.386Z" style="fill:#f41617;fill-rule:nonzero;"/><path d="M331.671,795.272c-208.86,-39.633 -353.155,-231.203 -329.042,-436.845c22.2,-189.33 166.325,-333.745 355.206,-355.919c153.568,-18.029 311.314,62.49 389.195,198.658c114.854,200.814 36.296,456.587 -171.52,558.442c-23.219,11.38 -58.364,24.638 -78.099,29.462c-47.598,11.636 -122.362,14.433 -165.74,6.202Zm142.901,-78.047c117.593,-29.604 208.272,-119.128 241.045,-237.974c10.305,-37.366 11.881,-121.899 -0.561,-159.14c-37.909,-113.476 -113.269,-197.726 -226.089,-232.993c-26.638,-8.327 -65,-12.832 -88.341,-12.832c-23.34,0 -62.327,4.505 -88.966,12.832c-112.536,35.178 -195.349,120.509 -226.356,233.237c-10.337,37.579 -10.337,122.451 0,160.03c17.423,63.342 48.254,113.837 97.747,160.085c37.288,34.845 89.692,63.234 141.274,76.533c43.466,11.207 106.245,11.299 150.247,0.222l-0,0Zm-88.08,-194.138c-17.638,-18.422 -25.136,-39.598 -25.69,-84.699c-0.577,-46.937 20.426,-83.066 43.515,-94.93c21.879,-11.242 52.989,4.191 52.989,4.191l-0,-76.663c27.353,0 32.365,0.845 48.548,0l-0,264.557l-48.548,0c-0,-22.184 1.714,-17.713 -0,-22.184c-6.353,7.534 -13.553,13.79 -13.553,13.79c-12.61,12.618 -43.095,10.733 -57.261,-4.062Zm44.476,-122.495c-30.641,-0 -29.072,84.593 1.495,84.593c30.567,-0 29.147,-84.593 -1.495,-84.593Zm-312.657,-129.606c9.741,0 0.001,-0.211 78.27,0c33.607,160.035 24.109,99.975 34.909,159.526c36.209,-160.035 34.907,-159.526 34.907,-159.526l78.583,0l2.564,260.229l-49.139,-0l-0,-204.393l-43.735,204.393l-46.36,-0c-16.74,-66.039 1.476,-0 -44.406,-200.547c0,200.547 0.055,131.733 0,200.547c-24.312,0.047 -39.294,0.001 -47.844,-0c-0,-88.159 1.585,-171.579 2.251,-260.229Z" style="fill:#23118c;fill-rule:nonzero;"/></g></svg></div>
-    <div><div class="apptitle">Exchange Tracker</div><div class="appsub">Pickup &amp; Exchange Management</div></div>
+    <div><div class="apptitle">Exchange Tracker</div><div class="appsub">Pickup &amp; Exchange Management <span id="appVersionLbl" style="color:var(--text3);font-weight:600;"></span></div></div>
     <button class="btn btn-sm" id="btnRoleToggle" onclick="toggleRoleView()" title="Toggle between MDR and SGI view for testing" style="background:transparent;color:var(--yellow);border:1px solid var(--yellow);margin-left:6px;">
       👁 SGI View
     </button>
+    <span id="lastUpdatedTxt" style="margin-left:10px;color:var(--text2);font-size:13px;font-weight:600;"></span>
   </div>
   <div class="hacts">
     <div id="presenceBar" class="presence-bar" style="display:none"></div>
@@ -527,9 +552,17 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div class="mchips" id="mchips"></div>
   <div class="rangegrp" id="rangegrp" style="display:none">
     <span class="dbl">Range:</span>
-    <input type="date" class="datepick" id="rangeS" onchange="setRange()" style="width:108px;">
+    <span class="dfield">
+      <input type="text" class="dtext" id="rangeS" placeholder="MM/DD/YYYY" onblur="rangeDateBlur(this)" onkeydown="if(event.key==='Enter')this.blur()">
+      <button type="button" class="calbtn" onclick="openHiddenCal(event,'rangeS')" title="Pick a date" tabindex="-1">📅</button>
+      <input type="date" id="rangeS-cal" class="dhiddencal" tabindex="-1" onchange="hiddenCalChanged('rangeS','rangeDateBlur')">
+    </span>
     <span style="color:var(--text3);font-size:11px">→</span>
-    <input type="date" class="datepick" id="rangeE" onchange="setRange()" style="width:108px;">
+    <span class="dfield">
+      <input type="text" class="dtext" id="rangeE" placeholder="MM/DD/YYYY" onblur="rangeDateBlur(this)" onkeydown="if(event.key==='Enter')this.blur()">
+      <button type="button" class="calbtn" onclick="openHiddenCal(event,'rangeE')" title="Pick a date" tabindex="-1">📅</button>
+      <input type="date" id="rangeE-cal" class="dhiddencal" tabindex="-1" onchange="hiddenCalChanged('rangeE','rangeDateBlur')">
+    </span>
     <button class="btn btn-ghost btn-xs" onclick="clearRange()">✕</button>
   </div>
 </div>
@@ -540,7 +573,6 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <div class="li"><div class="lbar" style="background:var(--purple)"></div>Pickup</div>
   <div class="li"><div class="lbar" style="background:var(--yellow)"></div>Mixed</div>
   <div class="li"><span style="width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block"></span>All Done</div>
-  <span id="lastUpdatedTxt" class="li" style="margin-left:10px;color:var(--text3);"></span>
 
   <div class="lnote">🔒 locked from source &nbsp;|&nbsp; <span style="color:#e65100">■</span> Job Closed (SGI) &nbsp;<span style="color:var(--green)">■</span> Verified (MDR RCV) &nbsp;<span style="color:var(--blue)">■</span> Closed (Brightree) &nbsp;<span style="color:var(--red)">✕</span> No Pickup &nbsp;<span style="color:#f41617">■</span> Overdue</div>
 </div>
@@ -572,7 +604,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 <!-- TABLE -->
 <!-- Columns: Patient | Job# | Pieces | Reference | Date Returned | Job Closed | No Pickup | SGI Notes | MDR Notes | Late by Date | Closed (Brightree) | Verified | Status | Pickup Date | actions -->
 <div class="twrap">
-  <table>
+  <table id="mainTable">
     <thead>
       <tr>
         <th class="srt" onclick="sortBy('pickupDate')" style="min-width:120px">Pickup Date ↕</th>
@@ -583,8 +615,15 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th class="srt" onclick="sortBy('dateReturned')" style="min-width:120px">Date Returned ↕</th>
         <th class="ctr" style="min-width:80px">Job Closed<br><span style="font-size:9px;color:#e65100;font-weight:400">(SGI)</span></th>
         <th class="ctr" style="min-width:80px">No Pickup<br><span style="font-size:9px;color:var(--red);font-weight:400">(all items, qty 0)</span></th>
-        <th style="min-width:160px">SGI Notes</th>
-        <th style="min-width:160px">MDR Notes</th>
+        <th class="ctr no-print" style="min-width:34px;padding:2px 1px;" title="Collapse/expand the SGI/MDR Notes columns">
+          <div style="display:flex;gap:2px;justify-content:center;">
+            <button type="button" class="ntogbtn" id="ntog-sgi" onclick="toggleNotesCol('sgi')" title="Collapse/expand SGI Notes">◀</button>
+            <button type="button" class="ntogbtn" id="ntog-both" onclick="toggleNotesCol('both')" title="Collapse/expand both Notes columns">⬤</button>
+            <button type="button" class="ntogbtn" id="ntog-mdr" onclick="toggleNotesCol('mdr')" title="Collapse/expand MDR Notes">▶</button>
+          </div>
+        </th>
+        <th class="col-sginotes" style="min-width:160px">SGI Notes</th>
+        <th class="col-mdrnotes" style="min-width:160px">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
         <th class="ctr" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
         <th class="ctr th-mdr-only" style="min-width:80px">Closed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Brightree)</span></th>
@@ -665,7 +704,11 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <div class="fg"></div>
       </div>
       <div class="frow mdr-modal-only">
-        <div class="fg"><label class="flabel">Pickup Date</label><div id="m-pickupDate-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-pickupDate-lockval"></span></div><input type="date" class="finput datepick" id="m-pickupDate" onchange="updateLateByPreview()"></div>
+        <div class="fg"><label class="flabel">Pickup Date</label><div id="m-pickupDate-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-pickupDate-lockval"></span></div><span class="dfield" id="m-pickupDate-wrap">
+          <input type="text" class="dtext finput" id="m-pickupDate" placeholder="MM/DD/YYYY" onblur="modalPickupDateBlur(this)" onkeydown="if(event.key==='Enter')this.blur()">
+          <button type="button" class="calbtn" onclick="openHiddenCal(event,'m-pickupDate')" title="Pick a date" tabindex="-1">📅</button>
+          <input type="date" id="m-pickupDate-cal" class="dhiddencal" tabindex="-1" onchange="hiddenCalChanged('m-pickupDate','modalPickupDateBlur')">
+        </span></div>
         <div class="fg"><label class="flabel">Late by Date <span style="color:var(--text3);font-size:9px">(calculated — 3 business days from pickup)</span></label><div class="flocked"><span>🔒</span><span id="m-dropOffBy-display">—</span></div></div>
       </div>
       <!-- Pieces -->
@@ -696,6 +739,24 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
       </label>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLETED RECORD DETAIL (MDR only, read-only) — see openCompletedDetail().
+     Deliberately a SEPARATE popup from the Add/Edit modal above, not a disabled
+     version of it: Confirmed/Void records are sealed, so this has no inputs, no
+     Save, and no way to change anything — just the same box styling and layout
+     for a closer look at one record. -->
+<div class="moverlay" id="completedDetailOverlay" onclick="if(event.target===this)closeCompletedDetail()">
+  <div class="modal">
+    <div class="mhdr">
+      <span class="mtitle">Completed Record <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:6px;">(read-only)</span></span>
+      <button class="closebtn" onclick="closeCompletedDetail()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" id="completedDetailBody"></div>
+    <div class="mftr">
+      <button class="btn btn-ghost" onclick="closeCompletedDetail()">Close</button>
     </div>
   </div>
 </div>
@@ -1004,6 +1065,31 @@ let hideReturned=false;
 let completedView=false;
 let _activeDupMap=new Map(); // recId -> {count,ids} — recomputed per render, MDR Active view only
 
+// QOL: collapsible SGI/MDR Notes columns (Q7-Q9). Q9: always starts expanded — on
+// purpose never read from or written to localStorage, so a fresh page load/reload
+// always shows both columns regardless of how they were left last time.
+let sgiColCollapsed=false, mdrColCollapsed=false;
+function toggleNotesCol(which){
+  if(which==='sgi') sgiColCollapsed=!sgiColCollapsed;
+  else if(which==='mdr') mdrColCollapsed=!mdrColCollapsed;
+  else { // 'both' — if either is currently open, close both; if both are already
+         // closed, open both. (Q7: center circle = both.)
+    const bothClosed = sgiColCollapsed && mdrColCollapsed;
+    sgiColCollapsed = !bothClosed;
+    mdrColCollapsed = !bothClosed;
+  }
+  applyNotesCollapse();
+}
+function applyNotesCollapse(){
+  const t=document.getElementById('mainTable'); if(!t) return;
+  t.classList.toggle('hide-sgi-notes', sgiColCollapsed);
+  t.classList.toggle('hide-mdr-notes', mdrColCollapsed);
+  const bSgi=document.getElementById('ntog-sgi'), bMdr=document.getElementById('ntog-mdr'), bBoth=document.getElementById('ntog-both');
+  if(bSgi) bSgi.classList.toggle('active', sgiColCollapsed);
+  if(bMdr) bMdr.classList.toggle('active', mdrColCollapsed);
+  if(bBoth) bBoth.classList.toggle('active', sgiColCollapsed && mdrColCollapsed);
+}
+
 // ══════════════════════════════════
 //  CHANGELOG / "WHAT'S NEW"
 // ══════════════════════════════════
@@ -1028,8 +1114,21 @@ let _activeDupMap=new Map(); // recId -> {count,ids} — recomputed per render, 
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-06-completed-tab-icons-OFFLINE';
+const BUILD = '2026-11-06-qol-batch-OFFLINE';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
+// Request: "Add an App Version label next to the logo and app title, top left." The
+// build string IS the version (see the note above CHANGELOG on why it's the one
+// source of truth) — shown as v + the date portion of BUILD, full string in the title
+// tooltip for anyone who needs the exact build tag. Script runs after the header HTML
+// above it, so the element already exists — no need to wait for DOMContentLoaded.
+(function initAppVersionLbl(){
+  const el=document.getElementById('appVersionLbl');
+  if(el){
+    const dateTag=BUILD.slice(0,10); // YYYY-MM-DD
+    el.textContent=`· v${dateTag}`;
+    el.title=`Build: ${BUILD}`;
+  }
+})();
 // ── OFFLINE DEMO BUILD ─────────────────────────────────────────────
 // This is a separate, standalone copy of index.html for local testing/demo use,
 // with no SharePoint/Microsoft sign-in dependency at all. OFFLINE_MODE=true
@@ -1040,6 +1139,28 @@ console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:b
 // Data lives only in this browser's localStorage; there is nothing to sync.
 const OFFLINE_MODE = true;
 const CHANGELOG = [
+  {
+    build:'2026-11-06-qol-batch',
+    date:'Nov 6, 2026',
+    items:[
+      'Pickup Date, Date Returned, and the Custom date range\'s Start/End fields are now typeable text boxes (accepts M/D/YYYY, MM/DD/YY, or YYYY-MM-DD; always displays as MM/DD/YYYY) with the calendar icon still there for picking a date the old way. Typing something that isn\'t a valid date reverts the field to its last good value instead of saving. The Late By Date and other calculated fields only recheck once you click/tab out of the field, not while you\'re still typing.',
+      'Reference numbers now display with a space after each comma ("126244, 35645" instead of "126244,35645") everywhere they\'re shown as a single line, including CSV exports. The underlying stored data, and Load Daily/Confirmed-Void matching, are unchanged. Search now also ignores spaces and commas in reference numbers, so searching "126244 35645" or "126244, 35645" still finds a record stored as "126244,35645".',
+      'SGI Notes and MDR Notes are now collapsible columns — use the ◀ / ⬤ / ▶ buttons in the header (left closes SGI, right closes MDR, center closes/opens both) to hide a notes column you\'re not using and free up table width. Both always start expanded on page load/reload; exports always include the full note text regardless of what\'s collapsed on screen.',
+      'Investigated the reported lag when zooming the browser in/out on a large table. Found and fixed a likely cause: resizing (including the burst of resize events a zoom triggers) was recalculating the table\'s sticky header position on every single event instead of once per zoom gesture.',
+      'Added a small app version label next to the logo/title (top-left) showing the current build date, so it\'s easy to confirm at a glance which version is loaded.',
+      'Moved the "Last Updated" timestamp so it now sits next to the SGI/MDR view toggle, in larger text, instead of being tucked into the legend below.',
+      'Note: the hover-to-copy buttons on Patient ID, name, Job #, and reference numbers are a live-site-only feature and are not included in this offline demo build.',
+    ]
+  },
+  {
+    build:'2026-11-06-completed-boxed-popup',
+    date:'Nov 6, 2026',
+    items:[
+      'The Completed tab\'s SGI and MDR Confirmed/Void columns now use the same boxed card styling as the Active dashboard\'s Pieces/Items column — each piece is its own colored box instead of a plain text line.',
+      'Fixed a shortage/overage coloring bug: an overage (received more than requested) was showing the same yellow border as a shortage. Shortage still shows yellow; overage now shows red, on both the Active dashboard and the Completed tab.',
+      'Completed tab rows now open a read-only detail popup when clicked (mirroring the Active dashboard\'s click-to-open behavior) — shows the full patient/job/date/match info plus the boxed SGI and MDR comparison, with no editable fields since Confirmed/Void records are sealed. Clicking the Merge button or a reference link still works normally without opening the popup.',
+    ]
+  },
   {
     build:'2026-11-06-completed-tab-icons',
     date:'Nov 6, 2026',
@@ -1469,7 +1590,7 @@ function exportReportCSV(){
     const pieces=(r.pieces||[]).map(p=>`${pieceAbbr(p)} ${p.name} ×${p.expectedQty}`).join('\n');
     lines.push([
       i+1, r.pickupDate?fmtDate(r.pickupDate):'', r.patientName||'', r.patientId||'', r.jobNum||'',
-      pieces, r.soIds||'', exportNotesText(r), yn(r.jobClosed), yn(r.noPickup), yn(r.verified)
+      pieces, displayRef(r.soIds), exportNotesText(r), yn(r.jobClosed), yn(r.noPickup), yn(r.verified)
     ].map(csvEsc).join(','));
   });
   const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
@@ -2245,6 +2366,88 @@ function normDate(s){
   return s;
 }
 
+// ══════════════════════════════════
+//  EDITABLE DATE FIELDS (QOL) — every non-locked date field is a text box you can
+//  type/paste into (Q4: Pickup Date, Date Returned, Custom range start/end, and any
+//  other unlocked date field), still with the calendar button beside it. Displays and
+//  accepts MM/DD/YYYY (also accepts M/D/YYYY, MM/DD/YY, or YYYY-MM-DD on input — Q5).
+//  Recalculation (Late By Date, Job Closed sync, etc.) only fires on blur / calendar
+//  pick, never on every keystroke while still in the field (Q5c).
+// ══════════════════════════════════
+function fmtDateFull(d){
+  if(!d) return '';
+  const c=d.toString().slice(0,10); const p=c.split('-');
+  if(p.length!==3) return '';
+  return `${p[1]}/${p[2]}/${p[0]}`;
+}
+// Q5b: text that can't be read as a real calendar date (stray text, a typo, an
+// impossible date like 13/45/2026) returns null — the caller rejects it and reverts,
+// no save.
+function parseFlexDate(raw){
+  if(!raw) return null;
+  const s=String(raw).trim();
+  if(!s) return null;
+  let y,mo,da;
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m){ y=+m[1]; mo=+m[2]; da=+m[3]; }
+  else {
+    m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if(!m) return null;
+    mo=+m[1]; da=+m[2];
+    y=+m[3];
+    if(m[3].length===2) y = y<70 ? 2000+y : 1900+y;
+  }
+  if(mo<1||mo>12||da<1||da>31||y<1900||y>2100) return null;
+  // Round-trip through Date() and check nothing rolled over — catches Feb 30, 13/45, etc.
+  const dt=new Date(y,mo-1,da);
+  if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==da) return null;
+  return String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(da).padStart(2,'0');
+}
+// Builds the text+calendar hybrid markup. `blurFn` is the name of a global function
+// taking (el) that will be called on blur with the field's own parse/revert logic.
+function dateFieldHtml(id, iso, blurFn, extraAttrs, extraInputClass){
+  const disp = iso ? fmtDateFull(iso) : '';
+  return `<span class="dfield">
+    <input type="text" class="dtext${extraInputClass?(' '+extraInputClass):''}" id="${id}" value="${esc(disp)}" placeholder="MM/DD/YYYY"
+      data-last-valid="${esc(iso||'')}" onblur="${blurFn}(this)" onkeydown="if(event.key==='Enter')this.blur()" ${extraAttrs||''}>
+    <button type="button" class="calbtn" onclick="openHiddenCal(event,'${id}')" title="Pick a date" tabindex="-1">📅</button>
+    <input type="date" id="${id}-cal" class="dhiddencal" value="${esc(iso||'')}" tabindex="-1" onchange="hiddenCalChanged('${id}','${blurFn}')">
+  </span>`;
+}
+function openHiddenCal(e,id){
+  e.stopPropagation(); e.preventDefault();
+  const cal=document.getElementById(id+'-cal'), txt=document.getElementById(id);
+  if(!cal) return;
+  if(txt) cal.value=parseFlexDate(txt.value)||'';
+  try{cal.showPicker();}catch(err){cal.focus();cal.click();}
+}
+function hiddenCalChanged(id,blurFn){
+  const cal=document.getElementById(id+'-cal'), txt=document.getElementById(id);
+  if(!cal||!txt) return;
+  txt.value = cal.value ? fmtDateFull(cal.value) : '';
+  txt.dataset.lastValid = cal.value||'';
+  window[blurFn](txt);
+}
+// Shared parse-or-revert used by every date field's blur handler.
+function commitDateText(el, applyFn){
+  const raw=el.value.trim();
+  if(raw===''){ el.dataset.lastValid=''; applyFn(''); return; }
+  const iso=parseFlexDate(raw);
+  if(iso===null){
+    const prev=el.dataset.lastValid||'';
+    el.value = prev?fmtDateFull(prev):'';
+    toast('Invalid date — reverted to the last valid value','e');
+    return;
+  }
+  el.dataset.lastValid=iso;
+  el.value=fmtDateFull(iso);
+  applyFn(iso);
+}
+function pickupDateBlur(el){ commitDateText(el, iso=>updateF(el.dataset.recid,'pickupDate',iso)); }
+function dateReturnedBlur(el){ commitDateText(el, iso=>dateRetChanged(el.dataset.recid,iso)); }
+function modalPickupDateBlur(el){ commitDateText(el, ()=>updateLateByPreview()); }
+function rangeDateBlur(el){ commitDateText(el, ()=>setRange()); }
+
 // Late By Date is calculated by the tracker, not read from any report — Pickup Date
 // plus 3 business days (Sat/Sun never count), period, no matter which weekday the
 // pickup falls on. Example: Fri pickup -> +3 business days -> Wed (calendar +5,
@@ -2401,8 +2604,19 @@ function esc(s){if(!s&&s!==0)return'';return String(s).replace(/&/g,'&amp;').rep
 // what's actually in view before the Status tab narrows it further.
 function baseFiltered(){
   const q=document.getElementById('searchQ').value.trim().toLowerCase();
+  // Q6c: Search ignores spaces/commas in reference numbers too, same as Load Daily/
+  // Load Confirmed-Void — so "126244, 35645" (copied from the display) and "126244 35645"
+  // both still find a record stored as "126244,35645". The plain (non-stripped) match
+  // above stays the primary path so ordinary multi-word searches (patient name, etc.)
+  // are untouched; this is only a fallback check against the reference numbers.
+  const qStripped=q.replace(/[,\s]+/g,'');
   return records.filter(r=>{
-    if(q&&!`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase().includes(q))return false;
+    if(q){
+      const haystack=`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase();
+      const refStripped=(r.soIds||'').replace(/[,\s]+/g,'').toLowerCase();
+      const matched = haystack.includes(q) || (qStripped && refStripped.includes(qStripped));
+      if(!matched) return false;
+    }
     // "Hide Overdue" toggle — on top of whatever Status filter is selected, drop rows
     // the live table is flashing red (late by date passed, not complete, not closed).
     if(hideOverdue && isOverdue(r)) return false;
@@ -2558,9 +2772,18 @@ function buildChips(){
   h+=`<button class="mc${customOpen?' active':''}" onclick="toggleCustomRange(this)">Custom</button>`;
   document.getElementById('mchips').innerHTML=h;
 }
+// Keeps a range date field's visible text, its data-last-valid, and its hidden
+// calendar input all in sync in one call — used everywhere the Custom range is
+// reset or restored programmatically (setMon, toggleCustomRange, clearRange, init).
+function setRangeFieldVal(id, iso){
+  const el=document.getElementById(id); if(!el) return;
+  el.value = iso ? fmtDateFull(iso) : '';
+  el.dataset.lastValid = iso||'';
+  const cal=document.getElementById(id+'-cal'); if(cal) cal.value=iso||'';
+}
 function setMon(m,btn){
   activeMon=m;rangeS='';rangeE='';
-  document.getElementById('rangeS').value='';document.getElementById('rangeE').value='';
+  setRangeFieldVal('rangeS',''); setRangeFieldVal('rangeE','');
   customOpen=false;
   const rg=document.getElementById('rangegrp'); if(rg) rg.style.display='none';
   document.querySelectorAll('.mc').forEach(b=>b.classList.remove('active'));
@@ -2576,7 +2799,7 @@ function toggleCustomRange(btn){
     if(rg) rg.style.display='flex';
   } else {
     rangeS='';rangeE='';
-    document.getElementById('rangeS').value='';document.getElementById('rangeE').value='';
+    setRangeFieldVal('rangeS',''); setRangeFieldVal('rangeE','');
     if(rg) rg.style.display='none';
     activeMon='all';
     buildChips();
@@ -2586,8 +2809,13 @@ function toggleCustomRange(btn){
   // sticky offset or the table can overlap/gap under it.
   setTimeout(updateStickyHeight, 0);
 }
+// Q4/Q5: the Custom range start/end are now text+calendar fields (see dateFieldHtml) —
+// parse the typed/pasted text (or the value a calendar pick just wrote) rather than
+// assuming it's already ISO.
 function setRange(){
-  rangeS=document.getElementById('rangeS').value;rangeE=document.getElementById('rangeE').value;
+  const sEl=document.getElementById('rangeS'), eEl=document.getElementById('rangeE');
+  rangeS = sEl&&sEl.value ? (parseFlexDate(sEl.value)||'') : '';
+  rangeE = eEl&&eEl.value ? (parseFlexDate(eEl.value)||'') : '';
   if(rangeS||rangeE){
     activeMon='';
     document.querySelectorAll('.mc').forEach(b=>b.classList.remove('active'));
@@ -2600,7 +2828,7 @@ function setRange(){
 }
 function clearRange(){
   rangeS='';rangeE='';
-  document.getElementById('rangeS').value='';document.getElementById('rangeE').value='';
+  setRangeFieldVal('rangeS',''); setRangeFieldVal('rangeE','');
   activeMon='all';
   customOpen=false;
   const rg=document.getElementById('rangegrp'); if(rg) rg.style.display='none';
@@ -2812,6 +3040,11 @@ function jobIsAllZero(rec, qtyList){
 // SGI entered) per Q1-a — it never grows a 3rd quantity. The MDR column only grows a
 // 3rd quantity (🚚/⚠️ + 🚨) when SGI's own entered amount disagrees with what Brightree's
 // Confirmed/Void CSV actually reported.
+// One boxed line, styled exactly like the Active dashboard's .pitem pieces — same
+// border/background color system (green=match, yellow=shortage/needs attention,
+// red=overage/investigate) — per "same exact CSS styling" request.
+function pbox(cls,html){ return `<div class="pitem ${cls}" style="margin-bottom:3px;">${html}</div>`; }
+
 function buildCompletedCompare(rec){
   const sgiPieces=rec.pieces||[];
   const mdrPieces=rec.resolvedPieces||[];
@@ -2833,18 +3066,18 @@ function buildCompletedCompare(rec){
 
     // ── SGI column: requested vs what SGI entered. Always 2 quantities. ──
     if(sgiAllZero){
-      sgiLines.push(`<div>🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0</div>`);
+      sgiLines.push(pbox('p-partial', `🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0`));
     } else if(rcv===null||rcv===undefined){
-      sgiLines.push(`<div>🛑${type}${p.fromSource?'🔒':'✍🏼'} [${name}] x${esc(req)} 🛑 🚨</div>`);
+      sgiLines.push(pbox('p-partial', `🛑${type}${p.fromSource?'🔒':'✍🏼'} [${name}] x${esc(req)} 🛑 🚨`));
       actions.push(`🛑 (SGI Columns) Please Investigate. [x${esc(req)} ${name}] Blank, verify with SGI the QTY.`);
     } else if(!p.fromSource){
-      sgiLines.push(`<div>✅${type}✍🏼 [${name}] x${esc(req)} ✍🏼 x${esc(rcv)}</div>`);
+      sgiLines.push(pbox('p-ok', `✅${type}✍🏼 [${name}] x${esc(req)} ✍🏼 x${esc(rcv)}`));
     } else if(rcv===req){
-      sgiLines.push(`<div>✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(rcv)}</div>`);
+      sgiLines.push(pbox('p-ok', `✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(rcv)}`));
     } else if(rcv<req){
-      sgiLines.push(`<div>✅${type}🔒 [${name}] x${esc(req)} 🔺 x${esc(rcv)}</div>`);
+      sgiLines.push(pbox('p-partial', `✅${type}🔒 [${name}] x${esc(req)} 🔺 x${esc(rcv)}`));
     } else {
-      sgiLines.push(`<div>✅${type}🔒 [${name}] x${esc(req)} 🔻 x${esc(rcv)}</div>`);
+      sgiLines.push(pbox('p-over', `✅${type}🔒 [${name}] x${esc(req)} 🔻 x${esc(rcv)}`));
     }
 
     // Claim the matching MDR-side piece (by type+name) so anything left over after this
@@ -2856,30 +3089,32 @@ function buildCompletedCompare(rec){
     // ── MDR column ──
     if(!mdrPiece){
       if(mdrAllZero){
-        mdrLines.push(`<div>🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0</div>`);
+        mdrLines.push(pbox('p-partial', `🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0`));
         actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
       } else {
-        mdrLines.push(`<div>🛑${type}🔒 [${name}] x${esc(req)} 🛑 x Removed</div>`);
+        mdrLines.push(pbox('p-partial', `🛑${type}🔒 [${name}] x${esc(req)} 🛑 x Removed`));
         actions.push(`🛑 (MDR Columns) [x${esc(req)} ${name}] was removed from order.`);
       }
       return;
     }
     const conf=mdrPiece.expectedQty;
-    let mline;
+    let mline, mcls;
     if(mdrAllZero){
-      mline=`🚫${type}🔒 [${name}] x${esc(req)} 🚫 x${esc(conf)}`;
+      mline=`🚫${type}🔒 [${name}] x${esc(req)} 🚫 x${esc(conf)}`; mcls='p-partial';
       actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
     } else if(conf===req){
-      mline=`✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(conf)}`;
+      mline=`✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(conf)}`; mcls='p-ok';
     } else if(conf<req){
-      mline=`✅${type}🔒 [${name}] x${esc(req)} ➕ x${esc(conf)}`;
+      mline=`✅${type}🔒 [${name}] x${esc(req)} ➕ x${esc(conf)}`; mcls='p-partial'; // shortage
       actions.push(`➕ Shortage - Please add [x${esc(req-conf)} ${name}] to Account for Inventory Corrections`);
     } else {
-      mline=`✅${type}🔒 [${name}] x${esc(req)} ➖ x${esc(conf)}`; // overage — no action needed
+      mline=`✅${type}🔒 [${name}] x${esc(req)} ➖ x${esc(conf)}`; mcls='p-over'; // overage — no action needed
     }
     // 3rd quantity: only when SGI's own entered amount disagrees with what Brightree
-    // confirmed (Q1-a) — otherwise the MDR column stays a 2-quantity line too.
+    // confirmed (Q1-a) — otherwise the MDR column stays a 2-quantity line too. This
+    // always wins the box color (red) since it's the most urgent state.
     if(rcv!==null&&rcv!==undefined&&rcv!==conf){
+      mcls='p-over';
       if(conf<rcv){
         mline+=` 🚚 x${esc(rcv)} 🚨`;
         actions.push(`🚚🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - less than stated.`);
@@ -2888,7 +3123,7 @@ function buildCompletedCompare(rec){
         actions.push(`⚠️🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - more than stated.`);
       }
     }
-    mdrLines.push(`<div>${mline}</div>`);
+    mdrLines.push(pbox(mcls, mline));
   });
 
   // Anything Brightree reported that was never matched to an SGI-side piece — added at
@@ -2896,7 +3131,7 @@ function buildCompletedCompare(rec){
   mdrPieces.forEach(p=>{
     if(usedMdr.has(p)) return;
     const type=esc(pieceAbbr(p)), name=esc(p.name), qty=p.expectedQty;
-    mdrLines.push(`<div>✅${type}✍🏼 [${name}] x${esc(qty)} ⁉️ x${esc(qty)}</div>`);
+    mdrLines.push(pbox('p-over', `✅${type}✍🏼 [${name}] x${esc(qty)} ⁉️ x${esc(qty)}`));
     actions.push(`✍🏼⁉️ Manually added - Please look for PURLs or existing PUEXs for [x${esc(qty)} ${name}]`);
   });
 
@@ -2931,12 +3166,12 @@ function renderCompletedTable(){
     const dupBadge = dup
       ? `<div style="margin-top:3px"><button class="btn btn-sm" style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records · Merge</button></div>`
       : '';
-    return `<tr class="${noMatch?'r-overdue':''}" data-id="${r.id}">
+    return `<tr class="${noMatch?'r-overdue':''} clickable-row" data-id="${r.id}" onclick="completedRowClick(event,'${r.id}')">
       <td>${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td><div>${esc(r.patientName)}</div><div style="font-size:10px;color:var(--text3)">${esc(r.patientId)}</div></td>
       <td>${esc(r.jobNum)||'—'}${dupBadge}</td>
-      <td>${cmp.sgiHtml}</td>
-      <td>${cmp.mdrHtml}</td>
+      <td class="pcell"><div class="plist">${cmp.sgiHtml}</div></td>
+      <td class="pcell"><div class="plist">${cmp.mdrHtml}</div></td>
       <td style="font-size:10px;line-height:1.4">${cmp.actionsHtml}</td>
       <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
       <td class="ctr">${cmp.totalQty}</td>
@@ -2944,6 +3179,54 @@ function renderCompletedTable(){
     </tr>`;
   }).join('');
 }
+
+// Opens the read-only detail popup unless the click landed on an interactive element
+// (the Merge button, a reference link) — same exclusion pattern as the Active
+// dashboard's rowClick().
+function completedRowClick(event,id){
+  const isInteractive = event.target.closest('button,a');
+  if(!isInteractive) openCompletedDetail(id);
+}
+
+function openCompletedDetail(id){
+  const r=records.find(x=>x.id===id); if(!r) return;
+  const cmp=buildCompletedCompare(r);
+  const noMatch=Array.isArray(r.matchReasons)&&r.matchReasons.length>0;
+  const matchHtml=noMatch
+    ? `<div style="color:var(--red);font-weight:700;">No Match</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">${r.matchReasons.map(esc).join('<br>')}</div>`
+    : `<span style="color:var(--green);font-weight:600;">1:1 Match</span>`;
+  document.getElementById('completedDetailBody').innerHTML = `
+    <div class="frow">
+      <div class="fg"><label class="flabel">Patient Name</label><div class="flocked"><span>🔒</span><span>${esc(r.patientName)||'—'}</span></div></div>
+      <div class="fg"><label class="flabel">Patient ID</label><div class="flocked"><span>🔒</span><span>${esc(r.patientId)||'—'}</span></div></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Job #</label><div class="flocked"><span>🔒</span><span>${esc(r.jobNum)||'—'}</span></div></div>
+      <div class="fg"><label class="flabel">Reference</label><div class="flocked" style="flex-wrap:wrap;height:auto;min-height:30px;"><div class="refcell">${renderRefLinks(r.soIds)}</div></div></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Pickup Date</label><div class="flocked"><span>🔒</span><span>${esc(fmtDate(r.pickupDate))||'—'}</span></div></div>
+      <div class="fg"><label class="flabel">Match</label><div class="flocked">${matchHtml}</div></div>
+    </div>
+    <div class="fg">
+      <label class="flabel">SGI <span style="color:var(--text3);font-size:9px">requested vs. what SGI entered</span></label>
+      <div class="plist">${cmp.sgiHtml}</div>
+    </div>
+    <div class="fg">
+      <label class="flabel">MDR Confirmed/Void <span style="color:var(--text3);font-size:9px">what Brightree reported</span></label>
+      <div class="plist">${cmp.mdrHtml}</div>
+    </div>
+    <div class="fg">
+      <label class="flabel">Actions <span style="color:var(--text3);font-size:9px">if any</span></label>
+      <div style="font-size:11px;line-height:1.5">${cmp.actionsHtml}</div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">SGI Notes</label><div class="flocked" style="white-space:pre-wrap;height:auto;min-height:30px;">${esc(r.sgiNotes)||'—'}</div></div>
+      <div class="fg"><label class="flabel">MDR Notes</label><div class="flocked" style="white-space:pre-wrap;height:auto;min-height:30px;">${esc(r.mdrNotes)||'—'}</div></div>
+    </div>`;
+  document.getElementById('completedDetailOverlay').classList.add('open');
+}
+function closeCompletedDetail(){ document.getElementById('completedDetailOverlay').classList.remove('open'); }
 
 function renderRow(r,rowNum){
   const status=rowStatus(r);
@@ -2960,15 +3243,13 @@ function renderRow(r,rowNum){
   // Reference always editable; show links below the input when value exists
   const refHtml=`<div class="refcell">${renderRefLinks(r.soIds)}</div>`;
 
-  // Pickup date cell
+  // Pickup date cell (Q4: text+calendar field when unlocked)
   const pickupHtml=isLocked(r,'pickupDate')
     ?`<div class="flock"><span class="li2">🔒</span><span class="lv">${esc(fmtDate(r.pickupDate))}</span></div>`
-    :`<input type="date" class="datepick" value="${esc(r.pickupDate||'')}" onclick="openCal(this)" onchange="updateF('${r.id}','pickupDate',this.value)">`;
+    :dateFieldHtml(`pd-${r.id}`, r.pickupDate, 'pickupDateBlur', `data-recid="${r.id}" onclick="event.stopPropagation()"`);
 
-  // Date returned — always editable; syncs with Job Closed
-  const retHtml=`<input type="date" class="datepick" value="${esc(r.dateReturned||'')}"
-    onclick="openCal(this)"
-    onchange="dateRetChanged('${r.id}',this.value)">`;
+  // Date returned — always editable; syncs with Job Closed (Q4).
+  const retHtml=dateFieldHtml(`dr-${r.id}`, r.dateReturned, 'dateReturnedBlur', `data-recid="${r.id}" onclick="event.stopPropagation()"`);
 
   // Late by date — calculated (Pickup Date + 3 business days), not editable by anyone.
   // See computeLateBy().
@@ -3017,11 +3298,12 @@ function renderRow(r,rowNum){
       </div>
       <span class="print-cb nopickup-p${r.noPickup?' checked-p':''}"></span>
     </td>
-    <td style="min-width:160px"><textarea class="ntxt${r.sgiNotes?' hv':''}" placeholder="SGI notes…"
+    <td class="no-print notes-toggle-td"></td>
+    <td class="col-sginotes" style="min-width:160px"><textarea class="ntxt${r.sgiNotes?' hv':''}" placeholder="SGI notes…"
       onchange="updateF('${r.id}','sgiNotes',this.value)"
       oninput="autoSize(this);this.classList.toggle('hv',this.value.length>0)"
       onclick="event.stopPropagation()">${esc(r.sgiNotes)}</textarea></td>
-    <td style="min-width:160px"><textarea class="ntxt${r.mdrNotes?' hv':''}" placeholder="MDR notes…"
+    <td class="col-mdrnotes" style="min-width:160px"><textarea class="ntxt${r.mdrNotes?' hv':''}" placeholder="MDR notes…"
       onchange="updateF('${r.id}','mdrNotes',this.value)"
       oninput="autoSize(this);this.classList.toggle('hv',this.value.length>0)"
       onclick="event.stopPropagation()"
@@ -3062,8 +3344,9 @@ function renderPcell(r){
   const items=r.pieces.map(p=>{
     const rcv=p.receivedQty!==null?p.receivedQty:'';
     const m=rcv!==''&&parseInt(rcv)===p.expectedQty;
-    const mm=rcv!==''&&parseInt(rcv)!==p.expectedQty;
-    const cls='pitem '+(p.checked?(mm?'p-partial':'p-ok'):'');
+    const isShort=rcv!==''&&parseInt(rcv)<p.expectedQty;
+    const isOver=rcv!==''&&parseInt(rcv)>p.expectedQty;
+    const cls='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
     const badge=pieceBadge(p);
     const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
     // Delete button only for logistics-added pieces (not from source)
@@ -3071,9 +3354,10 @@ function renderPcell(r){
       ?`<button class="prmbtn" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove">✕</button>`
       :'';
     const variance=pieceVariance(p);
+    // Short = yellow (matches p-partial border); Over = red (matches p-over border).
     const varLabel=p.fromSource&&rcv!==''&&variance!=='match'&&variance!=='uncounted'
-      ?`<span style="font-size:9px;font-weight:700;color:${variance==='shortage'?'var(--red)':'var(--green)'};">${variance==='shortage'?'SHORT':'OVER'}</span>`
-      :'';
+      ?`<span class="pvarlbl" style="font-size:9px;font-weight:700;color:${variance==='shortage'?'var(--yellow)':'var(--red)'};">${variance==='shortage'?'SHORT':'OVER'}</span>`
+      :`<span class="pvarlbl" style="display:none"></span>`;
     // Show expected qty in name for any item that has one — source or manually added
     const qtyTag=p.expectedQty?`<span style="font-size:9px;color:var(--text3);"> ×${p.expectedQty}</span>`:'';
     return`<div class="${cls.trim()}">
@@ -3082,7 +3366,7 @@ function renderPcell(r){
       <span class="pname2">${esc(nameWithoutSerial(p))}${qtyTag}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}</span>
       ${varLabel}
       <div class="qwrap">
-        <input type="number" class="qrcv${m?' qmatch':''}${mm?' qmis':''}" value="${rcv}" min="0"
+        <input type="number" class="qrcv${m?' qmatch':''}${isShort?' qshort':''}${isOver?' qover':''}" value="${rcv}" min="0"
           placeholder="${p.expectedQty||''}"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">
       </div>
@@ -3135,8 +3419,10 @@ function jobClosedChanged(id, checked){
     rec.dateReturned=tod();
     const tr=document.querySelector(`tr[data-id="${id}"]`);
     if(tr){
-      const inp=tr.querySelector('.ret-cell input.datepick');
-      if(inp)inp.value=rec.dateReturned;
+      const inp=tr.querySelector('.ret-cell input.dtext');
+      if(inp){ inp.value=fmtDateFull(rec.dateReturned); inp.dataset.lastValid=rec.dateReturned; }
+      const cal=tr.querySelector('.ret-cell input.dhiddencal');
+      if(cal) cal.value=rec.dateReturned;
       const drc=tr.querySelector('.ret-cell');
       if(drc)drc.classList.add('has-date');
     }
@@ -3144,8 +3430,10 @@ function jobClosedChanged(id, checked){
     rec.dateReturned='';
     const tr=document.querySelector(`tr[data-id="${id}"]`);
     if(tr){
-      const inp=tr.querySelector('.ret-cell input.datepick');
-      if(inp)inp.value='';
+      const inp=tr.querySelector('.ret-cell input.dtext');
+      if(inp){ inp.value=''; inp.dataset.lastValid=''; }
+      const cal=tr.querySelector('.ret-cell input.dhiddencal');
+      if(cal) cal.value='';
       const drc=tr.querySelector('.ret-cell');
       if(drc)drc.classList.remove('has-date');
     }
@@ -3172,8 +3460,10 @@ function noPickupChanged(id, checked){
   if(tr){
     const pcell=tr.querySelector('.pcell');
     if(pcell)pcell.innerHTML=renderPcell(rec);
-    const retInp=tr.querySelector('.ret-cell input.datepick');
-    if(retInp)retInp.value=rec.dateReturned||'';
+    const retInp=tr.querySelector('.ret-cell input.dtext');
+    if(retInp){ retInp.value=rec.dateReturned?fmtDateFull(rec.dateReturned):''; retInp.dataset.lastValid=rec.dateReturned||''; }
+    const retCal=tr.querySelector('.ret-cell input.dhiddencal');
+    if(retCal) retCal.value=rec.dateReturned||'';
     const retCell=tr.querySelector('.ret-cell');
     if(retCell)retCell.classList.toggle('has-date',!!rec.dateReturned);
     const jcCb=tr.querySelector('.cb-jobclosed');
@@ -3212,8 +3502,10 @@ function togglePiece(rid,pid,checked){
     rec.jobClosed=true;
     const tr=document.querySelector(`tr[data-id="${rid}"]`);
     if(tr){
-      const retInp=tr.querySelector('.ret-cell input.datepick');
-      if(retInp)retInp.value=rec.dateReturned;
+      const retInp=tr.querySelector('.ret-cell input.dtext');
+      if(retInp){ retInp.value=fmtDateFull(rec.dateReturned); retInp.dataset.lastValid=rec.dateReturned; }
+      const retCal=tr.querySelector('.ret-cell input.dhiddencal');
+      if(retCal) retCal.value=rec.dateReturned;
       const retCell=tr.querySelector('.ret-cell');
       if(retCell)retCell.classList.add('has-date');
       const jcCb=tr.querySelector('.cb-jobclosed');
@@ -3243,12 +3535,21 @@ function updatePieceQty(rid,pid,val){
 function refreshPiece(rec,p){
   const cb=document.querySelector(`input.pcb[onchange*="'${p.id}'"]`);if(!cb)return;
   const item=cb.closest('.pitem');if(!item)return;
-  item.className='pitem '+(p.checked?(p.receivedQty!==null&&p.receivedQty!==p.expectedQty?'p-partial':'p-ok'):'');
+  const isShort=p.receivedQty!==null&&p.receivedQty<p.expectedQty;
+  const isOver=p.receivedQty!==null&&p.receivedQty>p.expectedQty;
+  item.className='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
   const qi=item.querySelector('.qrcv');
   if(qi){
     qi.value=p.receivedQty!==null?p.receivedQty:'';
     qi.classList.toggle('qmatch',p.receivedQty!==null&&p.receivedQty===p.expectedQty);
-    qi.classList.toggle('qmis',p.receivedQty!==null&&p.receivedQty!==p.expectedQty);
+    qi.classList.toggle('qshort',isShort);
+    qi.classList.toggle('qover',isOver);
+  }
+  const lbl=item.querySelector('.pvarlbl');
+  if(lbl){
+    if(isShort){ lbl.textContent='SHORT'; lbl.style.color='var(--yellow)'; lbl.style.display=''; }
+    else if(isOver){ lbl.textContent='OVER'; lbl.style.color='var(--red)'; lbl.style.display=''; }
+    else { lbl.style.display='none'; }
   }
 }
 
@@ -3295,8 +3596,10 @@ function toggleAll(rid){
   const tr=document.querySelector(`tr[data-id="${rid}"]`);
   if(tr){
     const td=tr.querySelector('.pcell');if(td)td.innerHTML=renderPcell(rec);
-    const retInp=tr.querySelector('.ret-cell input.datepick');
-    if(retInp)retInp.value=rec.dateReturned||'';
+    const retInp=tr.querySelector('.ret-cell input.dtext');
+    if(retInp){ retInp.value=rec.dateReturned?fmtDateFull(rec.dateReturned):''; retInp.dataset.lastValid=rec.dateReturned||''; }
+    const retCal=tr.querySelector('.ret-cell input.dhiddencal');
+    if(retCal) retCal.value=rec.dateReturned||'';
     const retCell=tr.querySelector('.ret-cell');
     if(retCell)retCell.classList.toggle('has-date',!!rec.dateReturned);
     const jcCb=tr.querySelector('.cb-jobclosed');
@@ -3390,16 +3693,26 @@ function setModalField(fname,rec){
   const lockDiv=document.getElementById(`m-${fname}-lock`);
   const inp=document.getElementById(`m-${fname}`);
   if(!lockDiv||!inp)return;
+  // Pickup Date's visible/hidden toggle is on the whole text+calendar wrapper, not just
+  // the inner text input (showing only the text input would orphan the calendar button).
+  const toggleEl=fname==='pickupDate'?(document.getElementById('m-pickupDate-wrap')||inp):inp;
   const locked=rec&&isLocked(rec,fname);
   if(locked){
     lockDiv.style.display='flex';
-    document.getElementById(`m-${fname}-lockval`).textContent=
-      fname==='pickupDate'?fmtDate(rec[fname]):(rec[fname]||'—');
-    inp.style.display='none';
+    const rawVal=fname==='pickupDate'?fmtDate(rec[fname]):(rec[fname]||'');
+    document.getElementById(`m-${fname}-lockval`).textContent=rawVal||'—';
+    toggleEl.style.display='none';
   } else {
     lockDiv.style.display='none';
-    inp.style.display='';
-    inp.value=rec?rec[fname]||'':'';
+    toggleEl.style.display='';
+    if(fname==='pickupDate'){
+      const iso=rec?rec[fname]||'':'';
+      inp.value=iso?fmtDateFull(iso):'';
+      inp.dataset.lastValid=iso;
+      const cal=document.getElementById('m-pickupDate-cal'); if(cal) cal.value=iso;
+    } else {
+      inp.value=rec?rec[fname]||'':'';
+    }
   }
 }
 
@@ -3413,7 +3726,14 @@ function openAddModal(){
     const ld=document.getElementById(`m-${f}-lock`);
     const inp=document.getElementById(`m-${f}`);
     if(ld)ld.style.display='none';
-    if(inp){inp.style.display='';inp.value='';}
+    if(f==='pickupDate'){
+      const wrap=document.getElementById('m-pickupDate-wrap');
+      if(wrap)wrap.style.display='';
+      if(inp){ inp.value=''; inp.dataset.lastValid=''; }
+      const cal=document.getElementById('m-pickupDate-cal'); if(cal) cal.value='';
+    } else if(inp){
+      inp.style.display='';inp.value='';
+    }
   });
   // jobNum + soIds always editable
   ['m-jobNum','m-soIds'].forEach(id=>{
@@ -4037,6 +4357,15 @@ function normalizeRef(s){
   return s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim();
 }
 
+// Q6/Q6b: display-only — stored data stays "126244,35645" (no change to SharePoint or
+// Load Daily/Confirmed-Void matching), but anywhere the raw comma-joined string is shown
+// as a single line (CSV export, the Reference field read-out), add a space after each
+// comma so each number is easier to select.
+function displayRef(soIds){
+  if(!soIds) return soIds||'';
+  return soIds.replace(/,\s*/g,', ');
+}
+
 // Keeps the read-only Late By Date display in the Add/Edit modal in sync with
 // whatever Pickup Date is currently in the form — called on open, on reset, and
 // whenever Pickup Date changes. Never writes to a record; saveModal() recomputes
@@ -4045,10 +4374,11 @@ function updateLateByPreview(){
   const el=document.getElementById('m-dropOffBy-display');
   if(!el) return;
   const inp=document.getElementById('m-pickupDate');
+  const wrap=document.getElementById('m-pickupDate-wrap');
   // Pickup Date is locked (hidden input) for most existing records — read the real
   // value off the record itself rather than a hidden, possibly-stale input.
-  const pd = (inp && inp.style.display!=='none')
-    ? inp.value
+  const pd = (inp && wrap && wrap.style.display!=='none')
+    ? (parseFlexDate(inp.value)||'')
     : (editId ? (records.find(r=>r.id===editId)?.pickupDate||'') : '');
   const lb=computeLateBy(pd);
   el.textContent = lb ? fmtDate(lb) : '—';
@@ -4056,7 +4386,17 @@ function updateLateByPreview(){
 
 function saveModal(){
   const isNew=!editId;
-  const gv=id=>{const el=document.getElementById(id);return el&&el.style.display!=='none'?el.value.trim():'';}
+  const gv=id=>{
+    const el=document.getElementById(id);
+    if(!el) return '';
+    // Pickup Date's visible/hidden state lives on its text+calendar wrapper now, not
+    // the input itself (see setModalField()).
+    const visEl = id==='m-pickupDate' ? (document.getElementById('m-pickupDate-wrap')||el) : el;
+    if(visEl.style.display==='none') return '';
+    const raw=el.value.trim();
+    // Any editable date field (Q4/Q5) parses its typed/pasted text to canonical ISO here.
+    return el.classList.contains('dtext') ? (parseFlexDate(raw)||'') : raw;
+  }
   const getLocked=field=>{
     if(editId){const rec=records.find(r=>r.id===editId);if(rec&&isLocked(rec,field))return rec[field]||'';}
     return'';
@@ -5007,6 +5347,9 @@ function applyBranding(role){
   const title = document.querySelector('.apptitle');
   const sub = document.querySelector('.appsub');
   const html = document.documentElement;
+  // Preserve the App Version label: sub.textContent below would otherwise wipe out
+  // the <span id="appVersionLbl"> living inside .appsub.
+  const verLbl = document.getElementById('appVersionLbl');
   if(badge && _mdrLogoHTML===null) _mdrLogoHTML = badge.innerHTML;
 
   if(role === 'sgi'){
@@ -5014,7 +5357,7 @@ function applyBranding(role){
     if(badge) badge.innerHTML = `<img src="data:image/png;base64,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" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">`;
     if(badge) badge.style.background = 'transparent';
     if(title) title.textContent = 'SGI Logistics Portal';
-    if(sub) sub.textContent = 'Exchange & Pickup Tracker';
+    if(sub){ sub.textContent = 'Exchange & Pickup Tracker'; if(verLbl){ sub.appendChild(document.createTextNode(' ')); sub.appendChild(verLbl); } }
     html.setAttribute('data-brand','sgi');
     // Ensure theme attribute is set (triggers SGI CSS vars)
     if(!html.getAttribute('data-theme')) html.setAttribute('data-theme','dark');
@@ -5027,7 +5370,7 @@ function applyBranding(role){
       badge.style.background = 'transparent';
     }
     if(title) title.textContent = 'Exchange Tracker';
-    if(sub) sub.textContent = 'Pickup & Exchange Management';
+    if(sub){ sub.textContent = 'Pickup & Exchange Management'; if(verLbl){ sub.appendChild(document.createTextNode(' ')); sub.appendChild(verLbl); } }
     html.removeAttribute('data-brand');
   }
 }
@@ -5287,6 +5630,18 @@ function updateStickyHeight(){
     document.body.style.paddingTop = h + 'px';
   }
 }
+// Q10 (zoom lag investigation): browser zoom (Ctrl +/- or pinch) fires a BURST of
+// 'resize' events while it animates, not just one at the end. Calling
+// updateStickyHeight() on every single one forces a synchronous layout read
+// (offsetHeight) immediately followed by a layout-affecting write (paddingTop) on
+// every tick — classic reflow thrashing, and it gets slower the more rows/columns
+// the table has, matching "lag when zooming... a large table with many columns."
+// rAF-coalescing collapses that burst down to once per actual animation frame.
+let _stickyRaf=null;
+function updateStickyHeightDebounced(){
+  if(_stickyRaf) cancelAnimationFrame(_stickyRaf);
+  _stickyRaf = requestAnimationFrame(()=>{ _stickyRaf=null; updateStickyHeight(); });
+}
 
 window.addEventListener('DOMContentLoaded', () => {
   // Build marker now lives up top, right next to BUILD/CHANGELOG — see that block.
@@ -5302,9 +5657,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // _defaultRangeStart/_defaultRangeEnd near the top of the script) in the date-range UI
   // on first paint, since the inputs have no value until JS sets one.
   (()=>{
-    const rs=document.getElementById('rangeS'), re=document.getElementById('rangeE'), rg=document.getElementById('rangegrp');
-    if(rs) rs.value=rangeS;
-    if(re) re.value=rangeE;
+    const rg=document.getElementById('rangegrp');
+    setRangeFieldVal('rangeS',rangeS);
+    setRangeFieldVal('rangeE',rangeE);
     if(rg) rg.style.display='flex';
   })();
   renderLastUpdated();
@@ -5316,7 +5671,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   // Set thead sticky top to match sticky-top wrapper height
   setTimeout(updateStickyHeight, 100);
-  window.addEventListener('resize', updateStickyHeight);
+  window.addEventListener('resize', updateStickyHeightDebounced);
   if(OFFLINE_MODE){
     showOfflineRolePicker();
   } else if(window.location.protocol !== 'file:'){
