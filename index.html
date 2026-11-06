@@ -601,11 +601,12 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   </div>
 </div>
 
-<!-- COMPLETED TAB (MDR-only) — sealed, read-only comparison of what SGI selected
-     (left "Pieces / Items" column, from rec.pieces — never touched by a Confirmed/Void
-     import) vs. what that Confirmed/Void CSV itself reported (right "Pieces / Items"
-     column, from rec.resolvedPieces). No checkboxes, no inputs, no Select All — every
-     cell here is plain text. See toggleCompletedView() / renderCompletedTable(). -->
+<!-- COMPLETED TAB (MDR-only) — sealed, read-only icon-based comparison of what SGI
+     entered (SGI column, from rec.pieces — never touched by a Confirmed/Void import)
+     vs. what that Confirmed/Void CSV itself reported (MDR column, from
+     rec.resolvedPieces), plus an Actions column summarizing anything that needs
+     follow-up. No checkboxes, no inputs, no Select All — every cell here is plain text.
+     See toggleCompletedView() / buildCompletedCompare() / renderCompletedTable(). -->
 <div class="twrap" id="completedWrap" style="display:none">
   <table>
     <thead>
@@ -613,8 +614,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:120px">Pickup Date</th>
         <th style="min-width:140px">Patient</th>
         <th style="min-width:90px">Job #</th>
-        <th style="min-width:160px">Pieces / Items<br><span style="font-size:9px;color:var(--text3);font-weight:400">(SGI selected)</span></th>
-        <th style="min-width:160px">Pieces / Items<br><span style="font-size:9px;color:var(--text3);font-weight:400">(Confirmed / Voided)</span></th>
+        <th style="min-width:180px">SGI<br><span style="font-size:9px;color:var(--text3);font-weight:400">requested vs. what SGI entered</span></th>
+        <th style="min-width:200px">MDR Confirmed/Void<br><span style="font-size:9px;color:var(--text3);font-weight:400">what Brightree reported</span></th>
+        <th style="min-width:180px">Actions<br><span style="font-size:9px;color:var(--text3);font-weight:400">if any</span></th>
         <th style="min-width:120px">Reference</th>
         <th class="ctr" style="min-width:90px">Total Qty<br><span style="font-size:9px;color:var(--text3);font-weight:400">Confirmed/Voided</span></th>
         <th style="min-width:120px">Match</th>
@@ -1000,6 +1002,7 @@ let hideReturned=false;
 // are fully resolved and sealed, so they never show in "All Active" (see baseFiltered())
 // and instead live on this separate, read-only view. Toggled by toggleCompletedView().
 let completedView=false;
+let _activeDupMap=new Map(); // recId -> {count,ids} — recomputed per render, MDR Active view only
 
 // ══════════════════════════════════
 //  CHANGELOG / "WHAT'S NEW"
@@ -1025,9 +1028,18 @@ let completedView=false;
 //   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
 //      automatically, so it never needs editing itself, but it's WHY BUILD must
 //      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-04-completed-tab';
+const BUILD = '2026-11-06-completed-tab-icons';
 console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
 const CHANGELOG = [
+  {
+    build:'2026-11-06-completed-tab-icons',
+    date:'Nov 6, 2026',
+    items:[
+      'Fixed: the Completed tab\'s MDR column and Total Qty went blank (and every row read "1:1 Match") after any reload. ResolvedPieces and MatchReasons were only ever saved to the browser\'s own cache, never to SharePoint — they now round-trip through 2 new SharePoint columns (ResolvedPieces, MatchReasons). See the README for the one-time SharePoint setup step this needs.',
+      'Completed tab redesigned: the two plain-text piece columns are now icon-based (✅🔒🏷️🔺🔻✍🏼🚫🛑⁉️🚚➕➖⚠️🚨) and clearly labeled SGI vs. MDR Confirmed/Void, plus a new Actions column that spells out what (if anything) needs follow-up on each piece. A clean row with nothing to fix reads "🏷️ Exact Match".',
+      'Duplicate SharePoint records (same patient + Job #) are now flagged with a "⧉ N records · Merge" button, on both the Completed tab and the Active view — merging combines notes, pieces, and reference numbers onto one record and permanently deletes the other(s) from SharePoint.',
+    ]
+  },
   {
     build:'2026-11-04-completed-tab',
     date:'Nov 4, 2026',
@@ -1765,6 +1777,118 @@ function showRebookModal(list){
 function closeRebookModal(){
   const ov=document.getElementById('rebookOverlay');
   if(ov) ov.classList.remove('open');
+}
+
+// ══════════════════════════════════
+//  IDENTITY / MATCH HELPERS (shared by Load Confirmed/Void and duplicate detection)
+// ══════════════════════════════════
+function normName(s){
+  return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+}
+function normIdStr(s){
+  return (s==null?'':String(s)).trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,'');
+}
+function refTokens(s){
+  return new Set((s||'').toLowerCase().split(/[\s,;|\/]+/).map(t=>normIdStr(t)).filter(Boolean));
+}
+function patientMatch(aName,aId,bName,bId){
+  const idA=normIdStr(aId), idB=normIdStr(bId);
+  if(idA && idB) return idA===idB;
+  const nA=normName(aName);
+  return !!nA && nA===normName(bName);
+}
+function refOverlap(aSet,bSet){
+  if(!aSet.size||!bSet.size) return false;
+  for(const t of aSet) if(bSet.has(t)) return true;
+  return false;
+}
+
+// ══════════════════════════════════
+//  DUPLICATE RECORDS (same patient + same Job #) — Completed tab AND Active view.
+//  See the "Completed Tab Fixes & Questions" doc, Q3/Q4 (confirmed: manage on both).
+// ══════════════════════════════════
+function dupGroupKey(r){
+  const job=normIdStr(r.jobNum);
+  if(!job) return null; // nothing to group on without a Job #
+  const pid=normIdStr(r.patientId);
+  return (pid||normName(r.patientName))+'||'+job;
+}
+// Returns an array of groups (each an array of 2+ records) found within `recs`.
+function findDuplicateGroups(recs){
+  const map=new Map();
+  recs.forEach(r=>{
+    const k=dupGroupKey(r);
+    if(!k) return;
+    if(!map.has(k)) map.set(k,[]);
+    map.get(k).push(r);
+  });
+  const groups=[];
+  map.forEach(arr=>{ if(arr.length>1) groups.push(arr); });
+  return groups;
+}
+// recId -> {count, otherIds} for every record that's part of a duplicate group, so a
+// row can show a small "N records" badge without recomputing the whole thing per-row.
+function dupMembershipMap(recs){
+  const m=new Map();
+  findDuplicateGroups(recs).forEach(group=>{
+    const ids=group.map(r=>r.id);
+    group.forEach(r=>m.set(r.id,{count:ids.length, ids}));
+  });
+  return m;
+}
+function pieceMatchKey(p){ return (p.type||'')+'|'+String(p.name||'').trim().toLowerCase(); }
+
+// Merges `otherIds` into `keeperId`: pieces and resolvedPieces are unioned (keeper's own
+// pieces win on a name/type clash), notes are concatenated when they differ, reference
+// numbers are combined, then every other record is permanently deleted — locally and on
+// SharePoint via the app's existing delete path. This is a real, irreversible delete; see
+// the Completed Tab Fixes & Questions doc, Q3/Q4 answer, before wiring up a new caller.
+function mergeDuplicateRecords(keeperId, otherIds){
+  const keeper=records.find(r=>r.id===keeperId);
+  if(!keeper) return;
+  otherIds.forEach(id=>{
+    if(id===keeperId) return;
+    const other=records.find(r=>r.id===id);
+    if(!other) return;
+    if(other.sgiNotes && other.sgiNotes.trim() && other.sgiNotes.trim()!==(keeper.sgiNotes||'').trim()){
+      keeper.sgiNotes=[keeper.sgiNotes,other.sgiNotes].filter(Boolean).join(' | ');
+    }
+    if(other.mdrNotes && other.mdrNotes.trim() && other.mdrNotes.trim()!==(keeper.mdrNotes||'').trim()){
+      keeper.mdrNotes=[keeper.mdrNotes,other.mdrNotes].filter(Boolean).join(' | ');
+    }
+    const haveKeys=new Set((keeper.pieces||[]).map(pieceMatchKey));
+    (other.pieces||[]).forEach(p=>{ if(!haveKeys.has(pieceMatchKey(p))){ keeper.pieces=(keeper.pieces||[]).concat([p]); haveKeys.add(pieceMatchKey(p)); } });
+    const haveRKeys=new Set((keeper.resolvedPieces||[]).map(pieceMatchKey));
+    (other.resolvedPieces||[]).forEach(p=>{ if(!haveRKeys.has(pieceMatchKey(p))){ keeper.resolvedPieces=(keeper.resolvedPieces||[]).concat([p]); haveRKeys.add(pieceMatchKey(p)); } });
+    if(!keeper.soIds || !keeper.soIds.trim()) keeper.soIds=other.soIds||'';
+    else if(other.soIds && !keeper.soIds.includes(other.soIds)) keeper.soIds=keeper.soIds+', '+other.soIds;
+  });
+  saveRecs(keeper);
+  otherIds.forEach(id=>{ if(id!==keeperId) deleteRecordLocalAndSP(id); });
+  renderTable();
+  toast('Duplicate records merged','s');
+}
+// Picks the "keeper" out of a duplicate group: prefer one with resolvedPieces already
+// on it (so a Completed-tab merge doesn't lose the Confirmed/Void match), otherwise the
+// one with the most pieces, otherwise just the first.
+function pickMergeKeeper(group){
+  let best=group[0];
+  group.forEach(r=>{
+    const rHasResolved=(r.resolvedPieces||[]).length>0, bHasResolved=(best.resolvedPieces||[]).length>0;
+    if(rHasResolved && !bHasResolved) best=r;
+    else if(rHasResolved===bHasResolved && (r.pieces||[]).length>(best.pieces||[]).length) best=r;
+  });
+  return best;
+}
+// MDR-only — called from a "Merge" badge on either the Active view or the Completed tab.
+function mergeDuplicatesFor(recId){
+  const group=findDuplicateGroups(records).find(g=>g.some(r=>r.id===recId));
+  if(!group || group.length<2){ toast('No duplicate found for this record','e'); return; }
+  const keeper=pickMergeKeeper(group);
+  const others=group.filter(r=>r.id!==keeper.id);
+  const label=`${keeper.patientName||'this patient'} — Job #${keeper.jobNum||'—'}`;
+  if(!confirm(`Merge ${group.length} duplicate records for ${label}?\n\nNotes and pieces from all copies are combined onto one record. The other ${others.length} record(s) are permanently deleted from SharePoint. This cannot be undone.`)) return;
+  mergeDuplicateRecords(keeper.id, others.map(r=>r.id));
 }
 
 // ══════════════════════════════════
@@ -2609,6 +2733,10 @@ function renderTable(){
   const searchActive=!!document.getElementById('searchQ').value.trim();
   const visibleRows=searchActive?rows:rows.slice(0,tableRenderLimit);
 
+  // MDR only — Q3/Q4 (confirmed): manage duplicates on both tabs. Computed once per
+  // render rather than per-row; see dupMembershipMap()/mergeDuplicatesFor().
+  _activeDupMap = isMDR() ? dupMembershipMap(visibleRows) : new Map();
+
   tbody.innerHTML=visibleRows.map((r,i)=>renderRow(r,i+1)).join('');
   renderStats();
   // Re-apply role UI after DOM rebuild so hidden columns stay hidden
@@ -2663,18 +2791,124 @@ function setupTableLazyLoad(totalCount, shownCount, searchActive){
 
 // ══════════════════════════════════
 //  COMPLETED TAB (MDR-only, read-only) — see toggleCompletedView()
+//  Icon-based 3-column piece comparison (SGI / MDR Confirmed-Void / Actions).
+//  Rules below are exactly what's confirmed in the "Completed Tab Fixes & Questions"
+//  doc, Q1 (plus the Q1-a/b/c follow-up answers). Nothing here is clickable — these
+//  records are sealed; it's plain text summarizing what already happened.
 // ══════════════════════════════════
-// qtyField picks which quantity to show: 'expectedQty' for the left "SGI selected"
-// column (what was ordered), 'receivedQty' for the right "Confirmed / Voided" column
-// (what that Confirmed/Void CSV row itself reported — 0 for Void, the confirmed qty
-// for Confirmed). Plain text only, nothing clickable — these records are sealed.
-function completedPieceText(pieces,qtyField){
-  if(!pieces||!pieces.length) return '<span style="color:var(--text3)">No items</span>';
-  return pieces.map(p=>{
-    const qty = p[qtyField]!=null ? p[qtyField] : p.expectedQty;
-    return `<div>${esc(pieceAbbr(p))} ${esc(p.name)} ×${esc(qty)}</div>`;
-  }).join('');
+
+// Whole job came back zero / No Pickup — the ONLY case that gets 🚫 instead of being
+// read as an individual shortage/overage. `qtyList` must be every piece's own qty with
+// nulls left as null (a null/unverified piece must never silently count as "zero").
+function jobIsAllZero(rec, qtyList){
+  if(rec.noPickup) return true;
+  if(!qtyList.length) return false;
+  return qtyList.every(q=>q!=null && Number(q)===0);
 }
+
+// Builds the SGI column, the MDR Confirmed/Void column, and the Actions column for one
+// Completed-tab row. SGI column is always a simple 2-quantity line (requested vs what
+// SGI entered) per Q1-a — it never grows a 3rd quantity. The MDR column only grows a
+// 3rd quantity (🚚/⚠️ + 🚨) when SGI's own entered amount disagrees with what Brightree's
+// Confirmed/Void CSV actually reported.
+function buildCompletedCompare(rec){
+  const sgiPieces=rec.pieces||[];
+  const mdrPieces=rec.resolvedPieces||[];
+  const mdrByKey=new Map();
+  mdrPieces.forEach(p=>{
+    const k=pieceMatchKey(p);
+    if(!mdrByKey.has(k)) mdrByKey.set(k,[]);
+    mdrByKey.get(k).push(p);
+  });
+  const usedMdr=new Set();
+  const sgiAllZero=jobIsAllZero(rec, sgiPieces.map(p=>p.receivedQty));
+  const mdrAllZero=jobIsAllZero(rec, mdrPieces.map(p=>p.expectedQty));
+
+  const sgiLines=[], mdrLines=[], actions=[];
+
+  sgiPieces.forEach(p=>{
+    const req=p.expectedQty, rcv=p.receivedQty;
+    const type=esc(pieceAbbr(p)), name=esc(p.name);
+
+    // ── SGI column: requested vs what SGI entered. Always 2 quantities. ──
+    if(sgiAllZero){
+      sgiLines.push(`<div>🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0</div>`);
+    } else if(rcv===null||rcv===undefined){
+      sgiLines.push(`<div>🛑${type}${p.fromSource?'🔒':'✍🏼'} [${name}] x${esc(req)} 🛑 🚨</div>`);
+      actions.push(`🛑 (SGI Columns) Please Investigate. [x${esc(req)} ${name}] Blank, verify with SGI the QTY.`);
+    } else if(!p.fromSource){
+      sgiLines.push(`<div>✅${type}✍🏼 [${name}] x${esc(req)} ✍🏼 x${esc(rcv)}</div>`);
+    } else if(rcv===req){
+      sgiLines.push(`<div>✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(rcv)}</div>`);
+    } else if(rcv<req){
+      sgiLines.push(`<div>✅${type}🔒 [${name}] x${esc(req)} 🔺 x${esc(rcv)}</div>`);
+    } else {
+      sgiLines.push(`<div>✅${type}🔒 [${name}] x${esc(req)} 🔻 x${esc(rcv)}</div>`);
+    }
+
+    // Claim the matching MDR-side piece (by type+name) so anything left over after this
+    // loop is a piece Brightree reported that was never on the SGI side at all.
+    const bucket=mdrByKey.get(pieceMatchKey(p));
+    const mdrPiece=bucket&&bucket.length?bucket.shift():null;
+    if(mdrPiece) usedMdr.add(mdrPiece);
+
+    // ── MDR column ──
+    if(!mdrPiece){
+      if(mdrAllZero){
+        mdrLines.push(`<div>🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0</div>`);
+        actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
+      } else {
+        mdrLines.push(`<div>🛑${type}🔒 [${name}] x${esc(req)} 🛑 x Removed</div>`);
+        actions.push(`🛑 (MDR Columns) [x${esc(req)} ${name}] was removed from order.`);
+      }
+      return;
+    }
+    const conf=mdrPiece.expectedQty;
+    let mline;
+    if(mdrAllZero){
+      mline=`🚫${type}🔒 [${name}] x${esc(req)} 🚫 x${esc(conf)}`;
+      actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
+    } else if(conf===req){
+      mline=`✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(conf)}`;
+    } else if(conf<req){
+      mline=`✅${type}🔒 [${name}] x${esc(req)} ➕ x${esc(conf)}`;
+      actions.push(`➕ Shortage - Please add [x${esc(req-conf)} ${name}] to Account for Inventory Corrections`);
+    } else {
+      mline=`✅${type}🔒 [${name}] x${esc(req)} ➖ x${esc(conf)}`; // overage — no action needed
+    }
+    // 3rd quantity: only when SGI's own entered amount disagrees with what Brightree
+    // confirmed (Q1-a) — otherwise the MDR column stays a 2-quantity line too.
+    if(rcv!==null&&rcv!==undefined&&rcv!==conf){
+      if(conf<rcv){
+        mline+=` 🚚 x${esc(rcv)} 🚨`;
+        actions.push(`🚚🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - less than stated.`);
+      } else {
+        mline+=` ⚠️ x${esc(rcv)} 🚨`;
+        actions.push(`⚠️🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - more than stated.`);
+      }
+    }
+    mdrLines.push(`<div>${mline}</div>`);
+  });
+
+  // Anything Brightree reported that was never matched to an SGI-side piece — added at
+  // confirm time, not on the original source.
+  mdrPieces.forEach(p=>{
+    if(usedMdr.has(p)) return;
+    const type=esc(pieceAbbr(p)), name=esc(p.name), qty=p.expectedQty;
+    mdrLines.push(`<div>✅${type}✍🏼 [${name}] x${esc(qty)} ⁉️ x${esc(qty)}</div>`);
+    actions.push(`✍🏼⁉️ Manually added - Please look for PURLs or existing PUEXs for [x${esc(qty)} ${name}]`);
+  });
+
+  const totalQty=mdrPieces.reduce((sum,p)=>sum+(Number(p.expectedQty)||0),0);
+  return {
+    sgiHtml: sgiLines.length?sgiLines.join(''):'<span style="color:var(--text3)">No items</span>',
+    mdrHtml: mdrLines.length?mdrLines.join(''):'<span style="color:var(--text3)">No items</span>',
+    // Q1-c: a clean row (nothing needing action) reads "🏷️ Exact Match" instead of blank.
+    actionsHtml: actions.length?actions.map(esc).join('<br>'):'🏷️ Exact Match',
+    totalQty
+  };
+}
+
 function renderCompletedTable(){
   const tbody=document.getElementById('completedTbody'), empty=document.getElementById('completedEmptyState');
   if(!tbody) return;
@@ -2684,25 +2918,27 @@ function renderCompletedTable(){
   });
   if(!rows.length){ tbody.innerHTML=''; if(empty) empty.style.display='block'; return; }
   if(empty) empty.style.display='none';
+  // Q3/Q4 (confirmed): manage duplicates on both tabs — same grouping logic either way.
+  const dupMap=dupMembershipMap(rows);
   tbody.innerHTML = rows.map(r=>{
     const noMatch = Array.isArray(r.matchReasons) && r.matchReasons.length>0;
-    // resolvedPieces comes straight out of parsePiecesDaily() every time (same parser
-    // the Daily CSV uses), which always puts the parsed quantity in expectedQty and
-    // leaves receivedQty null — so the Confirmed/Void CSV's own reported qty, Void
-    // rows included (reported as 0 right in the CSV), lives in expectedQty, not
-    // receivedQty. Summing receivedQty here would silently total to 0 every time.
-    const totalQty = (r.resolvedPieces||[]).reduce((sum,p)=>sum+(Number(p.expectedQty)||0),0);
+    const cmp = buildCompletedCompare(r);
     const matchCell = noMatch
       ? `<div style="color:var(--red);font-weight:700;font-size:13px;">No Match</div><div style="font-size:9px;color:var(--text3);margin-top:2px;line-height:1.4;">${r.matchReasons.map(esc).join('<br>')}</div>`
       : `<span style="color:var(--green);font-weight:600;">1:1 Match</span>`;
+    const dup=dupMap.get(r.id);
+    const dupBadge = dup
+      ? `<div style="margin-top:3px"><button class="btn btn-sm" style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records · Merge</button></div>`
+      : '';
     return `<tr class="${noMatch?'r-overdue':''}" data-id="${r.id}">
       <td>${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td><div>${esc(r.patientName)}</div><div style="font-size:10px;color:var(--text3)">${esc(r.patientId)}</div></td>
-      <td>${esc(r.jobNum)||'—'}</td>
-      <td>${completedPieceText(r.pieces,'expectedQty')}</td>
-      <td>${completedPieceText(r.resolvedPieces,'expectedQty')}</td>
+      <td>${esc(r.jobNum)||'—'}${dupBadge}</td>
+      <td>${cmp.sgiHtml}</td>
+      <td>${cmp.mdrHtml}</td>
+      <td style="font-size:10px;line-height:1.4">${cmp.actionsHtml}</td>
       <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
-      <td class="ctr">${totalQty}</td>
+      <td class="ctr">${cmp.totalQty}</td>
       <td>${matchCell}</td>
     </tr>`;
   }).join('');
@@ -2761,7 +2997,7 @@ function renderRow(r,rowNum){
           :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
       <div class="pid">${esc(r.patientId)}</div>
     </td>
-    <td style="text-align:center"><span class="row-num" style="display:block;font-size:9px;color:var(--text3);line-height:1.1">${rowNum||''}</span>${renderJobLink(r.jobNum)}</td>
+    <td style="text-align:center"><span class="row-num" style="display:block;font-size:9px;color:var(--text3);line-height:1.1">${rowNum||''}</span>${renderJobLink(r.jobNum)}${(()=>{const dup=_activeDupMap.get(r.id);return dup?`<div><button class="btn btn-sm" style="font-size:9px;padding:1px 5px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records</button></div>`:'';})()}</td>
     <td class="pcell">${renderPcell(r)}</td>
     <td>${refHtml}</td>
     <td class="ret-cell${r.dateReturned?' has-date':''}">${retHtml}</td>
@@ -4406,6 +4642,9 @@ function spToRec(item){
   let locked={};
   try{ locked=JSON.parse(fv('LockedFields')||'{}'); }catch(e){}
   const pieces=parsePiecesRich(fv('Pieces')||'');
+  const resolvedPieces=parsePiecesRich(fv('ResolvedPieces')||'');
+  let matchReasons=[];
+  try{ matchReasons=JSON.parse(fv('MatchReasons')||'[]'); }catch(e){ matchReasons=[]; }
   return {
     id: fv('AppRecordId') || String(item.id), _spId: item.id,
     source: fv('Source')||'daily',
@@ -4417,7 +4656,7 @@ function spToRec(item){
     jobClosed: fbool('JobClosed'), verified: fbool('Verified'), confirmed: fbool('Confirmed'),
     noPickup: fbool('NoPickup'),
     entryId: fv('EntryId'), locked,
-    pieces,
+    pieces, resolvedPieces, matchReasons,
     hasMemoryDownload: pieces.some(p=>p.memoryDownload)
   };
 }
@@ -4431,7 +4670,12 @@ function recToSP(r){
     MdrNotes: r.mdrNotes||'', JobClosed: !!r.jobClosed,
     Verified: !!r.verified, Confirmed: !!r.confirmed, NoPickup: !!r.noPickup,
     EntryId: r.entryId||'', Source: r.source||'daily',
-    Pieces: serPieces(r.pieces||[]), LockedFields: JSON.stringify(r.locked||{})
+    Pieces: serPieces(r.pieces||[]), LockedFields: JSON.stringify(r.locked||{}),
+    // Completed tab's own fields — see the data-model comment up top and the
+    // "Completed Tab Fixes & Questions" doc, Q2, for the ResolvedPieces/MatchReasons
+    // SharePoint columns these need. Without these two, a reload (or anyone else
+    // signing in) silently loses the right-hand column and the No Match flag.
+    ResolvedPieces: serPieces(r.resolvedPieces||[]), MatchReasons: JSON.stringify(r.matchReasons||[])
   };
 }
 

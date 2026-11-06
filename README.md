@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-11-04-completed-tab` (November 4, 2026)
+**Build:** `2026-11-06-completed-tab-icons` (November 6, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -156,11 +156,15 @@ Brightree's second daily export — jobs it has already resolved — lists each 
 
 Click **✓ Completed** in the toolbar to open a separate, read-only view of every Confirmed/Void job — this replaces the old "Hide Completed PUEXs" toggle. "All Active" no longer has a way to bring these back into the main table; this tab is where they live now. Click **← Back to Active** to return.
 
-- **Two "Pieces / Items" columns, side by side.** The left one is what SGI originally selected, exactly as it came in on the Daily report, and it's never touched again, even after the job is voided. The right one is what that Confirmed/Void CSV row itself reported — the confirmed quantity for a Confirmed row, or 0 for a Void row.
-- **Total Qty Confirmed/Voided** sums the right-hand column.
-- **Match:** a record matched normally (patient plus a shared reference, Entry ID, or job #) shows **1:1 Match**. A Confirmed/Void CSV row that didn't match anything existing — so it has no real "SGI selected" side to compare against — shows **No Match** in red, with the specific reason(s) underneath: No matching Patient ID, No matching Job #, and/or No matching PUEX/reference.
-- Everything on this page is plain text. No checkboxes, no editable fields, no Select All — these records are sealed.
-- **Previously:** loading a Void row used to overwrite the record's own piece quantities with 0 right then and there, which meant the original SGI-selected quantity was gone for good the next time that CSV was re-imported. That's fixed — a Void import no longer touches the record's own pieces at all, so the left column always has the real original data to compare against.
+**Columns:** Pickup Date, Patient, Job #, **SGI**, **MDR Confirmed/Void**, **Actions**, Reference, Total Qty Confirmed/Voided, Match. Everything on this page is plain text — no checkboxes, no editable fields, no Select All; these records are sealed.
+
+- **SGI column** — requested quantity (from the Daily CSV) vs. what SGI actually entered at pickup. Always 2 quantities, never 3. A clean match: ✅ (confirmed) EXC/PKP 🔒 (from source) `[item] x3 🏷️ x3` (exact match). SGI returning less or more than requested is informational only, not an issue: 🔺 (less) / 🔻 (more). A piece SGI added by hand (not from the Daily CSV) always reads ✍🏼 on both sides. A piece SGI never checked in at all reads 🛑 (blank, never verified) and shows up in the Actions column asking to verify with SGI. If every piece on the job is zero or No Pickup is checked, the whole row reads 🚫 instead.
+- **MDR Confirmed/Void column** — the same pieces compared against what that Confirmed/Void CSV row itself reported. 🏷️ exact match, ➕ shortage (Brightree confirmed less than requested — needs an inventory correction), ➖ overage (confirmed more — no action needed), 🚫 voided/all-zero, 🛑 "was removed from order" (a piece MDR requested that Brightree's CSV doesn't mention at all), ⁉️ a piece Brightree reported that was never requested (added at confirm time — worth checking for a PURL/PUEX). If SGI's own entered amount disagrees with what Brightree confirmed, a 3rd quantity and an alert icon are added: 🚚 (Brightree confirmed less than SGI said) or ⚠️ (more), plus 🚨 to flag it for investigation.
+- **Actions column** spells out, in plain English, what (if anything) needs follow-up for each piece on the row — shortages, voids, manually-added pieces, and SGI/Brightree mismatches each get their own line. A row with nothing to fix reads **🏷️ Exact Match**.
+- **Duplicates:** if two (or more) SharePoint records exist for the same patient + Job #, a small **⧉ N records · Merge** button appears next to the Job #, here and on the Active view. Merging combines notes, pieces, and reference numbers onto one record and **permanently deletes** the other one(s) from SharePoint — there's no undo in the app itself (your SharePoint site's recycle bin may still catch it for a while, depending on your retention settings).
+- **Total Qty Confirmed/Voided** sums the MDR column.
+- **Match:** a record matched normally (patient plus a shared reference, Entry ID, or job #) shows **1:1 Match**. A Confirmed/Void CSV row that didn't match anything existing — so it has no real SGI side to compare against — shows **No Match** in red, with the specific reason(s) underneath: No matching Patient ID, No matching Job #, and/or No matching PUEX/reference.
+- **SharePoint setup required:** this tab's MDR column, Actions column, and No Match flag depend on 2 SharePoint columns — `ResolvedPieces` and `MatchReasons` — on the ExchangeRecords list. See "SharePoint lists used" below. Without them, everything still works in the browser you're using, but it goes blank for anyone else (or after a refresh) because there's nowhere to save it.
 
 ## Exporting
 
@@ -185,10 +189,20 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 
 | List | Used for |
 |---|---|
-| ExchangeRecords | The records (one item per job). |
+| ExchangeRecords | The records (one item per job). Needs 2 columns the Completed tab depends on — see below. |
 | AppAudit | The App Log entries. |
 | Presence list | Who's online (heartbeat every 4 minutes). |
 | Documents > Daily Uploads | Archived copies of each `data.csv` loaded. |
+
+### Adding the Completed tab's 2 columns (one-time setup)
+
+The Completed tab's MDR column, Actions column, and No Match flag are saved to SharePoint through 2 columns on **ExchangeRecords** — `ResolvedPieces` and `MatchReasons`. Add them once, the same way for both:
+
+- Open the ExchangeRecords list, click **+ Add column**, choose **Multiple lines of text**
+- Name it `ResolvedPieces`, choose **Plain text**, and save
+- Repeat for a second column named `MatchReasons`, Plain text, save
+
+There's no "unlimited length" toggle to look for — that setting only exists for document library columns. A list's Multiple lines of text column already holds roughly 64,000 characters by default, same as the existing `Pieces` column. After both columns exist, open the tracker and run **Load Confirmed/Void** once to backfill every record whose CSV row still matches. A record confirmed before these columns existed, or whose original Confirmed/Void CSV export is no longer available, stays blank on the left — there's no way around that one.
 
 ## Deploying an update
 
@@ -201,6 +215,12 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `2026-11-06-completed-tab-icons`
+
+- Fixed: the Completed tab's MDR column and Total Qty went blank (and every row read "1:1 Match") after any reload. `ResolvedPieces` and `MatchReasons` were only ever saved to the browser's own cache, never to SharePoint — they now round-trip through 2 new SharePoint columns. See "Adding the Completed tab's 2 columns" above for the one-time setup.
+- Completed tab redesigned: the two plain-text piece columns are now icon-based and clearly labeled SGI vs. MDR Confirmed/Void, plus a new Actions column spelling out what (if anything) needs follow-up. A clean row reads "🏷️ Exact Match". See "Completed tab (MDR)" above for the full icon legend.
+- Duplicate SharePoint records (same patient + Job #) are now flagged with a "⧉ N records · Merge" button, on both the Completed tab and the Active view. Merging combines notes, pieces, and reference numbers onto one record and permanently deletes the other(s) from SharePoint.
 
 ## Changes in `2026-11-04-completed-tab`
 
