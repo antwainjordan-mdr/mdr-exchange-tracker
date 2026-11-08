@@ -243,6 +243,11 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .qrcv.qover{border-color:var(--red);color:var(--red);}
 .prmbtn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;line-height:1;}
 .prmbtn:hover{color:var(--red);}
+.prmbtn-manual .prm-x{display:none;}
+.prmbtn-manual:hover .prm-pencil{display:none;}
+.prmbtn-manual:hover .prm-x{display:inline;color:var(--red);}
+.qrcv[readonly]{opacity:.85;cursor:default;}
+.qrcv.qblue{border-color:var(--blue);color:var(--blue);}
 .pftr{display:flex;justify-content:flex-end;margin-top:4px;}
 .addpbtn{font-size:10px;color:var(--green);cursor:pointer;background:none;border:none;padding:0;font-family:inherit;display:flex;align-items:center;gap:2px;}
 .addpbtn:hover{opacity:.75;}
@@ -1105,28 +1110,41 @@ function applyNotesCollapse(){
 // or any backend — it's static data baked into this file at deploy time, same
 // as everything else in this single-file app.
 //
-// KEEP IN SYNC, EVERY TIME — all three of these travel together:
-//   1. BUILD below — bump it on every deploy, even a same-day one. This is the ONLY
-//      way anyone (including us) can visually confirm in the browser console or the
-//      DevTools Sources tab that a re-upload actually took effect, since the file has
-//      no version number anywhere else.
-//   2. A new CHANGELOG[0] entry — if what changed is user-visible (see rule above).
-//   3. The console.log(...) build marker right below CHANGELOG — it reads BUILD
-//      automatically, so it never needs editing itself, but it's WHY BUILD must
-//      change: this is the line that actually surfaces the new value on load.
-const BUILD = '2026-11-06-qol-batch-OFFLINE';
-console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:bold');
-// Request: "Add an App Version label next to the logo and app title, top left." The
-// build string IS the version (see the note above CHANGELOG on why it's the one
-// source of truth) — shown as v + the date portion of BUILD, full string in the title
-// tooltip for anyone who needs the exact build tag. Script runs after the header HTML
-// above it, so the element already exists — no need to wait for DOMContentLoaded.
+// KEEP IN SYNC, EVERY TIME — all four of these travel together:
+//   1. VERSION below — bump it on every deploy, even a same-day one, following
+//      SemVer (MAJOR.MINOR.PATCH): MAJOR = breaks or redefines something existing
+//      (a SharePoint schema change, a field that no longer means what it used to,
+//      an auth-method swap, a core status rule rebuilt) — reset MINOR and PATCH to 0.
+//      MINOR = new, additive capability, nothing old stops working — reset PATCH to 0.
+//      PATCH = a pure bug fix, no new behavior. This is the ONLY way anyone
+//      (including us) can visually confirm in the browser console or the DevTools
+//      Sources tab that a re-upload actually took effect, since the file has no
+//      version number anywhere else.
+//   2. BUILD_DATE below — the calendar date of this deploy, shown in the version
+//      label's tooltip and the console marker. Purely informational; nothing reads
+//      it programmatically.
+//   3. A new CHANGELOG[0] entry — if what changed is user-visible (see rule above).
+//      Give it the same `version` string as VERSION below.
+//   4. The console.log(...) build marker right below CHANGELOG — it reads VERSION
+//      and BUILD_DATE automatically, so it never needs editing itself, but it's WHY
+//      they must change: this is the line that actually surfaces the new value on load.
+//
+// Versioning switched from date-slug build tags (e.g. '2026-11-08-sgi-zero-mask-fix')
+// to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
+// original `build:` date-slug key as a historical record of what they were actually
+// called at the time — they were never renumbered retroactively.
+const VERSION = '1.0.0';
+const BUILD_DATE = '2026-11-08';
+console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','color:#a78bfa;font-weight:bold');
+// Request: "Add an App Version label next to the logo and app title, top left."
+// Shown as v + VERSION, with the full version + build date in the title tooltip.
+// Script runs after the header HTML above it, so the element already exists — no
+// need to wait for DOMContentLoaded.
 (function initAppVersionLbl(){
   const el=document.getElementById('appVersionLbl');
   if(el){
-    const dateTag=BUILD.slice(0,10); // YYYY-MM-DD
-    el.textContent=`· v${dateTag}`;
-    el.title=`Build: ${BUILD}`;
+    el.textContent=`· v${VERSION}`;
+    el.title=`Version: ${VERSION} (${BUILD_DATE}) [OFFLINE]`;
   }
 })();
 // ── OFFLINE DEMO BUILD ─────────────────────────────────────────────
@@ -1139,6 +1157,31 @@ console.log('%c[MDR Exchange Tracker] build '+BUILD,'color:#a78bfa;font-weight:b
 // Data lives only in this browser's localStorage; there is nothing to sync.
 const OFFLINE_MODE = true;
 const CHANGELOG = [
+  {
+    version:'1.0.0',
+    date:'Nov 8, 2026',
+    items:[
+      'Switched version tracking from date-slug build tags (e.g. "2026-11-08-sgi-zero-mask-fix") to standard SemVer (MAJOR.MINOR.PATCH), starting fresh at 1.0.0. Older entries below keep their original build tags as the historical record — they were not renumbered.',
+      'Fixed: on a job flagged No Pickup / all-zero, the Completed tab\'s SGI column was forcing every piece\'s displayed qty to a flat 0 — even when SGI had actually entered a real, different, non-zero number for that specific piece. That real number only showed up secondarily, buried in the MDR column\'s 🚚/⚠️ mismatch indicator. The SGI column now always shows SGI\'s own real entered qty per piece; the 🚫 "no pickup" treatment only applies to pieces that are themselves genuinely blank or actually 0. The same fix was applied to the MDR Confirmed/Void column\'s analogous case (a voided job with one piece that was actually confirmed with a real qty).',
+    ]
+  },
+  {
+    build:'2026-11-08-piece-icons-mdr-box',
+    date:'Nov 8, 2026',
+    items:[
+      'Piece checklist icons now match the Active dashboard\'s own convention everywhere: 🏷️ = exact 1:1 match, 🔺 = received MORE than requested, 🔻 = received LESS than requested. (The Completed tab\'s SGI column previously had the over/short arrows backwards — fixed.)',
+      'Active dashboard: manually-added pieces (the ones not locked to the original order) now show their qty in a plain, non-editable box, and the remove control is a pencil icon at rest — hover over it to see the ✕ before you click.',
+      'Active dashboard: every piece now shows its MDR requested qty in its own blue box, right beside the SGI return qty box — same boxed look, always blue regardless of match/short/over state, since blue is MDR\'s color.',
+      'Completed tab: the SGI and MDR Confirmed/Void columns now render with the exact same boxed styling as the Active dashboard\'s checklist (PKP/EXC badge, lock icon, boxed qty) instead of a plain text line. The MDR column\'s qty box is always blue; the SGI column\'s qty box still color-codes green/yellow/red by match/short/over.',
+    ]
+  },
+  {
+    build:'2026-11-06-completed-search-fix',
+    date:'Nov 6, 2026',
+    items:[
+      'Fixed: the search bar did nothing on the Completed tab — it filtered the Active view but the Completed tab never checked it. Search now works there the same way it does on Active (patient, patient ID, job #, reference, equipment), including the space/comma-insensitive reference number matching.',
+    ]
+  },
   {
     build:'2026-11-06-qol-batch',
     date:'Nov 6, 2026',
@@ -3040,10 +3083,30 @@ function jobIsAllZero(rec, qtyList){
 // SGI entered) per Q1-a — it never grows a 3rd quantity. The MDR column only grows a
 // 3rd quantity (🚚/⚠️ + 🚨) when SGI's own entered amount disagrees with what Brightree's
 // Confirmed/Void CSV actually reported.
-// One boxed line, styled exactly like the Active dashboard's .pitem pieces — same
-// border/background color system (green=match, yellow=shortage/needs attention,
-// red=overage/investigate) — per "same exact CSS styling" request.
+// Pieces render with the SAME markup/CSS as the Active dashboard's own checklist
+// (.pitem box, .ptbadge PKP/EXC pill, .plocki lock, .qrcv boxed qty) — not a bespoke
+// text line — per "copy the styling exactly how it is on the Active page." The one
+// deliberate difference: the MDR Confirmed/Void qty box is always blue (qblue),
+// regardless of match/short/over state, since blue is MDR's color; the SGI qty box
+// still color-codes green/yellow/red by match/short/over, same as Active.
 function pbox(cls,html){ return `<div class="pitem ${cls}" style="margin-bottom:3px;">${html}</div>`; }
+function compItem(cls,p,req,icon,boxVal,boxCls,extraHtml){
+  const badge=pieceBadge(p);
+  const lock=p.fromSource?'<span class="plocki">🔒</span>':'<span class="plocki" title="Manually entered">✍🏼</span>';
+  const name=esc(p.name);
+  const qtyTag=(req!==null&&req!==undefined)?`<span style="font-size:9px;color:var(--text3);"> ×${esc(req)}</span>`:'';
+  const iconHtml=icon?`<span class="pvarlbl" style="font-size:11px;">${icon}</span>`:'';
+  const boxHtml=(boxVal===null||boxVal===undefined)
+    ?`<input type="number" class="qrcv" value="" placeholder="—" readonly title="No value on file">`
+    :`<input type="number" class="qrcv${boxCls?' '+boxCls:''}" value="${esc(boxVal)}" readonly>`;
+  return `<div class="pitem ${cls}" style="margin-bottom:3px;">
+    ${badge}${lock}
+    <span class="pname2">${name}${qtyTag}</span>
+    ${iconHtml}
+    <div class="qwrap">${boxHtml}</div>
+    ${extraHtml||''}
+  </div>`;
+}
 
 function buildCompletedCompare(rec){
   const sgiPieces=rec.pieces||[];
@@ -3062,22 +3125,30 @@ function buildCompletedCompare(rec){
 
   sgiPieces.forEach(p=>{
     const req=p.expectedQty, rcv=p.receivedQty;
-    const type=esc(pieceAbbr(p)), name=esc(p.name);
+    const name=esc(p.name);
 
     // ── SGI column: requested vs what SGI entered. Always 2 quantities. ──
-    if(sgiAllZero){
-      sgiLines.push(pbox('p-partial', `🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0`));
+    // Icon convention matches the Active dashboard's own checklist: 🏷️ = exact
+    // match, 🔺 = received MORE than requested (overage), 🔻 = received LESS than
+    // requested (shortage).
+    // `sgiAllZero` only means "this JOB was flagged No Pickup / all-zero" — it must
+    // never overwrite a piece's own real, non-zero SGI-entered qty with a flat 0.
+    // Only pieces that are themselves blank or actually 0 get the 🚫 treatment; any
+    // piece with a real different value falls through to the normal match/short/
+    // over logic below using its own `rcv`.
+    if(sgiAllZero && (rcv===null||rcv===undefined||Number(rcv)===0)){
+      sgiLines.push(compItem('p-partial',p,req,'🚫',0,''));
     } else if(rcv===null||rcv===undefined){
-      sgiLines.push(pbox('p-partial', `🛑${type}${p.fromSource?'🔒':'✍🏼'} [${name}] x${esc(req)} 🛑 🚨`));
+      sgiLines.push(compItem('p-partial',p,req,'🛑',null,'',`<span class="pvarlbl" style="font-size:11px;">🚨</span>`));
       actions.push(`🛑 (SGI Columns) Please Investigate. [x${esc(req)} ${name}] Blank, verify with SGI the QTY.`);
     } else if(!p.fromSource){
-      sgiLines.push(pbox('p-ok', `✅${type}✍🏼 [${name}] x${esc(req)} ✍🏼 x${esc(rcv)}`));
+      sgiLines.push(compItem('p-ok',p,req,'✍🏼',rcv,''));
     } else if(rcv===req){
-      sgiLines.push(pbox('p-ok', `✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(rcv)}`));
+      sgiLines.push(compItem('p-ok',p,req,'🏷️',rcv,'qmatch'));
     } else if(rcv<req){
-      sgiLines.push(pbox('p-partial', `✅${type}🔒 [${name}] x${esc(req)} 🔺 x${esc(rcv)}`));
+      sgiLines.push(compItem('p-partial',p,req,'🔻',rcv,'qshort'));
     } else {
-      sgiLines.push(pbox('p-over', `✅${type}🔒 [${name}] x${esc(req)} 🔻 x${esc(rcv)}`));
+      sgiLines.push(compItem('p-over',p,req,'🔺',rcv,'qover'));
     }
 
     // Claim the matching MDR-side piece (by type+name) so anything left over after this
@@ -3086,52 +3157,56 @@ function buildCompletedCompare(rec){
     const mdrPiece=bucket&&bucket.length?bucket.shift():null;
     if(mdrPiece) usedMdr.add(mdrPiece);
 
-    // ── MDR column ──
+    // ── MDR column ── (qty box is always blue — MDR's own color — regardless of
+    // match/short/over state; the outer box border still follows that state)
     if(!mdrPiece){
       if(mdrAllZero){
-        mdrLines.push(pbox('p-partial', `🚫${type}🔒 [${name}] x${esc(req)} 🚫 x0`));
+        mdrLines.push(compItem('p-partial',p,req,'🚫',0,'qblue'));
         actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
       } else {
-        mdrLines.push(pbox('p-partial', `🛑${type}🔒 [${name}] x${esc(req)} 🛑 x Removed`));
+        mdrLines.push(compItem('p-partial',p,req,'🛑',null,'',`<span class="pvarlbl" style="font-size:11px;" title="Removed">🚨</span>`));
         actions.push(`🛑 (MDR Columns) [x${esc(req)} ${name}] was removed from order.`);
       }
       return;
     }
     const conf=mdrPiece.expectedQty;
-    let mline, mcls;
-    if(mdrAllZero){
-      mline=`🚫${type}🔒 [${name}] x${esc(req)} 🚫 x${esc(conf)}`; mcls='p-partial';
+    let micon, mcls;
+    // Same rule as the SGI column: a job-level "all zero / voided" flag must never
+    // relabel a piece that actually has its own real, non-zero confirmed qty.
+    if(mdrAllZero && (conf===null||conf===undefined||Number(conf)===0)){
+      micon='🚫'; mcls='p-partial';
       actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
     } else if(conf===req){
-      mline=`✅${type}🔒 [${name}] x${esc(req)} 🏷️ x${esc(conf)}`; mcls='p-ok';
+      micon='🏷️'; mcls='p-ok';
     } else if(conf<req){
-      mline=`✅${type}🔒 [${name}] x${esc(req)} ➕ x${esc(conf)}`; mcls='p-partial'; // shortage
+      micon='➕'; mcls='p-partial'; // shortage
       actions.push(`➕ Shortage - Please add [x${esc(req-conf)} ${name}] to Account for Inventory Corrections`);
     } else {
-      mline=`✅${type}🔒 [${name}] x${esc(req)} ➖ x${esc(conf)}`; mcls='p-over'; // overage — no action needed
+      micon='➖'; mcls='p-over'; // overage — no action needed
     }
     // 3rd quantity: only when SGI's own entered amount disagrees with what Brightree
     // confirmed (Q1-a) — otherwise the MDR column stays a 2-quantity line too. This
     // always wins the box color (red) since it's the most urgent state.
+    let mextra='';
     if(rcv!==null&&rcv!==undefined&&rcv!==conf){
       mcls='p-over';
       if(conf<rcv){
-        mline+=` 🚚 x${esc(rcv)} 🚨`;
+        mextra=`<span class="pvarlbl" style="font-size:11px;">🚚</span><div class="qwrap"><input type="number" class="qrcv qover" value="${esc(rcv)}" readonly></div><span class="pvarlbl" style="font-size:11px;">🚨</span>`;
         actions.push(`🚚🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - less than stated.`);
       } else {
-        mline+=` ⚠️ x${esc(rcv)} 🚨`;
+        mextra=`<span class="pvarlbl" style="font-size:11px;">⚠️</span><div class="qwrap"><input type="number" class="qrcv qover" value="${esc(rcv)}" readonly></div><span class="pvarlbl" style="font-size:11px;">🚨</span>`;
         actions.push(`⚠️🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - more than stated.`);
       }
     }
-    mdrLines.push(pbox(mcls, mline));
+    mdrLines.push(compItem(mcls,mdrPiece,req,micon,conf,'qblue',mextra));
   });
 
   // Anything Brightree reported that was never matched to an SGI-side piece — added at
   // confirm time, not on the original source.
   mdrPieces.forEach(p=>{
     if(usedMdr.has(p)) return;
-    const type=esc(pieceAbbr(p)), name=esc(p.name), qty=p.expectedQty;
-    mdrLines.push(pbox('p-over', `✅${type}✍🏼 [${name}] x${esc(qty)} ⁉️ x${esc(qty)}`));
+    const name=esc(p.name), qty=p.expectedQty;
+    mdrLines.push(compItem('p-over',p,qty,'⁉️',qty,'qblue'));
     actions.push(`✍🏼⁉️ Manually added - Please look for PURLs or existing PUEXs for [x${esc(qty)} ${name}]`);
   });
 
@@ -3148,11 +3223,38 @@ function buildCompletedCompare(rec){
 function renderCompletedTable(){
   const tbody=document.getElementById('completedTbody'), empty=document.getElementById('completedEmptyState');
   if(!tbody) return;
-  const rows=records.filter(r=>isMDR()&&r.confirmed).slice().sort((a,b)=>{
+  // Search box applies here too — same patient/ID/job/reference/equipment matching (plus
+  // the Q6c space/comma-insensitive reference fallback) as the Active view's baseFiltered().
+  const q=document.getElementById('searchQ').value.trim().toLowerCase();
+  const qStripped=q.replace(/[,\s]+/g,'');
+  const rows=records.filter(r=>{
+    if(!(isMDR()&&r.confirmed)) return false;
+    if(q){
+      const haystack=`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase();
+      const refStripped=(r.soIds||'').replace(/[,\s]+/g,'').toLowerCase();
+      const matched = haystack.includes(q) || (qStripped && refStripped.includes(qStripped));
+      if(!matched) return false;
+    }
+    return true;
+  }).slice().sort((a,b)=>{
     const av=a.pickupDate||'', bv=b.pickupDate||'';
     return av<bv?1:av>bv?-1:0; // most recent first
   });
-  if(!rows.length){ tbody.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(!rows.length){
+    tbody.innerHTML='';
+    if(empty){
+      empty.style.display='block';
+      const label=empty.querySelector('p'), sub=empty.querySelector('small');
+      if(q){
+        if(label) label.textContent='No completed/void records match your search';
+        if(sub) sub.textContent='Try a different patient, job #, or reference number';
+      } else {
+        if(label) label.textContent='No completed/void records yet';
+        if(sub) sub.textContent='Load a Confirmed/Void CSV to populate this view';
+      }
+    }
+    return;
+  }
   if(empty) empty.style.display='none';
   // Q3/Q4 (confirmed): manage duplicates on both tabs — same grouping logic either way.
   const dupMap=dupMembershipMap(rows);
@@ -3349,26 +3451,42 @@ function renderPcell(r){
     const cls='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
     const badge=pieceBadge(p);
     const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
-    // Delete button only for logistics-added pieces (not from source)
+    // Delete button only for logistics-added pieces (not from source). Shown as a
+    // pencil icon by default; hovering swaps it to ✕ so the remove action is still
+    // obvious, but the at-rest look matches the rest of the boxed checklist.
     const delBtn=!p.fromSource
-      ?`<button class="prmbtn" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove">✕</button>`
+      ?`<button class="prmbtn prmbtn-manual" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove"><span class="prm-pencil">✏️</span><span class="prm-x">✕</span></button>`
       :'';
     const variance=pieceVariance(p);
-    // Short = yellow (matches p-partial border); Over = red (matches p-over border).
-    const varLabel=p.fromSource&&rcv!==''&&variance!=='match'&&variance!=='uncounted'
-      ?`<span class="pvarlbl" style="font-size:9px;font-weight:700;color:${variance==='shortage'?'var(--yellow)':'var(--red)'};">${variance==='shortage'?'SHORT':'OVER'}</span>`
+    // Icon convention matches the Active dashboard's own checklist: 🏷️ = exact 1:1
+    // match, 🔺 = received MORE than requested (overage), 🔻 = received LESS than
+    // requested (shortage). Only shown for source pieces once a qty's been entered.
+    const varIcon=p.fromSource&&rcv!==''&&variance!=='uncounted'
+      ?(variance==='match'?'🏷️':variance==='overage'?'🔺':'🔻')
+      :'';
+    const varLabel=varIcon
+      ?`<span class="pvarlbl" style="font-size:11px;">${varIcon}</span>`
       :`<span class="pvarlbl" style="display:none"></span>`;
-    // Show expected qty in name for any item that has one — source or manually added
-    const qtyTag=p.expectedQty?`<span style="font-size:9px;color:var(--text3);"> ×${p.expectedQty}</span>`:'';
+    // MDR QTY box — always blue, always read-only, shows the requested amount.
+    // Sits right beside the SGI return qty box, same boxed look.
+    const mdrQtyBox=(p.expectedQty!==undefined&&p.expectedQty!==null)
+      ?`<input type="number" class="qrcv qblue" value="${esc(p.expectedQty)}" readonly title="MDR requested qty">`
+      :'';
+    // Manually-added pieces (not from source) keep the same boxed qty look but are
+    // not editable here — the qty was fixed at add time.
+    const qtyBox=p.fromSource
+      ?`<input type="number" class="qrcv qrcv-sgi${m?' qmatch':''}${isShort?' qshort':''}${isOver?' qover':''}" value="${rcv}" min="0"
+          placeholder="${p.expectedQty||''}"
+          onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
+      :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
     return`<div class="${cls.trim()}">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       ${badge}${lock}
-      <span class="pname2">${esc(nameWithoutSerial(p))}${qtyTag}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}</span>
+      <span class="pname2">${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}</span>
       ${varLabel}
       <div class="qwrap">
-        <input type="number" class="qrcv${m?' qmatch':''}${isShort?' qshort':''}${isOver?' qover':''}" value="${rcv}" min="0"
-          placeholder="${p.expectedQty||''}"
-          onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">
+        ${mdrQtyBox}
+        ${qtyBox}
       </div>
       ${delBtn}
     </div>`;
@@ -3538,7 +3656,7 @@ function refreshPiece(rec,p){
   const isShort=p.receivedQty!==null&&p.receivedQty<p.expectedQty;
   const isOver=p.receivedQty!==null&&p.receivedQty>p.expectedQty;
   item.className='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
-  const qi=item.querySelector('.qrcv');
+  const qi=item.querySelector('.qrcv-sgi');
   if(qi){
     qi.value=p.receivedQty!==null?p.receivedQty:'';
     qi.classList.toggle('qmatch',p.receivedQty!==null&&p.receivedQty===p.expectedQty);
@@ -3547,9 +3665,13 @@ function refreshPiece(rec,p){
   }
   const lbl=item.querySelector('.pvarlbl');
   if(lbl){
-    if(isShort){ lbl.textContent='SHORT'; lbl.style.color='var(--yellow)'; lbl.style.display=''; }
-    else if(isOver){ lbl.textContent='OVER'; lbl.style.color='var(--red)'; lbl.style.display=''; }
-    else { lbl.style.display='none'; }
+    // Same convention as renderPcell(): 🏷️ match, 🔺 over (received more), 🔻 short
+    // (received less). Only for source pieces once a qty's been entered.
+    const fromSource=!!item.querySelector('.plocki');
+    if(!fromSource||p.receivedQty===null){ lbl.textContent=''; lbl.style.display='none'; }
+    else if(isOver){ lbl.textContent='🔺'; lbl.style.display=''; }
+    else if(isShort){ lbl.textContent='🔻'; lbl.style.display=''; }
+    else { lbl.textContent='🏷️'; lbl.style.display=''; }
   }
 }
 

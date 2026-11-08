@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Build:** `2026-11-06-qol-batch` (November 6, 2026)
+**Version:** `1.0.0` (November 8, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -17,7 +17,14 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 
 `data.csv` (the daily Power BI export) is **not** part of the app and must never be committed to the repo. You pick it from your PC with **Load Daily**.
 
-**Version marker:** the build name is `const BUILD = '...'` near the top of the script. It prints in the browser console on load (`[MDR Exchange Tracker] build ...`). Bump it on every deploy, and add a `CHANGELOG` entry when the change is something users will see.
+**Version marker:** `const VERSION = '...'` near the top of the script, following standard SemVer (`MAJOR.MINOR.PATCH`):
+- **MAJOR** - breaks or redefines something existing (a SharePoint schema change, a field that no longer means what it used to, an auth-method swap, a core status rule rebuilt). Resets MINOR and PATCH to 0.
+- **MINOR** - new, additive capability; nothing old stops working. Resets PATCH to 0.
+- **PATCH** - a pure bug fix, no new behavior.
+
+It prints in the browser console on load (`[MDR Exchange Tracker] v1.0.0 (2026-11-08)`), alongside `const BUILD_DATE = '...'` for the calendar date of that deploy. Bump VERSION on every deploy, and add a `CHANGELOG` entry (with a matching `version` field) when the change is something users will see.
+
+Versioning switched to SemVer starting at `1.0.0` on November 8, 2026. Older `CHANGELOG` entries below keep their original date-slug `build` tags (e.g. `2026-11-06-qol-batch`) as the historical record of what they were actually called at the time - they were not renumbered retroactively.
 
 ---
 
@@ -206,15 +213,36 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 
 ## Deploying an update
 
-1. Edit `index.html`, bump `BUILD`, and add a `CHANGELOG` entry if users will notice the change.
+1. Edit `index.html`, bump `VERSION` (SemVer - see the note above), and add a `CHANGELOG` entry with a matching `version` field if users will notice the change.
 2. Commit and push **only** `index.html` (and this README) to `antwainjordan-mdr/mdr-exchange-tracker`. Never commit any `.csv`.
-3. After GitHub Pages updates (a minute or two), open the live site, press Ctrl+F5, and check the console shows the new build.
+3. After GitHub Pages updates (a minute or two), open the live site, press Ctrl+F5, and check the console shows the new version.
+4. Tag the release in the repo to match (`git tag v1.0.0 && git push --tags`, or a GitHub Release) - this is done outside what's in this file, directly against the GitHub repo.
 
 ## Azure setup for sign-in
 
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.0.0`
+
+- **Switched version tracking from date-slug build tags to SemVer**, starting fresh at `1.0.0`. Older sections below keep their original tags (e.g. `2026-11-06-qol-batch`) as the historical record of what they were actually called at the time.
+- **Fixed a real data-masking bug**: on a job flagged No Pickup / all-zero, the Completed tab's SGI column forced every piece's displayed qty to a flat `0` — even when SGI had actually entered a real, different, non-zero number for that specific piece (confirmed from a real job: 3 of 5 pieces had real qtys of 2, 2, and 3, but all displayed "0"). The real number was only visible secondarily, buried inside the MDR column's 🚚/⚠️ mismatch indicator.
+- The SGI column now always shows SGI's own real entered qty per piece. The 🚫 "no pickup" treatment only applies to a piece that is itself genuinely blank or actually `0` — a job-level flag can no longer overwrite one piece's real number with another piece's zero.
+- Applied the identical fix to the MDR Confirmed/Void column's matching case, so a voided job with one piece that was actually confirmed with a real qty shows that real qty instead of being relabeled 🚫.
+- Genuine all-zero / No Pickup jobs (every piece truly blank or 0) are unaffected — they still show 🚫 across the board, verified against the fix.
+
+## Changes in `2026-11-08-piece-icons-mdr-box`
+
+- **Piece icon convention unified**: every piece checklist (Active dashboard and Completed tab) now uses the same icons for the same thing — 🏷️ = exact 1:1 match, 🔺 = received MORE than requested, 🔻 = received LESS than requested. The Completed tab's SGI column had the over/short arrows backwards before this fix.
+- **Active dashboard — manually-added pieces**: pieces added at check-in (not locked to the original order) now show their qty in a plain, non-editable box instead of an editable one. The ✕ remove button is now a pencil icon at rest; hover over it to see the ✕ before clicking.
+- **Active dashboard — MDR qty box added**: every piece now shows a second boxed qty — the MDR requested amount — sitting right beside the existing SGI return qty box. Always blue (MDR's color), always non-editable, regardless of match/short/over state.
+- **Completed tab restyled to match Active exactly**: the SGI and MDR Confirmed/Void columns now use the same boxed markup as the Active dashboard's checklist (PKP/EXC pill badge, lock icon, boxed qty) instead of a plain text line. The MDR column's qty box is always blue; the SGI column's qty box still color-codes green/yellow/red by match/short/over, same as Active.
+- MDR's ➕ (shortage/add to inventory) and ➖ (overage/remove from inventory) icons are intentionally left as-is and not merged with the SGI side's 🔺/🔻 — they answer a different question (what to do to the account) than SGI's icons do (did the return match the request).
+
+## Changes in `2026-11-06-completed-search-fix`
+
+- Fixed: the search bar did nothing on the Completed tab — it filtered the Active view but the Completed tab's render function never checked it. Search now works there the same way it does on Active (patient, patient ID, job #, reference, equipment), including the space/comma-insensitive reference number matching from the QOL batch below.
 
 ## Changes in `2026-11-06-qol-batch`
 
