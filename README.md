@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.0.0` (November 8, 2026)
+**Version:** `1.2.1` (November 9, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -196,20 +196,21 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 
 | List | Used for |
 |---|---|
-| ExchangeRecords | The records (one item per job). Needs 2 columns the Completed tab depends on — see below. |
+| ExchangeRecords | The records (one item per job). Needs 3 columns the Completed tab depends on — see below. |
 | AppAudit | The App Log entries. |
 | Presence list | Who's online (heartbeat every 4 minutes). |
 | Documents > Daily Uploads | Archived copies of each `data.csv` loaded. |
 
-### Adding the Completed tab's 2 columns (one-time setup)
+### Adding the Completed tab's 3 columns (one-time setup)
 
-The Completed tab's MDR column, Actions column, and No Match flag are saved to SharePoint through 2 columns on **ExchangeRecords** — `ResolvedPieces` and `MatchReasons`. Add them once, the same way for both:
+The Completed tab's MDR column, Actions column, No Match flag, and Pending Review queue are saved to SharePoint through 3 columns on **ExchangeRecords** — `ResolvedPieces`, `MatchReasons`, and `PendingResolved`. Add them once, the same way for all three:
 
 - Open the ExchangeRecords list, click **+ Add column**, choose **Multiple lines of text**
 - Name it `ResolvedPieces`, choose **Plain text**, and save
-- Repeat for a second column named `MatchReasons`, Plain text, save
+- Repeat for a column named `MatchReasons`, Plain text, save
+- Repeat for a third column named `PendingResolved`, Plain text, save
 
-There's no "unlimited length" toggle to look for — that setting only exists for document library columns. A list's Multiple lines of text column already holds roughly 64,000 characters by default, same as the existing `Pieces` column. After both columns exist, open the tracker and run **Load Confirmed/Void** once to backfill every record whose CSV row still matches. A record confirmed before these columns existed, or whose original Confirmed/Void CSV export is no longer available, stays blank on the left — there's no way around that one.
+There's no "unlimited length" toggle to look for — that setting only exists for document library columns. A list's Multiple lines of text column already holds roughly 64,000 characters by default, same as the existing `Pieces` column. After all three columns exist, open the tracker and run **Load Confirmed/Void** once to backfill every record whose CSV row still matches. A record confirmed before these columns existed, or whose original Confirmed/Void CSV export is no longer available, stays blank on the left — there's no way around that one. `PendingResolved` starts empty for everyone and only fills in going forward (or when you use "Add Pending Correction" to backfill a specific job by hand).
 
 ## Deploying an update
 
@@ -223,6 +224,32 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.3.0`
+
+- **Fixed a real data-loss bug**: a job # can legitimately have more than one Brightree pickup/exchange event (e.g. two patients shipping to the same address), but "Load Confirmed/Void" matches by job#/reference/Entry ID, not pickup date — so a second event's CSV row was silently overwriting the first event's Confirmed/Void numbers with no trace left behind.
+- **New rule: nothing merges without you approving it.** Once a job already has Confirmed/Void data on it, anything new goes to a "Pending Review" queue instead of overwriting it. Every pending item waits for you to Approve (adds its quantities into the job's total) or Reject (discards it) on the Completed tab.
+- Completed tab: a job with something waiting shows a "🕐 N Pending" badge next to its Job #; open the row to see each pending item (what it is, where it came from, when it came in) with its own Approve/Reject buttons. New "🕐 Pending Review" toolbar toggle filters the tab down to just those jobs.
+- New **"➕ Add Pending Correction"** button (Completed tab, MDR only): manually queue recovered Confirmed/Void numbers for a job — e.g. numbers pulled from the Brightree PUEX Line Item Report for an event this app already overwrote before this queue existed. Goes through the same Approve/Reject review as a real import; nothing is written to the job's totals until you approve it.
+- Needs a new SharePoint column, `PendingResolved` — see "Adding the Completed tab's 3 columns" above.
+
+## Changes in `1.2.1`
+
+- **Completed tab — Actions column spacing fixed**: proper padding from the MDR Confirmed/Void column instead of sitting flush against it, each category top-aligned on its own spaced line instead of one packed block, and a job with all 4 categories flagged no longer visually overlaps the row below it.
+
+## Changes in `1.2.0`
+
+- **Completed tab — Actions column rebuilt around 4 categories**: instead of one free-text sentence per piece, the Actions column now lists issues under up to 4 labeled categories: **MdR Request Issues** (original Request vs. what SGI physically returned — 🔻 shortage / 🔺 overage / 🏷️ match), **SGI Reports** (only shown when the Confirmed/Void CSV disagrees with SGI's Daily-entered return — 🚚/⚠️, a paperwork-accuracy flag separate from a real shortage), **SGI Returns** (same Request-vs-Returns comparison as category 1, plus ⁉️ for something Brightree reported that was never on the original Request at all), and **SGI or Patient Missing** (the action step — ➕ add qty back to the patient's account, ➖ remove an Exchange overage, or 🏷️➖ when that overage already has a matching Pickup line in the Confirmed data).
+- A piece with no issue on any of the 4 axes is left out of the breakdown entirely. A fully clean job still collapses to a single "🏷️ 100% Exact Match" line; a job with only a reporting mistake (Reports ≠ Returns, but the real-world Request and Returns still match) now lists that piece under the relevant categories instead of hiding it, so reporting mistakes stay tracked even when nothing needed correcting.
+- Items sharing the same icon within a category are grouped onto one line instead of one line each.
+
+## Changes in `1.1.0`
+
+- **Completed tab — outer status icon**: every piece card now shows a status icon to its left (same icon drives both the SGI card and the MDR card for a given piece): 🚫 the whole job is No Pickup/all-zero, 🛑 SGI's own entered qty is blank for that piece, ✍🏼 the piece was manually added, ✅ otherwise.
+- **Completed tab — qty boxes restructured**: the grey "×N" qty text next to the item name is gone, replaced by a boxed, blue **Requested Qty** as the first box. The SGI card always shows 2 boxes (Requested Qty, SGI Qty); the MDR Confirmed/Void card always shows 3 boxes (Requested Qty, SGI Qty, Confirmed Qty), not only when there's a mismatch. An icon always sits between adjacent boxes — no two qty boxes ever touch.
+- **🚨 consolidated**: no longer sits next to individual piece rows or action messages; one 🚨 now appears once, centered, above the Actions text, only when there's something to flag.
+- **Active dashboard**: a manually-added piece's lock-icon slot now shows ✍🏼 (was blank); its remove button shows ✍🏼 at rest instead of a plain pencil (still swaps to ✕ on hover) — matching the Completed tab's manual-entry marker.
+- **Renames**: the Completed tab's "SGI" column header is now "SGI Returns" (table) / "Returns" (detail popup). The "MDR Confirmed/Void" popup label is now dynamic — "MdR Confirmed" or "MdR Voided" depending on that record's actual status.
 
 ## Changes in `1.0.0`
 

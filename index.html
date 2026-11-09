@@ -239,6 +239,13 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 
 /* PIECES */
 .pcell{min-width:225px;max-width:280px;}
+/* Completed tab Actions column — equal breathing room from the columns on both sides
+   (per Antwain: "equidistant apart on both sides of touching columns"), content
+   top-aligned so a 4-category block doesn't visually crowd the row below it, and each
+   category on its own spaced line instead of a flat <br>-joined run. */
+.pactions{min-width:230px;max-width:340px;padding:10px 16px!important;vertical-align:top!important;font-size:10px;line-height:1.5;}
+.pactions-line{margin-bottom:5px;}
+.pactions-line:last-child{margin-bottom:0;}
 .phdr{display:flex;justify-content:center;margin-bottom:4px;}
 .sabtn{font-size:10px;font-weight:600;color:var(--accent);cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 9px;font-family:inherit;transition:all .15s;}
 .sabtn:hover{border-color:var(--accent);background:rgba(79,142,247,.1);}
@@ -269,6 +276,10 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .prmbtn-manual:hover .prm-x{display:inline;color:var(--red);}
 .qrcv[readonly]{opacity:.85;cursor:default;}
 .qrcv.qblue{border-color:var(--blue);color:var(--blue);}
+/* Completed tab — outer status icon sits left of the card, outside its border. */
+.pcard-outer{display:flex;align-items:center;gap:4px;margin-bottom:3px;}
+.pcard-outer .pitem{flex:1;}
+.pcard-outer .pouter{flex:0 0 auto;width:16px;text-align:center;font-size:13px;}
 .pftr{display:flex;justify-content:flex-end;margin-top:4px;}
 .addpbtn{font-size:10px;color:var(--green);cursor:pointer;background:none;border:none;padding:0;font-family:inherit;display:flex;align-items:center;gap:2px;}
 .addpbtn:hover{opacity:.75;}
@@ -610,6 +621,8 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <button class="btn btn-sm" id="btnHideOverdue" onclick="toggleHideOverdue()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide rows flashing red for a late by date that's already passed — just a view toggle for right now, it doesn't change the data">🔴 Hide Late &amp; Incomplete</button>
   <button class="btn btn-sm sgi-only" id="btnHideReturned" onclick="toggleHideReturned()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Hide jobs you've already returned to MDR (Job Closed checked), so you can see what still needs your attention. View only — doesn't change any data.">Hide Returned Jobs</button>
   <button class="btn btn-sm mdr-only" id="btnCompletedView" onclick="toggleCompletedView()" style="background:rgba(56,217,169,.15);color:var(--text2);border:1px solid var(--border);" title="Confirmed/Void jobs are sealed off the main view — this opens a separate, read-only comparison of what SGI selected vs. what was confirmed/voided.">✓ Completed</button>
+  <button class="btn btn-sm mdr-only completed-only" id="btnPendingOnly" onclick="togglePendingOnly()" style="display:none;background:transparent;color:var(--text2);border:1px solid var(--border);" title="Show only jobs with a second Confirmed/Void event waiting on your Approve/Reject decision">🕐 Pending Review</button>
+  <button class="btn btn-sm mdr-only completed-only" id="btnAddPending" onclick="openAddPendingModal()" style="display:none;background:transparent;color:var(--text2);border:1px solid var(--border);" title="Manually queue recovered Confirmed/Void data for a job (e.g. numbers pulled from Brightree) — goes through the same Approve/Reject review, nothing is written until you approve it">➕ Add Pending Correction</button>
   <div class="spills" id="spills"></div>
 </div>
 
@@ -667,7 +680,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:120px">Pickup Date</th>
         <th style="min-width:140px">Patient</th>
         <th style="min-width:90px">Job #</th>
-        <th style="min-width:180px">SGI<br><span style="font-size:9px;color:var(--text3);font-weight:400">requested vs. what SGI entered</span></th>
+        <th style="min-width:180px">SGI Returns</th>
         <th style="min-width:200px">MDR Confirmed/Void<br><span style="font-size:9px;color:var(--text3);font-weight:400">what Brightree reported</span></th>
         <th style="min-width:180px">Actions<br><span style="font-size:9px;color:var(--text3);font-weight:400">if any</span></th>
         <th style="min-width:120px">Reference</th>
@@ -873,6 +886,45 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   </div>
 </div>
 
+<!-- ADD PENDING CORRECTION (MDR only) — manually queue recovered Confirmed/Void data
+     for a job onto its pendingResolved review queue. See openAddPendingModal() /
+     submitAddPendingModal() / approvePending(). Nothing here writes to resolvedPieces
+     directly — it only ever creates a pending item, same as a real CSV import would. -->
+<div class="moverlay" id="addPendingOverlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="mhdr">
+      <span class="mtitle">➕ Add Pending Correction</span>
+      <button class="closebtn" onclick="closeAddPendingModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody">
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;">Queues this onto the job's Pending Review list — it won't count toward the Confirmed/Void total until you Approve it there.</div>
+      <div class="fg">
+        <label class="flabel">Job #</label>
+        <input type="text" id="pendingJobInput" class="finput" placeholder="e.g. 4060019">
+      </div>
+      <div class="fg">
+        <label class="flabel">Status</label>
+        <select id="pendingStatusInput" class="finput">
+          <option value="confirmed">Confirmed</option>
+          <option value="void">Void</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="flabel">Pieces <span style="color:var(--text3);font-size:9px">one per line, e.g. "Exchange -- E Cylinder → 9"</span></label>
+        <textarea id="pendingPiecesInput" class="finput ntxt" rows="4" style="resize:vertical;" placeholder="Exchange -- E Cylinder → 9&#10;Pickup -- Temp Probe → 1"></textarea>
+      </div>
+      <div class="fg">
+        <label class="flabel">Note <span style="color:var(--text3);font-size:9px">where this came from, e.g. "Brightree PUEX #35877, created 9/28"</span></label>
+        <input type="text" id="pendingNoteInput" class="finput" placeholder="Optional">
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);color:var(--text2);" onclick="closeAddPendingModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddPendingModal()">Queue for Review</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRINT-ONLY OUTPUT — built by exportPDF() -->
 <!-- SESSION EXPIRED OVERLAY -->
 <div id="sessionExpiredOverlay">
@@ -977,7 +1029,27 @@ function toggleCompletedView(){
   document.querySelectorAll('.toolbar .flbl,.toolbar .fsel,#btnHideOverdue').forEach(el=>{
     el.style.display = completedView ? 'none' : '';
   });
+  document.querySelectorAll('.toolbar .completed-only').forEach(el=>{
+    el.style.display = completedView ? '' : 'none';
+  });
+  if(!completedView){
+    pendingOnly=false;
+    const pb=document.getElementById('btnPendingOnly');
+    if(pb){ pb.textContent='🕐 Pending Review'; pb.style.background='transparent'; }
+  }
   logAppAction('Completed tab', completedView?'Opened the Completed (Confirmed/Void) view':'Returned to the Active view');
+  renderTable();
+}
+// View-only filter (doesn't change any data) — narrows the Completed tab to jobs with
+// at least one pendingResolved item still waiting on an Approve/Reject decision.
+let pendingOnly=false;
+function togglePendingOnly(){
+  pendingOnly=!pendingOnly;
+  const btn=document.getElementById('btnPendingOnly');
+  if(btn){
+    btn.textContent = pendingOnly ? '🕐 Showing Pending Only' : '🕐 Pending Review';
+    btn.style.background = pendingOnly ? 'rgba(255,159,10,.2)' : 'transparent';
+  }
   renderTable();
 }
 
@@ -1142,8 +1214,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.0.0';
-const BUILD_DATE = '2026-11-08';
+const VERSION = '1.3.0';
+const BUILD_DATE = '2026-11-09';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1157,6 +1229,44 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.3.0',
+    date:'Nov 9, 2026',
+    items:[
+      'Fixed a real data-loss bug: a job # can legitimately have more than one Brightree pickup/exchange event (e.g. two patients shipping to the same address), but "Load Confirmed/Void" matches by job#/reference/Entry ID — not pickup date — so a second event\'s CSV row was silently overwriting the first event\'s Confirmed/Void numbers with no trace left behind.',
+      'New rule: once a job already has Confirmed/Void data on it, anything new goes to a "Pending Review" queue instead of overwriting it. Nothing merges automatically — every pending item waits for you to Approve (adds its quantities into the job\'s total) or Reject (discards it) on the Completed tab.',
+      'Completed tab: a job with something waiting shows a "🕐 N Pending" badge next to its Job #; open the row to see each pending item (what it is, where it came from, when it came in) with its own Approve/Reject buttons. New "🕐 Pending Review" toolbar toggle filters the tab down to just those jobs.',
+      'New "➕ Add Pending Correction" button (Completed tab, MDR only): manually queue recovered Confirmed/Void numbers for a job (e.g. pulled from the Brightree PUEX Line Item Report for an event this app had already overwritten before this queue existed) — goes through the same Approve/Reject review as a real import, nothing is written to the job\'s totals until you approve it.',
+      'Needs a new SharePoint column, PendingResolved (multiple lines of text) — same setup as the ResolvedPieces/MatchReasons columns added for the Completed tab. Without it, pending items only live in this browser\'s own cache and disappear on reload or for anyone else who signs in. See the README.',
+    ]
+  },
+  {
+    version:'1.2.1',
+    date:'Nov 9, 2026',
+    items:[
+      'Completed tab Actions column spacing fixed: the text now has proper padding from the MDR Confirmed/Void column instead of sitting flush against it, each category is top-aligned on its own spaced line instead of a packed <br>-joined block, and a job with 4 categories of issues no longer visually overlaps the row below it.',
+    ]
+  },
+  {
+    version:'1.2.0',
+    date:'Nov 9, 2026',
+    items:[
+      'Completed tab Actions column rebuilt around 4 labeled categories instead of one-sentence-per-piece messages: "MdR Request Issues" (the original Request vs. what SGI physically returned — 🔻 shortage / 🔺 overage / 🏷️ match), "SGI Reports" (only shown when the Confirmed/Void CSV disagrees with SGI\'s Daily-entered return — 🚚/⚠️, a paperwork-accuracy flag separate from a real shortage), "SGI Returns" (same Request-vs-Returns axis as category 1, plus ⁉️ for something Brightree reported that was never on the original Request at all), and "SGI or Patient Missing" (the action step — ➕ add qty back to the patient\'s account, ➖ remove an Exchange overage, or 🏷️➖ when that overage already has a matching Pickup line in the Confirmed data).',
+      'A piece with no issue on any of the 4 axes is left out of the Actions breakdown entirely. A job that\'s clean start to finish still collapses to a single "🏷️ 100% Exact Match" line; a job with only a reporting mistake (Reports ≠ Returns, but the real-world Request and Returns still match) now lists that piece under all 3 relevant categories instead of hiding it, so reporting mistakes stay tracked even when nothing needed to be corrected.',
+      'Items sharing the same icon within a category are grouped onto one line instead of one line each.',
+    ]
+  },
+  {
+    version:'1.1.0',
+    date:'Nov 9, 2026',
+    items:[
+      'Completed tab piece cards now show an outer status icon to the left of every card (same icon on both the SGI and MDR card for a given piece): 🚫 the whole job is No Pickup/all-zero, 🛑 SGI\'s own entered qty is blank for that piece, ✍🏼 the piece was manually added, ✅ otherwise.',
+      'Completed tab boxes restructured: the grey "×N" qty text next to the item name is gone, replaced by a blue boxed Requested Qty as the first box. The SGI card always shows 2 boxes (Requested Qty, SGI Qty); the MDR Confirmed/Void card always shows 3 boxes (Requested Qty, SGI Qty, Confirmed Qty), not just when there\'s a mismatch. An icon always separates adjacent boxes — no two qty boxes ever touch.',
+      'Removed the extra 🚨 that used to sit next to individual piece rows and action messages; a single 🚨 now appears once, centered, above the Actions text — only when there\'s actually something to flag.',
+      'Active dashboard: a manually-added piece\'s lock-icon slot now shows ✍🏼 (previously blank); its remove button now shows ✍🏼 at rest instead of a plain pencil (still swaps to ✕ on hover) — matching the Completed tab\'s manual-entry marker.',
+      'Completed tab: the "SGI" column header is now "SGI Returns" (table) / "Returns" (detail popup); the "MDR Confirmed/Void" popup label is now dynamic — "MdR Confirmed" or "MdR Voided" depending on that record\'s actual status.',
+    ]
+  },
   {
     version:'1.0.0',
     date:'Nov 8, 2026',
@@ -1490,6 +1600,13 @@ let mSrcPieces=[],mAddPieces=[];
 //     Never derived from or written back onto `pieces` — that stays exactly what SGI
 //     selected. The Completed tab (renderCompletedTable()) reads pieces for its left
 //     column and resolvedPieces for its right column.
+//   pendingResolved:[{id,pieces,status,soIds,entryId,addedAt,source}] — a second (or
+//     third...) Confirmed/Void event that matched this job AFTER resolvedPieces was
+//     already set. Held here untouched, never auto-merged, until Antwain Approves (adds
+//     its quantities into resolvedPieces) or Rejects (discards it) on the Completed tab.
+//     `source` is 'import' (came off a real CSV row) or 'manual' (entered by hand via
+//     "Add Pending Correction", used to recover data an earlier version of this app
+//     already overwrote). See approvePending()/rejectPending()/addManualPending().
 //   matchReasons:[string] — ONLY set on a record a Confirmed/Void CSV row created from
 //     scratch because nothing existing matched it; why, in plain text (e.g. "No matching
 //     Patient ID"). Drives the "No Match" flag on the Completed tab. }
@@ -2065,6 +2182,106 @@ function mergeDuplicatesFor(recId){
 }
 
 // ══════════════════════════════════
+//  PENDING RESOLVED (Confirmed/Void review queue) — MDR only. A second Brightree
+//  pickup/exchange event landing on a job that already has resolvedPieces never
+//  auto-merges (see loadConfirmedVoid()); it sits in rec.pendingResolved until Antwain
+//  reviews it here. Nothing in this section touches resolvedPieces except on an
+//  explicit Approve click.
+// ══════════════════════════════════
+// Approve: adds the pending item's quantities into resolvedPieces (summed by
+// type+name, per Antwain — "we just want to make sure we get the total QTY back"),
+// then removes it from the pending list. Reject: discards it, resolvedPieces untouched.
+function approvePending(recId, pendingId){
+  const r=records.find(x=>x.id===recId); if(!r) return;
+  const item=(r.pendingResolved||[]).find(p=>p.id===pendingId); if(!item) return;
+  const resolved=(r.resolvedPieces||[]).slice();
+  const byKey=new Map(resolved.map(p=>[pieceMatchKey(p),p]));
+  (item.pieces||[]).forEach(p=>{
+    const k=pieceMatchKey(p);
+    const existing=byKey.get(k);
+    if(existing){
+      existing.expectedQty=(Number(existing.expectedQty)||0)+(Number(p.expectedQty)||0);
+    } else {
+      const added={...p};
+      resolved.push(added);
+      byKey.set(k,added);
+    }
+  });
+  r.resolvedPieces=resolved;
+  r.pendingResolved=(r.pendingResolved||[]).filter(p=>p.id!==pendingId);
+  logAppAction('Pending Confirmed/Void Approved', `${r.patientName||'Unknown'} (Job #${r.jobNum||'—'}) — added ${item.pieces.length} piece line(s) from ${item.source==='manual'?'a manual correction':'a later Confirmed/Void row'}`);
+  saveRecs(r);
+  renderTable();
+  if(document.getElementById('completedDetailOverlay').classList.contains('open')) openCompletedDetail(recId);
+  toast('Added to Confirmed/Void totals','s');
+}
+function rejectPending(recId, pendingId){
+  const r=records.find(x=>x.id===recId); if(!r) return;
+  const item=(r.pendingResolved||[]).find(p=>p.id===pendingId); if(!item) return;
+  if(!confirm('Discard this pending Confirmed/Void data? It will not be added to this job\'s totals.')) return;
+  r.pendingResolved=(r.pendingResolved||[]).filter(p=>p.id!==pendingId);
+  logAppAction('Pending Confirmed/Void Rejected', `${r.patientName||'Unknown'} (Job #${r.jobNum||'—'}) — discarded ${item.pieces.length} piece line(s)`);
+  saveRecs(r);
+  renderTable();
+  if(document.getElementById('completedDetailOverlay').classList.contains('open')) openCompletedDetail(recId);
+  toast('Pending item discarded','i');
+}
+// Renders the pending-review block for the Completed-tab detail popup: one card per
+// pending item with its pieces, where it came from, and Approve/Reject buttons.
+function renderPendingBlock(r){
+  const items=r.pendingResolved||[];
+  if(!items.length) return '';
+  const cards=items.map(item=>{
+    const lines=(item.pieces||[]).map(p=>`${pieceAbbr(p)} ${esc(p.name)} ×${esc(p.expectedQty)}`).join('<br>');
+    const statusLbl=item.status==='void'?'Void':'Confirmed';
+    const srcLbl=item.source==='manual'?'Manual correction':'New Confirmed/Void import';
+    const refLine=item.soIds?`Ref: ${esc(item.soIds)}`:'';
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:rgba(255,159,10,.06);">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">${esc(srcLbl)} · ${statusLbl} · added ${esc(fmtDate(item.addedAt))} ${refLine?('· '+refLine):''}</div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:6px;">${lines||'<span style="color:var(--text3)">No items</span>'}</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:rgba(56,217,169,.2);border:1px solid var(--border);" onclick="event.stopPropagation();approvePending('${r.id}','${item.id}')">✓ Approve — add to total</button>
+        <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();rejectPending('${r.id}','${item.id}')">✕ Reject</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="fg"><label class="flabel">🕐 Pending Review <span style="color:var(--text3);font-size:9px">won't count toward totals until you decide</span></label>${cards}</div>`;
+}
+// "Add Pending Correction" (MDR only) — manually queue recovered Confirmed/Void data for
+// a job (e.g. numbers pulled from the Brightree PUEX Line Item Report for an event that
+// was overwritten before this review queue existed). Goes through the same Approve/
+// Reject flow as an automatic one; nothing is written to resolvedPieces until Approved.
+function openAddPendingModal(){
+  document.getElementById('pendingJobInput').value='';
+  document.getElementById('pendingPiecesInput').value='';
+  document.getElementById('pendingStatusInput').value='confirmed';
+  document.getElementById('pendingNoteInput').value='';
+  document.getElementById('addPendingOverlay').classList.add('open');
+}
+function closeAddPendingModal(){ document.getElementById('addPendingOverlay').classList.remove('open'); }
+function submitAddPendingModal(){
+  const jobRaw=document.getElementById('pendingJobInput').value.trim();
+  const job=normIdStr(jobRaw);
+  const piecesRaw=document.getElementById('pendingPiecesInput').value;
+  const status=document.getElementById('pendingStatusInput').value;
+  const note=document.getElementById('pendingNoteInput').value.trim();
+  if(!job){ toast('Enter a job #','e'); return; }
+  const matches=records.filter(r=>normIdStr(r.jobNum)===job);
+  if(!matches.length){ toast('No existing record found with that job #','e'); return; }
+  const pieces=parsePiecesDaily(piecesRaw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).join('\n'));
+  if(!pieces.length){ toast('Enter at least one piece line, e.g. "Exchange -- E Cylinder → 9"','e'); return; }
+  matches.forEach(r=>{
+    r.pendingResolved=r.pendingResolved||[];
+    r.pendingResolved.push({id:gid(), pieces, status, soIds:note, entryId:'', addedAt:tod(), source:'manual'});
+    logAppAction('Pending Confirmed/Void Added (manual)', `${r.patientName||'Unknown'} (Job #${r.jobNum||'—'}) — ${pieces.length} piece line(s) queued for review`);
+    saveRecs(r);
+  });
+  closeAddPendingModal();
+  renderTable();
+  toast(`Queued for review on ${matches.length} record${matches.length>1?'s':''}`,'s');
+}
+
+// ══════════════════════════════════
 //  LOAD CONFIRMED/VOID
 // ══════════════════════════════════
 // Brightree's second daily export: jobs it has already resolved, tagged Confirmed or
@@ -2190,7 +2407,24 @@ function loadConfirmedVoid(text){
         // Confirmed/Void CSV row itself reported — its own quantities (0 for Void rows,
         // the confirmed qty for Confirmed rows), never derived from or written back onto
         // ex.pieces. That's the left/right split the Completed tab reads from.
-        ex.resolvedPieces = pieces;
+        //
+        // One job # can legitimately have more than one Brightree pickup/exchange event
+        // (e.g. two patients shipping to the same address under one job). Since this
+        // match is by job#/reference/Entry ID — not pickup date — a second event's CSV
+        // row finds the SAME record here. resolvedPieces only has one slot, so a second
+        // event used to silently overwrite the first one's confirmed/void numbers with
+        // no trace. Per Antwain: no record gets merged without his consent. So once a
+        // record already has resolvedPieces on it, anything new goes to pendingResolved
+        // instead and waits for him to Approve or Reject it on the Completed tab — see
+        // approvePending()/rejectPending() and the "Pending Review" badge.
+        if(Array.isArray(ex.resolvedPieces) && ex.resolvedPieces.length){
+          ex.pendingResolved = ex.pendingResolved || [];
+          ex.pendingResolved.push({
+            id: gid(), pieces, status, soIds: inc.soIds, entryId: inc.entryId, addedAt: tod(), source:'import'
+          });
+        } else {
+          ex.resolvedPieces = pieces;
+        }
         if(status==='void'){
           if(!ex.noPickup){
             ex.noPickup=true;
@@ -3144,33 +3378,156 @@ function jobIsAllZero(rec, qtyList){
 }
 
 // Builds the SGI column, the MDR Confirmed/Void column, and the Actions column for one
-// Completed-tab row. SGI column is always a simple 2-quantity line (requested vs what
-// SGI entered) per Q1-a — it never grows a 3rd quantity. The MDR column only grows a
-// 3rd quantity (🚚/⚠️ + 🚨) when SGI's own entered amount disagrees with what Brightree's
-// Confirmed/Void CSV actually reported.
+// Completed-tab row, per the "Completed Tab QOL Follow-ups" doc.
 // Pieces render with the SAME markup/CSS as the Active dashboard's own checklist
 // (.pitem box, .ptbadge PKP/EXC pill, .plocki lock, .qrcv boxed qty) — not a bespoke
-// text line — per "copy the styling exactly how it is on the Active page." The one
-// deliberate difference: the MDR Confirmed/Void qty box is always blue (qblue),
-// regardless of match/short/over state, since blue is MDR's color; the SGI qty box
-// still color-codes green/yellow/red by match/short/over, same as Active.
-function pbox(cls,html){ return `<div class="pitem ${cls}" style="margin-bottom:3px;">${html}</div>`; }
-function compItem(cls,p,req,icon,boxVal,boxCls,extraHtml){
+// text line.
+//
+// Each card now has an OUTER status icon (left of the card, replacing the old plain
+// checkmark idea) — same icon drives BOTH the SGI card and the MDR card for a given
+// piece. Precedence (highest wins): 🚫 job all-zero/No Pickup → 🛑 SGI qty blank for
+// this piece → ✍🏼 piece manually added (not from source) → ✅ default.
+//
+// Box layout is fixed now, never conditional:
+//   SGI card:  [Requested Qty] → icon → [SGI Qty]                       (2 boxes)
+//   MDR card:  [Requested Qty] → icon → [SGI Qty] → icon → [Confirmed Qty]  (3 boxes, always)
+// No two qty boxes ever sit next to each other without an icon between them. The old
+// grey "×N" qty tag next to the piece name is gone — the Requested Qty box replaces it.
+function qbox(val,cls){
+  if(val===null||val===undefined) return `<input type="number" class="qrcv${cls?' '+cls:''}" value="" placeholder="—" readonly title="No value on file">`;
+  return `<input type="number" class="qrcv${cls?' '+cls:''}" value="${esc(val)}" readonly>`;
+}
+function compItem(cls,p,outerIcon,boxes){
   const badge=pieceBadge(p);
-  const lock=p.fromSource?'<span class="plocki">🔒</span>':'<span class="plocki" title="Manually entered">✍🏼</span>';
+  // The inner lock slot now only ever shows 🔒 for real source pieces. A manually-added
+  // piece no longer shows ✍🏼 here — that signal now lives in the outer icon (and, on the
+  // MDR card, in the icon beside whichever box it applies to).
+  const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
   const name=esc(p.name);
-  const qtyTag=(req!==null&&req!==undefined)?`<span style="font-size:9px;color:var(--text3);"> ×${esc(req)}</span>`:'';
-  const iconHtml=icon?`<span class="pvarlbl" style="font-size:11px;">${icon}</span>`:'';
-  const boxHtml=(boxVal===null||boxVal===undefined)
-    ?`<input type="number" class="qrcv" value="" placeholder="—" readonly title="No value on file">`
-    :`<input type="number" class="qrcv${boxCls?' '+boxCls:''}" value="${esc(boxVal)}" readonly>`;
-  return `<div class="pitem ${cls}" style="margin-bottom:3px;">
-    ${badge}${lock}
-    <span class="pname2">${name}${qtyTag}</span>
-    ${iconHtml}
-    <div class="qwrap">${boxHtml}</div>
-    ${extraHtml||''}
+  let boxesHtml='';
+  boxes.forEach((b,i)=>{
+    if(i>0) boxesHtml+=`<span class="pvarlbl" style="font-size:11px;">${b.icon||''}</span>`;
+    boxesHtml+=`<div class="qwrap">${qbox(b.val,b.cls)}</div>`;
+  });
+  const outerTitle={'🚫':'No Pickup / all zero','🛑':'SGI qty blank','✍🏼':'Manually entered','✅':'Checked'}[outerIcon]||'';
+  return `<div class="pcard-outer">
+    <span class="pouter" title="${outerTitle}">${outerIcon||''}</span>
+    <div class="pitem ${cls}" style="margin-bottom:0;">
+      ${badge}${lock}
+      <span class="pname2">${name}</span>
+      ${boxesHtml}
+    </div>
   </div>`;
+}
+
+// Completed-tab Actions column, rebuilt around 4 categories (per Antwain's spec):
+//   1. MdR Request Issues — MdR's original Request vs SGI Returns (physical reality:
+//      what actually came back). 🔻 shortage / 🔺 overage / 🏷️ match / 🚫 voided /
+//      🛑 Returns blank.
+//   2. SGI Reports — only rendered when SGI Reports (the Confirmed/Void CSV) disagrees
+//      with SGI Returns (the Daily-entered checklist) — a paperwork-accuracy flag, not
+//      a real-world shortage. 🚚 when Returns>Reports, ⚠️ when Returns<Reports, 🛑 when
+//      Reports is blank.
+//   3. SGI Returns — the same Request-vs-Returns axis as category 1, plus ⁉️ for a piece
+//      Brightree reported that was never on MdR's original request at all (categories 1
+//      can't apply to those — there's no Request side to compare).
+//   4. SGI or Patient Missing — the action step. ➕ when qty needs to be added back to
+//      the patient's account (Returns came back short of the Request), ➖ when an
+//      Exchange overage needs to be removed from the account. An Exchange overage that
+//      already has a matching Pickup line in the Confirmed/Void data is resolved (🏷️➖)
+//      rather than an open action (➖) — per Antwain: "All items with Exchange Overages
+//      must coincide with a PKP in order for them to be removed off the account."
+// A piece with NO issue anywhere (clean on all 4 axes) is left out of the breakdown
+// entirely. If every piece in the job is like that, the whole job collapses to one
+// "🏷️ 100% Exact Match" line. Otherwise, any piece that has an issue on ANY axis gets
+// listed under categories 1 and 3 too (even showing 🏷️ there), so a reporting-only
+// mistake (category 2 alone) still gets tracked without implying the job itself failed.
+function renderActionsCategories(records, allMdrPieces){
+  function baseName(n){ return String(n||'').trim().toLowerCase(); }
+
+  // A Pickup piece that shares a base name with an Exchange piece on this job is the
+  // reconciling half of an Exchange overage (handled in category 4 below), not a
+  // surprise item — exclude it from the "never requested" ⁉️ treatment entirely.
+  const excNames = new Set(records
+    .filter(r=>!r.isExtra && String(r.type||'').toUpperCase()==='EXC')
+    .map(r=>baseName(r.name)));
+
+  const items = records
+    .filter(r=>!(r.isExtra && String(r.type||'').toUpperCase()==='PKP' && excNames.has(baseName(r.name))))
+    .map(r=>{
+    if(r.isExtra) return {isExtra:true, name:r.name, conf:r.conf};
+    const {name, req, rcv, conf, type, voided} = r;
+
+    // Categories 1 & 3 share this axis: Request vs Returns (physical reality).
+    let reqIcon;
+    if(voided){ reqIcon='🚫'; }
+    else if(rcv===null||rcv===undefined){ reqIcon='🛑'; }
+    else if(Number(rcv)===Number(req)){ reqIcon='🏷️'; }
+    else if(Number(rcv)<Number(req)){ reqIcon='🔻'; }
+    else { reqIcon='🔺'; }
+
+    // Category 2: Reports (Confirmed/Void CSV) vs Returns — paperwork accuracy only.
+    let repIcon=null;
+    if(conf===null||conf===undefined){
+      if(rcv!==null&&rcv!==undefined) repIcon='🛑';
+    } else if(rcv!==null&&rcv!==undefined&&Number(conf)!==Number(rcv)){
+      repIcon = Number(rcv)>Number(conf) ? '🚚' : '⚠️';
+    }
+
+    // Category 4: the action step.
+    let actIcon=null, actQty=null;
+    if(rcv!==null&&rcv!==undefined&&Number(rcv)!==Number(req)){
+      if(Number(rcv)<Number(req)){
+        actIcon='➕'; actQty=Number(req)-Number(rcv);
+      } else if(String(type||'').toUpperCase()==='EXC'){
+        const overage=Number(rcv)-Number(req);
+        const pkpQty=(allMdrPieces||[])
+          .filter(mp=>String(mp.type||'').toUpperCase()==='PKP' && baseName(mp.name)===baseName(name))
+          .reduce((s,mp)=>s+(Number(mp.expectedQty)||0),0);
+        actIcon = pkpQty>=overage ? '🏷️➖' : '➖';
+        actQty = overage;
+      }
+    }
+
+    const hasIssue = reqIcon!=='🏷️' || !!repIcon || !!actIcon;
+    return {name, req, rcv, reqIcon, repIcon, actIcon, actQty, hasIssue};
+  });
+
+  const anyIssue = items.some(it=>it.isExtra || it.hasIssue);
+  if(!anyIssue) return '🏷️ 100% Exact Match';
+
+  const cat1=[], cat2=[], cat3=[], cat4=[];
+  items.forEach(it=>{
+    if(it.isExtra){
+      cat3.push({icon:'⁉️', name:it.name, qty:it.conf});
+      return;
+    }
+    if(!it.hasIssue) return; // fully clean piece — nothing to track, omit entirely
+    cat1.push({icon:it.reqIcon, name:it.name, qty:it.req});
+    if(it.repIcon) cat2.push({icon:it.repIcon, name:it.name, qty:it.rcv});
+    cat3.push({icon:it.reqIcon, name:it.name, qty:it.rcv});
+    if(it.actIcon) cat4.push({icon:it.actIcon, name:it.name, qty:it.actQty});
+  });
+
+  function renderGroup(entries,label){
+    if(!entries.length) return '';
+    const order=[], byIcon=new Map();
+    entries.forEach(e=>{
+      if(!byIcon.has(e.icon)){ byIcon.set(e.icon,[]); order.push(e.icon); }
+      byIcon.get(e.icon).push(`[x${esc(e.qty)} ${esc(e.name)}]`);
+    });
+    const body=order.map(ic=>`${ic}${byIcon.get(ic).join(' ')}`).join(' ');
+    return `<strong>${label}:</strong> ${body}`;
+  }
+
+  const lines=[
+    renderGroup(cat1,'MdR Request Issues'),
+    renderGroup(cat2,'SGI Reports'),
+    renderGroup(cat3,'SGI Returns'),
+    renderGroup(cat4,'SGI or Patient Missing')
+  ].filter(Boolean);
+
+  return `<div style="text-align:center;font-size:13px;margin-bottom:5px;">🚨</div>${lines.map(l=>`<div class="pactions-line">${l}</div>`).join('')}`;
 }
 
 function buildCompletedCompare(rec){
@@ -3186,35 +3543,41 @@ function buildCompletedCompare(rec){
   const sgiAllZero=jobIsAllZero(rec, sgiPieces.map(p=>p.receivedQty));
   const mdrAllZero=jobIsAllZero(rec, mdrPieces.map(p=>p.expectedQty));
 
-  const sgiLines=[], mdrLines=[], actions=[];
+  const sgiLines=[], mdrLines=[], pieceRecords=[];
 
   sgiPieces.forEach(p=>{
     const req=p.expectedQty, rcv=p.receivedQty;
     const name=esc(p.name);
 
-    // ── SGI column: requested vs what SGI entered. Always 2 quantities. ──
-    // Icon convention matches the Active dashboard's own checklist: 🏷️ = exact
-    // match, 🔺 = received MORE than requested (overage), 🔻 = received LESS than
-    // requested (shortage).
+    // Outer status icon — one value, used on both this piece's SGI card and MDR card.
+    const outerIcon = sgiAllZero ? '🚫'
+      : (rcv===null||rcv===undefined) ? '🛑'
+      : (!p.fromSource) ? '✍🏼'
+      : '✅';
+
+    // ── SGI side: Requested Qty box, then the req-vs-SGI icon, then SGI Qty box. ──
     // `sgiAllZero` only means "this JOB was flagged No Pickup / all-zero" — it must
-    // never overwrite a piece's own real, non-zero SGI-entered qty with a flat 0.
-    // Only pieces that are themselves blank or actually 0 get the 🚫 treatment; any
-    // piece with a real different value falls through to the normal match/short/
-    // over logic below using its own `rcv`.
+    // never overwrite a piece's own real, non-zero SGI-entered qty with a flat 0. Only
+    // pieces that are themselves blank or actually 0 get the 🚫 treatment; any piece
+    // with a real different value falls through to the normal match/short/over logic.
+    let sCardCls, sIcon, sVal, sCls;
     if(sgiAllZero && (rcv===null||rcv===undefined||Number(rcv)===0)){
-      sgiLines.push(compItem('p-partial',p,req,'🚫',0,''));
+      sCardCls='p-partial'; sIcon='🚫'; sVal=0; sCls='';
     } else if(rcv===null||rcv===undefined){
-      sgiLines.push(compItem('p-partial',p,req,'🛑',null,'',`<span class="pvarlbl" style="font-size:11px;">🚨</span>`));
-      actions.push(`🛑 (SGI Columns) Please Investigate. [x${esc(req)} ${name}] Blank, verify with SGI the QTY.`);
+      sCardCls='p-partial'; sIcon='🛑'; sVal=null; sCls='';
     } else if(!p.fromSource){
-      sgiLines.push(compItem('p-ok',p,req,'✍🏼',rcv,''));
+      sCardCls='p-ok'; sIcon='✍🏼'; sVal=rcv; sCls='';
     } else if(rcv===req){
-      sgiLines.push(compItem('p-ok',p,req,'🏷️',rcv,'qmatch'));
+      sCardCls='p-ok'; sIcon='🏷️'; sVal=rcv; sCls='qmatch';
     } else if(rcv<req){
-      sgiLines.push(compItem('p-partial',p,req,'🔻',rcv,'qshort'));
+      sCardCls='p-partial'; sIcon='🔻'; sVal=rcv; sCls='qshort';
     } else {
-      sgiLines.push(compItem('p-over',p,req,'🔺',rcv,'qover'));
+      sCardCls='p-over'; sIcon='🔺'; sVal=rcv; sCls='qover';
     }
+    sgiLines.push(compItem(sCardCls,p,outerIcon,[
+      {val:req,cls:'qblue'},
+      {val:sVal,cls:sCls,icon:sIcon}
+    ]));
 
     // Claim the matching MDR-side piece (by type+name) so anything left over after this
     // loop is a piece Brightree reported that was never on the SGI side at all.
@@ -3222,65 +3585,81 @@ function buildCompletedCompare(rec){
     const mdrPiece=bucket&&bucket.length?bucket.shift():null;
     if(mdrPiece) usedMdr.add(mdrPiece);
 
-    // ── MDR column ── (qty box is always blue — MDR's own color — regardless of
-    // match/short/over state; the outer box border still follows that state)
+    // ── MDR side: Requested Qty, SGI Qty (reusing the same values/icon as the SGI
+    // card above), then Confirmed Qty — always 3 boxes, the Confirmed box always blue. ──
     if(!mdrPiece){
+      let m2Icon, m3Val, m3Cls;
       if(mdrAllZero){
-        mdrLines.push(compItem('p-partial',p,req,'🚫',0,'qblue'));
-        actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
+        m2Icon='🚫'; m3Val=0; m3Cls='qblue';
       } else {
-        mdrLines.push(compItem('p-partial',p,req,'🛑',null,'',`<span class="pvarlbl" style="font-size:11px;" title="Removed">🚨</span>`));
-        actions.push(`🛑 (MDR Columns) [x${esc(req)} ${name}] was removed from order.`);
+        m2Icon='🛑'; m3Val=null; m3Cls='';
       }
+      mdrLines.push(compItem('p-partial',p,outerIcon,[
+        {val:req,cls:'qblue'},
+        {val:sVal,cls:sCls,icon:sIcon},
+        {val:m3Val,cls:m3Cls,icon:m2Icon}
+      ]));
+      pieceRecords.push({name:p.name, type:p.type, req, rcv:sVal, conf:(mdrAllZero?0:null), voided:!!mdrAllZero});
       return;
     }
     const conf=mdrPiece.expectedQty;
-    let micon, mcls;
-    // Same rule as the SGI column: a job-level "all zero / voided" flag must never
+    let m2Icon, mCardCls;
+    // Same rule as the SGI side: a job-level "all zero / voided" flag must never
     // relabel a piece that actually has its own real, non-zero confirmed qty.
-    if(mdrAllZero && (conf===null||conf===undefined||Number(conf)===0)){
-      micon='🚫'; mcls='p-partial';
-      actions.push(`🚫 Voided - Please add [x${esc(req)} ${name}] to Account for Inventory Corrections`);
+    const voided = mdrAllZero && (conf===null||conf===undefined||Number(conf)===0);
+    if(voided){
+      m2Icon='🚫'; mCardCls='p-partial';
+    } else if(!p.fromSource){
+      // Manually-added piece — can't be verified against any source data, so the icon
+      // beside the Confirmed Qty box is ✍🏼 instead of a match/short/over verdict,
+      // unless there's a real discrepancy below (which still overrides it).
+      m2Icon='✍🏼'; mCardCls='p-ok';
     } else if(conf===req){
-      micon='🏷️'; mcls='p-ok';
+      m2Icon='🏷️'; mCardCls='p-ok';
     } else if(conf<req){
-      micon='➕'; mcls='p-partial'; // shortage
-      actions.push(`➕ Shortage - Please add [x${esc(req-conf)} ${name}] to Account for Inventory Corrections`);
+      m2Icon='➕'; mCardCls='p-partial'; // shortage
     } else {
-      micon='➖'; mcls='p-over'; // overage — no action needed
+      m2Icon='➖'; mCardCls='p-over'; // overage — no action needed
     }
-    // 3rd quantity: only when SGI's own entered amount disagrees with what Brightree
-    // confirmed (Q1-a) — otherwise the MDR column stays a 2-quantity line too. This
-    // always wins the box color (red) since it's the most urgent state.
-    let mextra='';
+    // Overrides the icon above: SGI's own entered amount disagrees with what Brightree
+    // confirmed. Always wins — it's the most urgent state.
     if(rcv!==null&&rcv!==undefined&&rcv!==conf){
-      mcls='p-over';
+      mCardCls='p-over';
       if(conf<rcv){
-        mextra=`<span class="pvarlbl" style="font-size:11px;">🚚</span><div class="qwrap"><input type="number" class="qrcv qover" value="${esc(rcv)}" readonly></div><span class="pvarlbl" style="font-size:11px;">🚨</span>`;
-        actions.push(`🚚🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - less than stated.`);
+        m2Icon='🚚';
       } else {
-        mextra=`<span class="pvarlbl" style="font-size:11px;">⚠️</span><div class="qwrap"><input type="number" class="qrcv qover" value="${esc(rcv)}" readonly></div><span class="pvarlbl" style="font-size:11px;">🚨</span>`;
-        actions.push(`⚠️🚨 Please Investigate. SGI returned [x${esc(rcv)} ${name}] - more than stated.`);
+        m2Icon='⚠️';
       }
     }
-    mdrLines.push(compItem(mcls,mdrPiece,req,micon,conf,'qblue',mextra));
+    mdrLines.push(compItem(mCardCls,mdrPiece,outerIcon,[
+      {val:req,cls:'qblue'},
+      {val:sVal,cls:sCls,icon:sIcon},
+      {val:conf,cls:'qblue',icon:m2Icon}
+    ]));
+    pieceRecords.push({name:p.name, type:p.type, req, rcv:sVal, conf:(voided?0:conf), voided});
   });
 
   // Anything Brightree reported that was never matched to an SGI-side piece — added at
-  // confirm time, not on the original source.
+  // confirm time, with no source data to verify against at all (never on MdR's original
+  // request). Requested Qty and Confirmed Qty are both this piece's own expectedQty;
+  // there's no SGI Qty to show.
   mdrPieces.forEach(p=>{
     if(usedMdr.has(p)) return;
-    const name=esc(p.name), qty=p.expectedQty;
-    mdrLines.push(compItem('p-over',p,qty,'⁉️',qty,'qblue'));
-    actions.push(`✍🏼⁉️ Manually added - Please look for PURLs or existing PUEXs for [x${esc(qty)} ${name}]`);
+    const qty=p.expectedQty;
+    mdrLines.push(compItem('p-over',p,'✍🏼',[
+      {val:qty,cls:'qblue'},
+      {val:null,cls:'',icon:'✍🏼'},
+      {val:qty,cls:'qblue',icon:'✍🏼'}
+    ]));
+    pieceRecords.push({name:p.name, type:p.type, isExtra:true, conf:qty});
   });
 
   const totalQty=mdrPieces.reduce((sum,p)=>sum+(Number(p.expectedQty)||0),0);
+  const actionsHtml = renderActionsCategories(pieceRecords, mdrPieces);
   return {
     sgiHtml: sgiLines.length?sgiLines.join(''):'<span style="color:var(--text3)">No items</span>',
     mdrHtml: mdrLines.length?mdrLines.join(''):'<span style="color:var(--text3)">No items</span>',
-    // Q1-c: a clean row (nothing needing action) reads "🏷️ Exact Match" instead of blank.
-    actionsHtml: actions.length?actions.map(esc).join('<br>'):'🏷️ Exact Match',
+    actionsHtml,
     totalQty
   };
 }
@@ -3294,6 +3673,7 @@ function renderCompletedTable(){
   const qStripped=q.replace(/[,\s]+/g,'');
   const rows=records.filter(r=>{
     if(!(isMDR()&&r.confirmed)) return false;
+    if(pendingOnly && !((r.pendingResolved||[]).length)) return false;
     if(q){
       const haystack=`${r.patientName} ${r.patientId} ${r.jobNum} ${r.soIds} ${(r.pieces||[]).map(p=>`${p.name} ${p.serialNum||''}`).join(' ')}`.toLowerCase();
       const refStripped=(r.soIds||'').replace(/[,\s]+/g,'').toLowerCase();
@@ -3333,13 +3713,17 @@ function renderCompletedTable(){
     const dupBadge = dup
       ? `<div style="margin-top:3px"><button class="btn btn-sm" style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records · Merge</button></div>`
       : '';
+    const pendingCount=(r.pendingResolved||[]).length;
+    const pendingBadge = pendingCount
+      ? `<div style="margin-top:3px"><span style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.2);border:1px solid var(--border);border-radius:4px;color:var(--text2);" title="A later Confirmed/Void event is waiting on your Approve/Reject decision — open this row">🕐 ${pendingCount} Pending</span></div>`
+      : '';
     return `<tr class="${noMatch?'r-overdue':''} clickable-row" data-id="${r.id}" onclick="completedRowClick(event,'${r.id}')">
       <td>${esc(fmtDate(r.pickupDate))||'—'}</td>
       <td><div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;">${esc(r.patientName)}${copyIcon(r.patientName,'Copy patient name')}</div><div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text3)">${esc(r.patientId)}${copyIcon(r.patientId,'Copy patient ID')}</div></td>
-      <td><span class="copy-hover-group">${esc(r.jobNum)||'—'}${copyIcon(r.jobNum,'Copy job number')}</span>${dupBadge}</td>
+      <td><span class="copy-hover-group">${esc(r.jobNum)||'—'}${copyIcon(r.jobNum,'Copy job number')}</span>${dupBadge}${pendingBadge}</td>
       <td class="pcell"><div class="plist">${cmp.sgiHtml}</div></td>
       <td class="pcell"><div class="plist">${cmp.mdrHtml}</div></td>
-      <td style="font-size:10px;line-height:1.4">${cmp.actionsHtml}</td>
+      <td class="pactions">${cmp.actionsHtml}</td>
       <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
       <td class="ctr">${cmp.totalQty}</td>
       <td>${matchCell}</td>
@@ -3376,17 +3760,18 @@ function openCompletedDetail(id){
       <div class="fg"><label class="flabel">Match</label><div class="flocked">${matchHtml}</div></div>
     </div>
     <div class="fg">
-      <label class="flabel">SGI <span style="color:var(--text3);font-size:9px">requested vs. what SGI entered</span></label>
+      <label class="flabel">Returns</label>
       <div class="plist">${cmp.sgiHtml}</div>
     </div>
     <div class="fg">
-      <label class="flabel">MDR Confirmed/Void <span style="color:var(--text3);font-size:9px">what Brightree reported</span></label>
+      <label class="flabel">MdR ${r.noPickup?'Voided':'Confirmed'}</label>
       <div class="plist">${cmp.mdrHtml}</div>
     </div>
     <div class="fg">
       <label class="flabel">Actions <span style="color:var(--text3);font-size:9px">if any</span></label>
       <div style="font-size:11px;line-height:1.5">${cmp.actionsHtml}</div>
     </div>
+    ${renderPendingBlock(r)}
     <div class="frow">
       <div class="fg"><label class="flabel">SGI Notes</label><div class="flocked" style="white-space:pre-wrap;height:auto;min-height:30px;" ${r.sgiNotes?`data-copy="${esc(r.sgiNotes)}" title="Click to copy"`:''}>${esc(r.sgiNotes)||'—'}</div></div>
       <div class="fg"><label class="flabel">MDR Notes</label><div class="flocked" style="white-space:pre-wrap;height:auto;min-height:30px;" ${r.mdrNotes?`data-copy="${esc(r.mdrNotes)}" title="Click to copy"`:''}>${esc(r.mdrNotes)||'—'}</div></div>
@@ -3516,12 +3901,15 @@ function renderPcell(r){
     const isOver=rcv!==''&&parseInt(rcv)>p.expectedQty;
     const cls='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
     const badge=pieceBadge(p);
-    const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
-    // Delete button only for logistics-added pieces (not from source). Shown as a
-    // pencil icon by default; hovering swaps it to ✕ so the remove action is still
-    // obvious, but the at-rest look matches the rest of the boxed checklist.
+    // Manually-added pieces (not from source, can't be verified against anything SGI
+    // sent) get ✍🏼 in the lock slot instead of 🔒, same meaning as the Completed tab's
+    // manual-entry marker.
+    const lock=p.fromSource?'<span class="plocki">🔒</span>':'<span class="plocki" title="Manually entered">✍🏼</span>';
+    // Delete button only for logistics-added pieces (not from source). Shown as ✍🏼 by
+    // default (matching the lock-slot marker above — 2 ✍🏼 on a manual row total);
+    // hovering swaps it to ✕ so the remove action is still obvious.
     const delBtn=!p.fromSource
-      ?`<button class="prmbtn prmbtn-manual" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove"><span class="prm-pencil">✏️</span><span class="prm-x">✕</span></button>`
+      ?`<button class="prmbtn prmbtn-manual" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove"><span class="prm-pencil">✍🏼</span><span class="prm-x">✕</span></button>`
       :'';
     const variance=pieceVariance(p);
     // Icon convention matches the Active dashboard's own checklist: 🏷️ = exact 1:1
@@ -5180,6 +5568,8 @@ function spToRec(item){
   const resolvedPieces=parsePiecesRich(fv('ResolvedPieces')||'');
   let matchReasons=[];
   try{ matchReasons=JSON.parse(fv('MatchReasons')||'[]'); }catch(e){ matchReasons=[]; }
+  let pendingResolved=[];
+  try{ pendingResolved=JSON.parse(fv('PendingResolved')||'[]'); }catch(e){ pendingResolved=[]; }
   return {
     id: fv('AppRecordId') || String(item.id), _spId: item.id,
     source: fv('Source')||'daily',
@@ -5191,7 +5581,7 @@ function spToRec(item){
     jobClosed: fbool('JobClosed'), verified: fbool('Verified'), confirmed: fbool('Confirmed'),
     noPickup: fbool('NoPickup'),
     entryId: fv('EntryId'), locked,
-    pieces, resolvedPieces, matchReasons,
+    pieces, resolvedPieces, matchReasons, pendingResolved,
     hasMemoryDownload: pieces.some(p=>p.memoryDownload)
   };
 }
@@ -5210,7 +5600,14 @@ function recToSP(r){
     // "Completed Tab Fixes & Questions" doc, Q2, for the ResolvedPieces/MatchReasons
     // SharePoint columns these need. Without these two, a reload (or anyone else
     // signing in) silently loses the right-hand column and the No Match flag.
-    ResolvedPieces: serPieces(r.resolvedPieces||[]), MatchReasons: JSON.stringify(r.matchReasons||[])
+    ResolvedPieces: serPieces(r.resolvedPieces||[]), MatchReasons: JSON.stringify(r.matchReasons||[]),
+    // Pending Confirmed/Void review queue — needs its OWN new SharePoint column,
+    // PendingResolved (multiple lines of text), same as ResolvedPieces/MatchReasons
+    // needed theirs. Without it, a pending item only survives in this browser's own
+    // cache and disappears on reload or for anyone else who signs in. Plain JSON
+    // (not the serPieces format) since each item also carries status/source/date,
+    // not just a piece list.
+    PendingResolved: JSON.stringify(r.pendingResolved||[])
   };
 }
 
