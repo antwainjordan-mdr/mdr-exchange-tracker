@@ -238,24 +238,28 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .ret-cell.has-date{}
 
 /* PIECES */
-.pcell{min-width:260px;max-width:370px;}
+.pcell{min-width:220px;max-width:320px;}
 /* Completed tab Actions column — equal breathing room from the columns on both sides
    (per Antwain: "equidistant apart on both sides of touching columns"), content
    top-aligned so a 4-category block doesn't visually crowd the row below it, and each
    category on its own spaced line instead of a flat <br>-joined run. */
 .pactions{min-width:230px;max-width:340px;padding:10px 16px!important;vertical-align:top!important;font-size:10px;line-height:1.5;}
-.pactions-line{margin-bottom:5px;}
+.pactions-line{display:flex;align-items:flex-start;margin-bottom:5px;}
 .pactions-line:last-child{margin-bottom:0;}
+.pactions-label{flex:0 0 auto;min-width:122px;font-weight:700;}
+.pactions-body{flex:1;min-width:0;}
+.pactions-body>div{margin-bottom:2px;}
+.pactions-body>div:last-child{margin-bottom:0;}
 .phdr{display:flex;justify-content:center;margin-bottom:4px;}
 .sabtn{font-size:10px;font-weight:600;color:var(--accent);cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 9px;font-family:inherit;transition:all .15s;}
 .sabtn:hover{border-color:var(--accent);background:rgba(79,142,247,.1);}
 .plist{display:flex;flex-direction:column;gap:3px;min-width:0;}
-.pitem{display:flex;flex-direction:column;gap:4px;padding:5px 7px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);transition:border-color .1s,background .1s;}
+.pitem{display:flex;flex-direction:column;gap:2px;padding:3px 7px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);transition:border-color .1s,background .1s;}
 .pihead{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px;}
-.pihead-tags{display:grid;grid-template-rows:1fr 1fr;justify-items:start;align-items:center;align-self:stretch;flex-shrink:0;}
-.pihead-tags>*:first-child{padding-bottom:3px;}
-.pihead-tags>*:last-child{padding-top:3px;}
+.pihead-tags{display:flex;align-items:center;flex-shrink:0;}
 .pihead .pname2{text-align:center;}
+.qrow-outer{display:flex;align-items:center;gap:6px;}
+.qrow-outer .qrow-center{flex:1;min-width:0;}
 .qrow-center{display:flex;align-items:center;justify-content:space-evenly;gap:8px;flex-wrap:wrap;}
 .qrow-center.qrow-halves{display:grid;grid-template-columns:1fr 1fr;justify-items:center;align-items:center;gap:8px;}
 .pitem.p-ok{border-color:var(--green);background:rgba(56,217,169,.07);}
@@ -267,7 +271,7 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .ptbadge{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;flex-shrink:0;}
 .be{background:rgba(79,142,247,.2);color:var(--blue);}
 .bp{background:rgba(167,139,250,.2);color:var(--purple);}
-.plocki{font-size:9px;color:var(--lock-icon);flex-shrink:0;}
+.plocki{font-size:12px;color:var(--lock-icon);flex-shrink:0;}
 .pname2{flex:1 1 70px;font-size:11px;color:var(--text);min-width:70px;line-height:1.3;overflow-wrap:break-word;}
 .qwrap{display:flex;align-items:center;gap:3px;flex-shrink:0;}
 .qrcv{width:38px;background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:2px 4px;color:var(--text);font-family:var(--font-main);font-size:11px;text-align:center;outline:none;}
@@ -285,10 +289,9 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .qrcv.qblue{border-color:var(--blue);color:var(--blue);}
 .qrcv.qorange{border-color:var(--orange);color:var(--orange);}
 /* Completed tab — outer status icon sits left of the card, outside its border. */
-.pcard-outer{display:flex;align-items:flex-start;gap:4px;margin-bottom:3px;max-width:100%;min-width:0;box-sizing:border-box;}
+.pcard-outer{display:flex;align-items:center;gap:4px;margin-bottom:3px;max-width:100%;min-width:0;box-sizing:border-box;}
 .pcard-outer .pitem{flex:1;min-width:0;}
-.pcard-outer .pouter{flex:0 0 auto;width:16px;text-align:center;font-size:13px;margin-top:2px;}
-.pcard-outer .pcb{margin-top:2px;}
+.pcard-outer .pouter{flex:0 0 auto;width:18px;text-align:center;font-size:17px;}
 
 .pftr{display:flex;justify-content:flex-end;margin-top:4px;}
 .addpbtn{font-size:10px;color:var(--green);cursor:pointer;background:none;border:none;padding:0;font-family:inherit;display:flex;align-items:center;gap:2px;}
@@ -1089,6 +1092,7 @@ function toggleCompletedView(){
     pendingOnly=false;
     const pb=document.getElementById('btnPendingOnly');
     if(pb){ pb.textContent='🕐 Pending Review'; pb.style.background='transparent'; }
+    teardownCompletedLazyLoad();
   }
   logAppAction('Completed tab', completedView?'Opened the Completed (Confirmed/Void) view':'Returned to the Active view');
   renderTable();
@@ -1267,7 +1271,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.8';
+const VERSION = '1.4.9';
 const BUILD_DATE = '2026-11-10';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1282,6 +1286,18 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.9',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed tab: now loads 25 rows at a time instead of rendering every completed/void record at once — the long load time was coming from how many heavy piece-cards had to hit the DOM on open. The next 25 load automatically once you\'ve scrolled about 2/3 of the way down what\'s currently loaded, so scrolling should feel continuous rather than hitting a wall at the bottom. (Searching still shows every match at once, same as before.)',
+      'Completed & Active: shrank the piece card\'s max width (370px → 320px) and cut the card\'s internal padding/spacing roughly in half, so cards take up noticeably less room.',
+      'Completed & Active: moved the return-type badge (PKP/EXC/RTN) out of the header and down into the qty row, right next to the MdR Request box — it no longer affects that box\'s icon/qty grouping. The header now just has the lock and the centered item name.',
+      'Completed tab: the Actions column\'s category lines (MdR Request Issues, SGI Reports, etc.) now line up in two columns — label on the left, bracketed items on the right — so every line\'s brackets start at the same position regardless of label length, and a line with several bracket groups stacks them instead of running them together.',
+      'Completed & Active: the outer checkmark/status icon (and the Active tab\'s checkbox) is now vertically centered next to its card instead of nudged toward the top.',
+      'Completed & Active: bumped up the size of the lock, eyes, and other piece-card icons (roughly 30%) so they\'re easier to read at a glance.',
+    ],
+  },
   {
     version:'1.4.8',
     date:'Nov 10, 2026',
@@ -1720,6 +1736,15 @@ const TABLE_PAGE_SIZE = 50;
 let tableRenderLimit = TABLE_PAGE_SIZE;
 let _lastFilterSig = '';
 let _tableObserver = null;
+// Completed tab lazy-load (infinite scroll) state — same idea as the Active table's
+// above, but the sentinel row is seeded ~2/3 of the way down the currently-rendered
+// page (not at the very bottom), so the next batch is already loading well before
+// the user actually scrolls to the end. Page size is smaller here (25 vs 50) because
+// each Completed-tab row is a much heavier piece-comparison card, not a single <tr>.
+const COMPLETED_PAGE_SIZE = 25;
+let completedRenderLimit = COMPLETED_PAGE_SIZE;
+let _lastCompletedFilterSig = '';
+let _completedObserver = null;
 let editId=null;
 let mSrcPieces=[],mAddPieces=[];
 
@@ -3884,18 +3909,18 @@ function compItem(cls,p,outerIcon,boxes){
   // icon bound to whichever qty box it applies to).
   const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
   const name=esc(p.name);
-  const qtyHtml=boxes.map(b=>`<div class="qwrap">${b.icon?`<span class="pvarlbl" style="font-size:11px;">${b.icon}</span>`:''}${qbox(b.val,b.cls)}</div>`).join('');
+  const qtyHtml=boxes.map(b=>`<div class="qwrap">${b.icon?`<span class="pvarlbl" style="font-size:14px;">${b.icon}</span>`:''}${qbox(b.val,b.cls)}</div>`).join('');
   const qrowCls=boxes.length===2?'qrow-center qrow-halves':'qrow-center';
   const outerTitle={'🚫':'No Pickup / all zero','🛑':'SGI qty blank','✍🏼':'Manually entered','✅':'Checked'}[outerIcon]||'';
   return `<div class="pcard-outer">
     <span class="pouter" title="${outerTitle}">${outerIcon||''}</span>
     <div class="pitem ${cls}" style="margin-bottom:0;">
       <div class="pihead">
-        <div class="pihead-tags">${lock}${badge}</div>
+        <div class="pihead-tags">${lock}</div>
         <span class="pname2">${name}</span>
-        <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${lock}${badge}</div>
+        <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${lock}</div>
       </div>
-      <div class="${qrowCls}">${qtyHtml}</div>
+      <div class="qrow-outer">${badge}<div class="${qrowCls}">${qtyHtml}</div></div>
     </div>
   </div>`;
 }
@@ -3989,25 +4014,32 @@ function renderActionsCategories(records, allMdrPieces){
     if(it.actIcon) cat4.push({icon:it.actIcon, name:it.name, qty:it.actQty});
   });
 
+  // Each icon-group gets its own line within the category's body column, so the
+  // opening bracket always lands at the same x position — whether it's the first
+  // group on the line or a wrapped continuation, and whether the label above it is
+  // "SGI Reports" or the much longer "SGI or Patient Missing" (per Antwain: "align
+  // them by their brackets").
   function renderGroup(entries,label){
-    if(!entries.length) return '';
+    if(!entries.length) return null;
     const order=[], byIcon=new Map();
     entries.forEach(e=>{
       if(!byIcon.has(e.icon)){ byIcon.set(e.icon,[]); order.push(e.icon); }
       byIcon.get(e.icon).push(`[x${esc(e.qty)} ${esc(e.name)}]`);
     });
-    const body=order.map(ic=>`${ic}${byIcon.get(ic).join(' ')}`).join(' ');
-    return `<strong>${label}:</strong> ${body}`;
+    const groupLines=order.map(ic=>`${ic}${byIcon.get(ic).join(' ')}`);
+    return {label, groupLines};
   }
 
-  const lines=[
+  const groups=[
     renderGroup(cat1,'MdR Request Issues'),
     renderGroup(cat2,'SGI Reports'),
     renderGroup(cat3,'SGI Returns'),
     renderGroup(cat4,'SGI or Patient Missing')
   ].filter(Boolean);
 
-  return `<div style="text-align:center;font-size:13px;margin-bottom:5px;">🚨</div>${lines.map(l=>`<div class="pactions-line">${l}</div>`).join('')}`;
+  const lines=groups.map(g=>`<div class="pactions-line"><span class="pactions-label">${g.label}:</span><div class="pactions-body">${g.groupLines.map(gl=>`<div>${gl}</div>`).join('')}</div></div>`);
+
+  return `<div style="text-align:center;font-size:17px;margin-bottom:5px;">🚨</div>${lines.join('')}`;
 }
 
 function buildCompletedCompare(rec){
@@ -4170,6 +4202,7 @@ function renderCompletedTable(){
   });
   if(!rows.length){
     tbody.innerHTML='';
+    teardownCompletedLazyLoad();
     if(empty){
       empty.style.display='block';
       const label=empty.querySelector('p'), sub=empty.querySelector('small');
@@ -4184,9 +4217,18 @@ function renderCompletedTable(){
     return;
   }
   if(empty) empty.style.display='none';
+
+  // Search bypasses the lazy-load window entirely, same convention as the Active
+  // table — a match should never be hidden just because it falls past the
+  // currently-loaded page.
+  const searchActive=!!q;
+  const sig=`${q}|${pendingOnly}`;
+  if(sig!==_lastCompletedFilterSig){ completedRenderLimit=COMPLETED_PAGE_SIZE; _lastCompletedFilterSig=sig; }
+  const visibleRows = searchActive ? rows : rows.slice(0, completedRenderLimit);
+
   // Q3/Q4 (confirmed): manage duplicates on both tabs — same grouping logic either way.
-  const dupMap=dupMembershipMap(rows);
-  tbody.innerHTML = rows.map(r=>{
+  const dupMap=dupMembershipMap(visibleRows);
+  const rowHtmls = visibleRows.map(r=>{
     const noMatch = Array.isArray(r.matchReasons) && r.matchReasons.length>0;
     const cmp = buildCompletedCompare(r);
     const matchCell = noMatch
@@ -4211,7 +4253,36 @@ function renderCompletedTable(){
       <td class="ctr">${cmp.totalQty}</td>
       <td style="text-align:center">${matchCell}</td>
     </tr>`;
-  }).join('');
+  });
+
+  // Seed the lazy-load sentinel ~2/3 of the way down the currently-rendered page
+  // (not at the very end) so the next batch starts loading before the user
+  // actually scrolls to the bottom. See setupCompletedLazyLoad().
+  const hasMore = !searchActive && visibleRows.length < rows.length;
+  if(hasMore){
+    const sentinelIdx = Math.max(0, Math.floor(rowHtmls.length*2/3)-1);
+    rowHtmls.splice(sentinelIdx, 0, `<tr id="completedSentinel"><td colspan="9" style="text-align:center;padding:10px;color:var(--text3);font-size:11px;">Loading more… (${visibleRows.length} of ${rows.length})</td></tr>`);
+  }
+  tbody.innerHTML = rowHtmls.join('');
+  setupCompletedLazyLoad(hasMore);
+}
+
+function teardownCompletedLazyLoad(){
+  if(_completedObserver){ _completedObserver.disconnect(); _completedObserver=null; }
+}
+
+function setupCompletedLazyLoad(hasMore){
+  teardownCompletedLazyLoad();
+  if(!hasMore) return;
+  const sentinel=document.getElementById('completedSentinel');
+  if(!sentinel) return;
+  _completedObserver=new IntersectionObserver((entries)=>{
+    if(entries.some(e=>e.isIntersecting)){
+      completedRenderLimit+=COMPLETED_PAGE_SIZE;
+      renderCompletedTable();
+    }
+  });
+  _completedObserver.observe(sentinel);
 }
 
 // Opens the read-only detail popup unless the click landed on an interactive element
@@ -4402,7 +4473,7 @@ function renderPcell(r){
       ?(variance==='match'?'🏷️':variance==='overage'?'🔺':'🔻')
       :'';
     const varLabel=varIcon
-      ?`<span class="pvarlbl" style="font-size:11px;">${varIcon}</span>`
+      ?`<span class="pvarlbl" style="font-size:14px;">${varIcon}</span>`
       :`<span class="pvarlbl" style="display:none"></span>`;
     // MDR QTY box — always blue, always read-only, shows the requested amount.
     // Sits right beside the SGI return qty box, same boxed look.
@@ -4417,16 +4488,16 @@ function renderPcell(r){
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
       :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
     const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}`;
-    const tagsHtml=`${lock}${badge}`;
     return`<div class="pcard-outer">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       <div class="${cls.trim()}">
         <div class="pihead">
-          <div class="pihead-tags">${tagsHtml}</div>
+          <div class="pihead-tags">${lock}</div>
           <span class="pname2">${nameHtml}</span>
-          <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${tagsHtml}</div>
+          <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${lock}</div>
         </div>
         <div class="qrow-center">
+          ${badge}
           ${varLabel}
           <div class="qwrap">
             ${mdrQtyBox}

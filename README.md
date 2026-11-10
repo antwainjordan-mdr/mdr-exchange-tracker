@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.8` (November 10, 2026)
+**Version:** `1.4.9` (November 10, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,15 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.9`
+
+- **Completed tab: loads 25 rows at a time** instead of rendering every completed/void record at once (this is what was making the Completed tab slow to open). The next 25 load automatically once you've scrolled about 2/3 of the way down what's currently loaded. Searching still shows every match at once.
+- **Completed & Active: smaller, tighter piece cards** — max width down from 370px to 320px, and internal padding/spacing cut roughly in half.
+- **Completed & Active: PKP/EXC/RTN badge moved into the qty row**, next to the MdR Request box, without affecting that box's icon/qty grouping. The header now just shows the lock and the centered item name.
+- **Completed tab: Actions column lines up by brackets** — label on the left, bracketed items on the right, so every line's brackets start at the same x position regardless of label length.
+- **Completed & Active: outer checkmark/checkbox vertically centered** next to its card.
+- **Completed & Active: piece-card icons (lock, eyes, etc.) are about 30% bigger.**
 
 ## Changes in `1.4.8`
 
