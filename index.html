@@ -238,7 +238,7 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .ret-cell.has-date{}
 
 /* PIECES */
-.pcell{min-width:225px;max-width:280px;}
+.pcell{min-width:260px;max-width:370px;}
 /* Completed tab Actions column — equal breathing room from the columns on both sides
    (per Antwain: "equidistant apart on both sides of touching columns"), content
    top-aligned so a 4-category block doesn't visually crowd the row below it, and each
@@ -249,8 +249,15 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .phdr{display:flex;justify-content:center;margin-bottom:4px;}
 .sabtn{font-size:10px;font-weight:600;color:var(--accent);cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 9px;font-family:inherit;transition:all .15s;}
 .sabtn:hover{border-color:var(--accent);background:rgba(79,142,247,.1);}
-.plist{display:flex;flex-direction:column;gap:3px;}
-.pitem{display:flex;align-items:center;gap:5px;padding:4px 7px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);transition:border-color .1s,background .1s;}
+.plist{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.pitem{display:flex;flex-direction:column;gap:4px;padding:5px 7px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);transition:border-color .1s,background .1s;}
+.pihead{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px;}
+.pihead-tags{display:grid;grid-template-rows:1fr 1fr;justify-items:start;align-items:center;align-self:stretch;flex-shrink:0;}
+.pihead-tags>*:first-child{padding-bottom:3px;}
+.pihead-tags>*:last-child{padding-top:3px;}
+.pihead .pname2{text-align:center;}
+.qrow-center{display:flex;align-items:center;justify-content:space-evenly;gap:8px;flex-wrap:wrap;}
+.qrow-center.qrow-halves{display:grid;grid-template-columns:1fr 1fr;justify-items:center;align-items:center;gap:8px;}
 .pitem.p-ok{border-color:var(--green);background:rgba(56,217,169,.07);}
 .pitem.p-partial{border-color:var(--yellow);background:rgba(247,201,72,.07);} /* shortage */
 .pitem.p-over{border-color:var(--red);background:rgba(239,68,68,.07);} /* overage */
@@ -261,7 +268,7 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .be{background:rgba(79,142,247,.2);color:var(--blue);}
 .bp{background:rgba(167,139,250,.2);color:var(--purple);}
 .plocki{font-size:9px;color:var(--lock-icon);flex-shrink:0;}
-.pname2{flex:1;font-size:11px;color:var(--text);min-width:0;line-height:1.3;}
+.pname2{flex:1 1 70px;font-size:11px;color:var(--text);min-width:70px;line-height:1.3;overflow-wrap:break-word;}
 .qwrap{display:flex;align-items:center;gap:3px;flex-shrink:0;}
 .qrcv{width:38px;background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:2px 4px;color:var(--text);font-family:var(--font-main);font-size:11px;text-align:center;outline:none;}
 .qrcv::placeholder{color:var(--text3);opacity:.8;}
@@ -278,9 +285,11 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .qrcv.qblue{border-color:var(--blue);color:var(--blue);}
 .qrcv.qorange{border-color:var(--orange);color:var(--orange);}
 /* Completed tab — outer status icon sits left of the card, outside its border. */
-.pcard-outer{display:flex;align-items:center;gap:4px;margin-bottom:3px;}
-.pcard-outer .pitem{flex:1;}
-.pcard-outer .pouter{flex:0 0 auto;width:16px;text-align:center;font-size:13px;}
+.pcard-outer{display:flex;align-items:flex-start;gap:4px;margin-bottom:3px;max-width:100%;min-width:0;box-sizing:border-box;}
+.pcard-outer .pitem{flex:1;min-width:0;}
+.pcard-outer .pouter{flex:0 0 auto;width:16px;text-align:center;font-size:13px;margin-top:2px;}
+.pcard-outer .pcb{margin-top:2px;}
+
 .pftr{display:flex;justify-content:flex-end;margin-top:4px;}
 .addpbtn{font-size:10px;color:var(--green);cursor:pointer;background:none;border:none;padding:0;font-family:inherit;display:flex;align-items:center;gap:2px;}
 .addpbtn:hover{opacity:.75;}
@@ -678,15 +687,15 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <table>
     <thead>
       <tr>
-        <th style="min-width:120px">Pickup Date</th>
-        <th style="min-width:140px">Patient</th>
-        <th style="min-width:90px">Job #</th>
-        <th style="min-width:180px">SGI Returns</th>
-        <th style="min-width:200px">MDR Confirmed/Void<br><span style="font-size:9px;color:var(--text3);font-weight:400">what Brightree reported</span></th>
-        <th style="min-width:180px">Actions<br><span style="font-size:9px;color:var(--text3);font-weight:400">if any</span></th>
-        <th style="min-width:120px">Reference</th>
-        <th class="ctr" style="min-width:90px">Total Qty<br><span style="font-size:9px;color:var(--text3);font-weight:400">Confirmed/Voided</span></th>
-        <th style="min-width:120px">Match</th>
+        <th style="min-width:90px">Drop Off Date</th>
+        <th style="min-width:100px;max-width:120px">Patient</th>
+        <th style="min-width:70px">Job #</th>
+        <th style="min-width:260px">SGI Returns</th>
+        <th style="min-width:280px">MDR Confirmed/Void<br><span style="font-size:9px;color:var(--text3);font-weight:400">what Brightree reported</span></th>
+        <th style="min-width:160px">Actions<br><span style="font-size:9px;color:var(--text3);font-weight:400">if any</span></th>
+        <th style="min-width:90px">Reference</th>
+        <th class="ctr" style="min-width:60px">Total Qty<br><span style="font-size:9px;color:var(--text3);font-weight:400">Confirmed/Voided</span></th>
+        <th style="min-width:80px">Match</th>
       </tr>
     </thead>
     <tbody id="completedTbody"></tbody>
@@ -1258,7 +1267,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.0';
+const VERSION = '1.4.8';
 const BUILD_DATE = '2026-11-10';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1273,6 +1282,68 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.8',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed tab: the MdR Request qty box now shows a 👀 icon (it had none before — only the SGI/MDR-side boxes had an icon).',
+      'Completed tab: when a card has exactly 2 qty boxes (SGI Returns), the card is now invisibly split into a left half and a right half, with MdR Request centered in the left half and SGI Report/Returns centered in the right half. Cards with 3 boxes (MDR Confirmed/Void) keep spreading evenly across the full width.',
+      'Completed & Active: the lock and return-type badge are now split into an invisible top half / bottom half — lock centered in the top half and left-aligned, badge centered in the bottom half and left-aligned (previously both center-aligned as a tight stack).',
+    ],
+  },
+  {
+    version:'1.4.7',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed & Active: the qty/icon pairs in each piece card now spread evenly across the full width of the card (2 boxes or 3), instead of bunching together in the middle with empty space on both sides.',
+    ],
+  },
+  {
+    version:'1.4.6',
+    date:'Nov 10, 2026',
+    items:[
+      'Active tab: fixed a layout regression from 1.4.5 — the "Pieces / Items" rows had gone to a tall, gappy vertical stack because the shared piece-card style changed but these rows weren\'t rebuilt to match. They now use the same 2-part card as the Completed tab\'s comparison cards: a header row on top, a centered row of qty boxes underneath, with every checkbox/edit/delete control still working exactly as before.',
+      'Completed & Active: item names are now centered in the card\'s header row (e.g. "D Cylinder Bag"), and the return-type badge (PKP/EXC/RTN) now stacks under the source lock icon instead of sitting beside it — same change applied to both tabs\' piece cards for a consistent look.',
+    ],
+  },
+  {
+    version:'1.4.5',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed tab: reworked both the SGI Returns and MDR Confirmed/Void piece cards around the same 2-part layout — a header row (return type, source lock, item name, free to wrap) on top, and a row of qty boxes centered underneath, each box bound to its own icon in one container so the two move together. This replaces 1.4.4\'s stacked-with-labels MDR card (dropped — it made the MDR card much taller than its SGI counterpart and threw off the row-for-row alignment between the two columns). Both cards are now the same shape, so SGI Returns and MDR Confirmed/Void line up again piece for piece.',
+    ]
+  },
+  {
+    version:'1.4.4',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed tab: the MDR Confirmed/Void card\'s 3 quantity boxes (MdR Request, SGI Report, MdR Confirmed) are now stacked as labeled rows instead of side by side, each qty box right-aligned with its icon (when there is one) in the same container so they move together. The SGI Returns card is unchanged (still 2 boxes side by side).',
+    ]
+  },
+  {
+    version:'1.4.3',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed tab: Drop Off Date, Patient, Job #, Total Qty, and Match are now all centered (some were left-aligned, some centered, which read as inconsistent). Reference was already centered.',
+      'Completed tab: capped the Patient column\'s width so a long name wraps onto a second line instead of stretching the column wider than it needs to be.',
+    ]
+  },
+  {
+    version:'1.4.2',
+    date:'Nov 10, 2026',
+    items:[
+      'Completed tab: renamed the "1:1 Match" label to "Fulfilled". It was never actually a quantity check — it just meant the Confirmed/Void CSV row found an unambiguous existing record to resolve onto, so a job could read "1:1 Match" even with a real shortage or overage sitting right next to it. "Fulfilled" reflects what it\'s actually reporting: this row has a Confirmed/Void event resolved onto it. Any real quantity discrepancy still shows under Actions regardless of this label.',
+      'Completed tab: the "Pickup Date" column is now "Drop Off Date" (the calculated Late By date), and the row sort now follows it.',
+      'Completed tab: tightened the Patient, Job #, Reference, Total Qty and Match columns, and widened SGI Returns / MDR Confirmed/Void so a 3-quantity-box card has more room before it needs to wrap.',
+    ]
+  },
+  {
+    version:'1.4.1',
+    date:'Nov 10, 2026',
+    items:[
+      'Fixed the Completed tab Actions column overflow: a piece card with 3 quantity boxes (the MDR Confirmed/Void side) had no width cap matching its column, so it could bleed past the column boundary and crowd into the Actions text next to it. The card now wraps its quantity boxes onto a second line when there isn\'t room, instead of pushing wider than its column.',
+    ]
+  },
   {
     version:'1.4.0',
     date:'Nov 10, 2026',
@@ -3800,25 +3871,31 @@ function qbox(val,cls){
   if(val===null||val===undefined) return `<input type="number" class="qrcv${cls?' '+cls:''}" value="" placeholder="—" readonly title="No value on file">`;
   return `<input type="number" class="qrcv${cls?' '+cls:''}" value="${esc(val)}" readonly>`;
 }
+// Card is split into 2 sections, per Antwain: a top "header" row (return type badge,
+// source lock, item name — free to wrap onto a 2nd line for a long name) and a bottom
+// row of qty boxes, each bound to its own icon in one container (.qwrap) so the two
+// move together if either is adjusted later. The qty row is centered under the name
+// and always comes immediately after it — a wrapped name only grows the card from the
+// top; the qty row never gets pushed down any further than that.
 function compItem(cls,p,outerIcon,boxes){
   const badge=pieceBadge(p);
   // The inner lock slot now only ever shows 🔒 for real source pieces. A manually-added
-  // piece no longer shows ✍🏼 here — that signal now lives in the outer icon (and, on the
-  // MDR card, in the icon beside whichever box it applies to).
+  // piece no longer shows ✍🏼 here — that signal now lives in the outer icon (and in the
+  // icon bound to whichever qty box it applies to).
   const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
   const name=esc(p.name);
-  let boxesHtml='';
-  boxes.forEach((b,i)=>{
-    if(i>0) boxesHtml+=`<span class="pvarlbl" style="font-size:11px;">${b.icon||''}</span>`;
-    boxesHtml+=`<div class="qwrap">${qbox(b.val,b.cls)}</div>`;
-  });
+  const qtyHtml=boxes.map(b=>`<div class="qwrap">${b.icon?`<span class="pvarlbl" style="font-size:11px;">${b.icon}</span>`:''}${qbox(b.val,b.cls)}</div>`).join('');
+  const qrowCls=boxes.length===2?'qrow-center qrow-halves':'qrow-center';
   const outerTitle={'🚫':'No Pickup / all zero','🛑':'SGI qty blank','✍🏼':'Manually entered','✅':'Checked'}[outerIcon]||'';
   return `<div class="pcard-outer">
     <span class="pouter" title="${outerTitle}">${outerIcon||''}</span>
     <div class="pitem ${cls}" style="margin-bottom:0;">
-      ${badge}${lock}
-      <span class="pname2">${name}</span>
-      ${boxesHtml}
+      <div class="pihead">
+        <div class="pihead-tags">${lock}${badge}</div>
+        <span class="pname2">${name}</span>
+        <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${lock}${badge}</div>
+      </div>
+      <div class="${qrowCls}">${qtyHtml}</div>
     </div>
   </div>`;
 }
@@ -3981,7 +4058,7 @@ function buildCompletedCompare(rec){
       sCardCls='p-over'; sIcon='🔺'; sVal=rcv;
     }
     sgiLines.push(compItem(sCardCls,p,outerIcon,[
-      {val:req,cls:'qblue'},
+      {val:req,cls:'qblue',icon:'👀'},
       {val:sVal,cls:sCls,icon:sIcon}
     ]));
 
@@ -4001,7 +4078,7 @@ function buildCompletedCompare(rec){
         m2Icon='🛑'; m3Val=null; m3Cls='';
       }
       mdrLines.push(compItem('p-partial',p,outerIcon,[
-        {val:req,cls:'qblue'},
+        {val:req,cls:'qblue',icon:'👀'},
         {val:sVal,cls:sCls,icon:sIcon},
         {val:m3Val,cls:m3Cls,icon:m2Icon}
       ]));
@@ -4038,7 +4115,7 @@ function buildCompletedCompare(rec){
       }
     }
     mdrLines.push(compItem(mCardCls,mdrPiece,outerIcon,[
-      {val:req,cls:'qblue'},
+      {val:req,cls:'qblue',icon:'👀'},
       {val:sVal,cls:sCls,icon:sIcon},
       {val:conf,cls:'qblue',icon:m2Icon}
     ]));
@@ -4053,7 +4130,7 @@ function buildCompletedCompare(rec){
     if(usedMdr.has(p)) return;
     const qty=p.expectedQty;
     mdrLines.push(compItem('p-over',p,'✍🏼',[
-      {val:qty,cls:'qblue'},
+      {val:qty,cls:'qblue',icon:'👀'},
       {val:null,cls:'',icon:'✍🏼'},
       {val:qty,cls:'qblue',icon:'✍🏼'}
     ]));
@@ -4088,7 +4165,7 @@ function renderCompletedTable(){
     }
     return true;
   }).slice().sort((a,b)=>{
-    const av=a.pickupDate||'', bv=b.pickupDate||'';
+    const av=a.dropOffBy||'', bv=b.dropOffBy||'';
     return av<bv?1:av>bv?-1:0; // most recent first
   });
   if(!rows.length){
@@ -4114,7 +4191,7 @@ function renderCompletedTable(){
     const cmp = buildCompletedCompare(r);
     const matchCell = noMatch
       ? `<div style="color:var(--red);font-weight:700;font-size:13px;">No Match</div><div style="font-size:9px;color:var(--text3);margin-top:2px;line-height:1.4;">${r.matchReasons.map(esc).join('<br>')}</div>`
-      : `<span style="color:var(--green);font-weight:600;">1:1 Match</span>`;
+      : `<span style="color:var(--green);font-weight:600;">Fulfilled</span>`;
     const dup=dupMap.get(r.id);
     const dupBadge = dup
       ? `<div style="margin-top:3px"><button class="btn btn-sm" style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records · Merge</button></div>`
@@ -4124,15 +4201,15 @@ function renderCompletedTable(){
       ? `<div style="margin-top:3px"><span style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.2);border:1px solid var(--border);border-radius:4px;color:var(--text2);" title="A later Confirmed/Void event is waiting on your Approve/Reject decision — open this row">🕐 ${pendingCount} Pending</span></div>`
       : '';
     return `<tr class="${noMatch?'r-overdue':''} clickable-row" data-id="${r.id}" onclick="completedRowClick(event,'${r.id}')">
-      <td>${esc(fmtDate(r.pickupDate))||'—'}</td>
-      <td><div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;">${esc(r.patientName)}${copyIcon(r.patientName,'Copy patient name')}</div><div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text3)">${esc(r.patientId)}${copyIcon(r.patientId,'Copy patient ID')}</div></td>
-      <td><span class="copy-hover-group">${esc(r.jobNum)||'—'}${copyIcon(r.jobNum,'Copy job number')}</span>${dupBadge}${pendingBadge}</td>
+      <td style="text-align:center">${esc(fmtDate(r.dropOffBy))||'—'}</td>
+      <td style="max-width:120px;overflow-wrap:break-word;"><div class="copy-hover-group" style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:3px;text-align:center;">${esc(r.patientName)}${copyIcon(r.patientName,'Copy patient name')}</div><div class="copy-hover-group" style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:var(--text3);text-align:center;">${esc(r.patientId)}${copyIcon(r.patientId,'Copy patient ID')}</div></td>
+      <td style="text-align:center"><span class="copy-hover-group">${esc(r.jobNum)||'—'}${copyIcon(r.jobNum,'Copy job number')}</span>${dupBadge}${pendingBadge}</td>
       <td class="pcell"><div class="plist">${cmp.sgiHtml}</div></td>
       <td class="pcell"><div class="plist">${cmp.mdrHtml}</div></td>
       <td class="pactions">${cmp.actionsHtml}</td>
       <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
       <td class="ctr">${cmp.totalQty}</td>
-      <td>${matchCell}</td>
+      <td style="text-align:center">${matchCell}</td>
     </tr>`;
   }).join('');
 }
@@ -4151,7 +4228,7 @@ function openCompletedDetail(id){
   const noMatch=Array.isArray(r.matchReasons)&&r.matchReasons.length>0;
   const matchHtml=noMatch
     ? `<div style="color:var(--red);font-weight:700;">No Match</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">${r.matchReasons.map(esc).join('<br>')}</div>`
-    : `<span style="color:var(--green);font-weight:600;">1:1 Match</span>`;
+    : `<span style="color:var(--green);font-weight:600;">Fulfilled</span>`;
   document.getElementById('completedDetailBody').innerHTML = `
     <div class="frow">
       <div class="fg"><label class="flabel">Patient Name</label><div class="flocked" ${r.patientName?`data-copy="${esc(r.patientName)}" title="Click to copy"`:''}><span>🔒</span><span>${esc(r.patientName)||'—'}</span></div></div>
@@ -4162,7 +4239,7 @@ function openCompletedDetail(id){
       <div class="fg"><label class="flabel">Reference</label><div class="flocked" style="flex-wrap:wrap;height:auto;min-height:30px;"><div class="refcell">${renderRefLinks(r.soIds)}</div></div></div>
     </div>
     <div class="frow">
-      <div class="fg"><label class="flabel">Pickup Date</label><div class="flocked" ${r.pickupDate?`data-copy="${esc(fmtDate(r.pickupDate))}" title="Click to copy"`:''}><span>🔒</span><span>${esc(fmtDate(r.pickupDate))||'—'}</span></div></div>
+      <div class="fg"><label class="flabel">Drop Off Date</label><div class="flocked" ${r.dropOffBy?`data-copy="${esc(fmtDate(r.dropOffBy))}" title="Click to copy"`:''}><span>🔒</span><span>${esc(fmtDate(r.dropOffBy))||'—'}</span></div></div>
       <div class="fg"><label class="flabel">Match</label><div class="flocked">${matchHtml}</div></div>
     </div>
     <div class="fg">
@@ -4339,16 +4416,25 @@ function renderPcell(r){
           placeholder="${p.expectedQty||''}"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
       :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
-    return`<div class="${cls.trim()}">
+    const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}`;
+    const tagsHtml=`${lock}${badge}`;
+    return`<div class="pcard-outer">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
-      ${badge}${lock}
-      <span class="pname2">${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}</span>
-      ${varLabel}
-      <div class="qwrap">
-        ${mdrQtyBox}
-        ${qtyBox}
+      <div class="${cls.trim()}">
+        <div class="pihead">
+          <div class="pihead-tags">${tagsHtml}</div>
+          <span class="pname2">${nameHtml}</span>
+          <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${tagsHtml}</div>
+        </div>
+        <div class="qrow-center">
+          ${varLabel}
+          <div class="qwrap">
+            ${mdrQtyBox}
+            ${qtyBox}
+          </div>
+          ${delBtn}
+        </div>
       </div>
-      ${delBtn}
     </div>`;
   }).join('');
   return`<div class="phdr"><button class="sabtn" onclick="toggleAll('${r.id}')">${allChk?'☐ Deselect All':'☑ Select All'}</button></div>
@@ -4512,7 +4598,7 @@ function updatePieceQty(rid,pid,val){
 
 function refreshPiece(rec,p){
   const cb=document.querySelector(`input.pcb[onchange*="'${p.id}'"]`);if(!cb)return;
-  const item=cb.closest('.pitem');if(!item)return;
+  const item=cb.closest('.pcard-outer')?.querySelector('.pitem');if(!item)return;
   const isShort=p.receivedQty!==null&&p.receivedQty<p.expectedQty;
   const isOver=p.receivedQty!==null&&p.receivedQty>p.expectedQty;
   item.className='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');

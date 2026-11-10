@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.0` (November 10, 2026)
+**Version:** `1.4.8` (November 10, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -150,14 +150,14 @@ Starting in `1.4.0`, the old **Load Daily** and **Load Confirmed/Void** buttons 
 
 Click **✓ Completed** in the toolbar to open a separate, read-only view of every Confirmed/Void job — this replaces the old "Hide Completed PUEXs" toggle. "All Active" no longer has a way to bring these back into the main table; this tab is where they live now. Click **← Back to Active** to return.
 
-**Columns:** Pickup Date, Patient, Job #, **SGI**, **MDR Confirmed/Void**, **Actions**, Reference, Total Qty Confirmed/Voided, Match. Everything on this page is plain text — no checkboxes, no editable fields, no Select All; these records are sealed.
+**Columns:** Drop Off Date, Patient, Job #, **SGI**, **MDR Confirmed/Void**, **Actions**, Reference, Total Qty Confirmed/Voided, Match. Everything on this page is plain text — no checkboxes, no editable fields, no Select All; these records are sealed.
 
 - **SGI column** — requested quantity (from the Daily CSV) vs. what SGI actually entered at pickup. Always 2 quantities, never 3. A clean match: ✅ (confirmed) EXC/PKP 🔒 (from source) `[item] x3 🏷️ x3` (exact match). SGI returning less or more than requested is informational only, not an issue: 🔺 (less) / 🔻 (more). A piece SGI added by hand (not from the Daily CSV) always reads ✍🏼 on both sides. A piece SGI never checked in at all reads 🛑 (blank, never verified) and shows up in the Actions column asking to verify with SGI. If every piece on the job is zero or No Pickup is checked, the whole row reads 🚫 instead.
 - **MDR Confirmed/Void column** — the same pieces compared against what that Confirmed/Void CSV row itself reported. 🏷️ exact match, ➕ shortage (Brightree confirmed less than requested — needs an inventory correction), ➖ overage (confirmed more — no action needed), 🚫 voided/all-zero, 🛑 "was removed from order" (a piece MDR requested that Brightree's CSV doesn't mention at all), ⁉️ a piece Brightree reported that was never requested (added at confirm time — worth checking for a PURL/PUEX). If SGI's own entered amount disagrees with what Brightree confirmed, a 3rd quantity and an alert icon are added: 🚚 (Brightree confirmed less than SGI said) or ⚠️ (more), plus 🚨 to flag it for investigation.
 - **Actions column** spells out, in plain English, what (if anything) needs follow-up for each piece on the row — shortages, voids, manually-added pieces, and SGI/Brightree mismatches each get their own line. A row with nothing to fix reads **🏷️ Exact Match**.
 - **Duplicates:** if two (or more) SharePoint records exist for the same patient + Job #, a small **⧉ N records · Merge** button appears next to the Job #, here and on the Active view. Merging combines notes, pieces, and reference numbers onto one record and **permanently deletes** the other one(s) from SharePoint — there's no undo in the app itself (your SharePoint site's recycle bin may still catch it for a while, depending on your retention settings).
 - **Total Qty Confirmed/Voided** sums the MDR column.
-- **Match:** a record matched normally (patient plus a shared reference, Entry ID, or job #) shows **1:1 Match**. A Confirmed/Void CSV row that didn't match anything existing — so it has no real SGI side to compare against — shows **No Match** in red, with the specific reason(s) underneath: No matching Patient ID, No matching Job #, and/or No matching PUEX/reference.
+- **Match:** a record matched normally (patient plus a shared reference, Entry ID, or job #) shows **Fulfilled** — this means the Confirmed/Void CSV row resolved onto an existing record, not that quantities actually matched; a real shortage or overage still shows under Actions regardless of this label. A Confirmed/Void CSV row that didn't match anything existing — so it has no real SGI side to compare against — shows **No Match** in red, with the specific reason(s) underneath: No matching Patient ID, No matching Job #, and/or No matching PUEX/reference.
 - **SharePoint setup required:** this tab's MDR column, Actions column, and No Match flag depend on 2 SharePoint columns — `ResolvedPieces` and `MatchReasons` — on the ExchangeRecords list. See "SharePoint lists used" below. Without them, everything still works in the browser you're using, but it goes blank for anyone else (or after a refresh) because there's nowhere to save it.
 
 ## Exporting
@@ -211,6 +211,44 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.8`
+
+- **Completed tab: MdR Request qty box gets a 👀 icon**, matching the other boxes in the card (previously it had none).
+- **Completed tab: 2-box cards (SGI Returns) now split into a left/right half** — MdR Request centered in the left half, SGI Report/Returns centered in the right half. 3-box cards (MDR Confirmed/Void) keep spreading evenly across the full width.
+- **Completed & Active: lock and return-type badge split into a top half / bottom half**, each left-aligned and vertically centered in its own half (previously both were center-aligned as a tight stack).
+
+## Changes in `1.4.7`
+
+- **Completed & Active: evenly-spaced qty boxes.** The qty/icon pairs in each piece card now spread evenly across the card's full width (whether it's 2 boxes or 3), instead of bunching together in the middle with empty margins on both sides.
+
+## Changes in `1.4.6`
+
+- **Active tab: fixed a layout regression from 1.4.5.** The "Pieces / Items" rows had gone to a tall, gappy vertical stack because the shared piece-card style changed in 1.4.5 but these rows weren't rebuilt to match. They now use the same 2-part card as the Completed tab's comparison cards — a header row on top, a centered row of qty boxes underneath — with every checkbox, qty edit, and delete control still working exactly as before.
+- **Completed & Active: item names are now centered** in the card's header row (e.g. "D Cylinder Bag"), and the **return-type badge (PKP/EXC/RTN) now stacks under the source lock icon** instead of sitting beside it. Applied to both tabs' piece cards for a consistent look.
+
+## Changes in `1.4.5`
+
+- **Completed tab: reworked both piece cards around the same 2-part layout** — a header row (return type, source lock, item name, free to wrap) on top, and a row of qty boxes centered underneath, each box bound to its own icon in one container so the two move together. This replaces 1.4.4's stacked-with-labels MDR card (dropped — it made the MDR card much taller than its SGI counterpart and threw off the row-for-row alignment between the two columns). Both cards are now the same shape, so SGI Returns and MDR Confirmed/Void line up again piece for piece.
+
+## Changes in `1.4.4`
+
+- **Completed tab: MDR Confirmed/Void card's 3 quantity boxes restacked** — MdR Request, SGI Report, and MdR Confirmed now show as labeled rows stacked vertically instead of side by side, each qty box right-aligned with its icon (when there is one) in the same container so they move together. The SGI Returns card is unchanged (still 2 boxes side by side).
+
+## Changes in `1.4.3`
+
+- **Completed tab: consistent centered alignment** — Drop Off Date, Patient, Job #, Total Qty, and Match are now all centered (previously a mix of left and centered, which read as inconsistent). Reference was already centered.
+- **Completed tab: capped the Patient column's width** so a long name wraps onto a second line instead of stretching the column wider than it needs to be.
+
+## Changes in `1.4.2`
+
+- **Completed tab: renamed "1:1 Match" to "Fulfilled"**. It was never actually a quantity check — it just meant the Confirmed/Void CSV row found an unambiguous existing record to resolve onto, so a job could read "1:1 Match" even with a real shortage or overage sitting right next to it in the Actions column. "Fulfilled" reflects what it's actually reporting; a real discrepancy still shows under Actions regardless of this label.
+- **Completed tab: "Pickup Date" column is now "Drop Off Date"** (the calculated Late By date), and the row sort now follows it.
+- **Completed tab: tightened columns** — Patient, Job #, Reference, Total Qty, and Match are narrower, freeing up room for SGI Returns and MDR Confirmed/Void so a 3-quantity-box card has more space before it needs to wrap onto a second line.
+
+## Changes in `1.4.1`
+
+- **Fixed the Completed tab Actions column overflow**: a piece card with 3 quantity boxes (the MDR Confirmed/Void side) had no width cap matching its column, so it could bleed past the column boundary and crowd into the Actions text next to it. The card now wraps its quantity boxes onto a second line when there isn't room, instead of pushing wider than its column.
 
 ## Changes in `1.4.0`
 
