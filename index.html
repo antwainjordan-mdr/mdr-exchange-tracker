@@ -16,7 +16,7 @@
   --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--surface3:#2a2f47;
   --border:#2e3350;--text:#e8eaf6;--text2:#8892b0;--text3:#5a6480;
   --accent:#4f8ef7;--purple:#a78bfa;--green:#38d9a9;--yellow:#f7c948;
-  --red:#f25c5c;--blue:#4f8ef7;
+  --red:#f25c5c;--blue:#4f8ef7;--orange:#f59e0b;
   
   --lock-bg:rgba(255,255,255,.025);--lock-icon:#3a4060;
   --hbg:linear-gradient(135deg,#1a1d27,#12152a);--cal:invert(.6);
@@ -26,7 +26,7 @@
   --bg:#f5f5f5;--surface:#ffffff;--surface2:#f0f0f0;--surface3:#e5e5e5;
   --border:#d0d0d0;--text:#2a2a2a;--text2:#555555;--text3:#999999;
   --accent:#cc1f24;--purple:#8a1a1e;--green:#2d7a2d;--yellow:#b85c00;
-  --red:#cc1f24;--blue:#cc1f24;
+  --red:#cc1f24;--blue:#cc1f24;--orange:#b85c00;
   
   --lock-bg:rgba(0,0,0,.03);--lock-icon:#cccccc;
   --hbg:linear-gradient(135deg,#ffffff,#f0f0f0);--cal:invert(.3);
@@ -36,7 +36,7 @@
   --bg:#1a1a1a;--surface:#252525;--surface2:#2e2e2e;--surface3:#383838;
   --border:#444444;--text:#f0f0f0;--text2:#aaaaaa;--text3:#666666;
   --accent:#cc1f24;--purple:#8a1a1e;--green:#3a9a3a;--yellow:#c87800;
-  --red:#cc1f24;--blue:#cc1f24;
+  --red:#cc1f24;--blue:#cc1f24;--orange:#e08a2e;
   
   --lock-bg:rgba(255,255,255,.03);--lock-icon:#555555;
   --hbg:linear-gradient(135deg,#252525,#1a1a1a);--cal:invert(.5);
@@ -45,7 +45,7 @@
   --bg:#f5f5f8;--surface:#ffffff;--surface2:#eeecf8;--surface3:#e0ddf2;
   --border:#c8c3e8;--text:#12076e;--text2:#4a3f9e;--text3:#8b82c4;
   --accent:#23118c;--purple:#4a2db5;--green:#059669;--yellow:#d97706;
-  --red:#f41617;--blue:#23118c;
+  --red:#f41617;--blue:#23118c;--orange:#c2660a;
   
   --lock-bg:rgba(35,17,140,.04);--lock-icon:#c0bce8;
   --hbg:linear-gradient(135deg,#ffffff,#eceaf8);--cal:invert(.2);
@@ -276,6 +276,7 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .prmbtn-manual:hover .prm-x{display:inline;color:var(--red);}
 .qrcv[readonly]{opacity:.85;cursor:default;}
 .qrcv.qblue{border-color:var(--blue);color:var(--blue);}
+.qrcv.qorange{border-color:var(--orange);color:var(--orange);}
 /* Completed tab — outer status icon sits left of the card, outside its border. */
 .pcard-outer{display:flex;align-items:center;gap:4px;margin-bottom:3px;}
 .pcard-outer .pitem{flex:1;}
@@ -445,7 +446,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
-#fi-daily,#fi-confirmedvoid{display:none;}
+#fi-daily,#fi-confirmedvoid,#fi-combined{display:none;}
 @media(max-width:700px){.hdr{padding:8px 12px;}.toolbar{padding:7px 12px;}.twrap{padding:8px 6px;}table{min-width:900px;}.frow{grid-template-columns:1fr;}.spills{display:none;}}
 
 /* ══ PRINT ══ */
@@ -553,8 +554,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     </div>
 
     
-    <label class="btn btn-daily btn-sm" title="Load today's daily PowerBI CSV">📥 Load Daily<input type="file" id="fi-daily" accept=".csv" onchange="handleLoadDaily(event)"></label>
-    <label class="btn btn-daily btn-sm mdr-only" title="Load the Confirmed &amp; Void PowerBI CSV">⛳ Load Confirmed/Void<input type="file" id="fi-confirmedvoid" accept=".csv" onchange="handleLoadConfirmedVoid(event)"></label>
+    <label class="btn btn-daily btn-sm mdr-only" title="Load the combined PowerBI CSV (New/Confirmed/Void all in one export) — rows are routed automatically by their own status">📥 Load CSV<input type="file" id="fi-combined" accept=".csv" onchange="handleLoadCombinedCSV(event)"></label>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
     </button>
@@ -623,6 +623,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
   <button class="btn btn-sm mdr-only" id="btnCompletedView" onclick="toggleCompletedView()" style="background:rgba(56,217,169,.15);color:var(--text2);border:1px solid var(--border);" title="Confirmed/Void jobs are sealed off the main view — this opens a separate, read-only comparison of what SGI selected vs. what was confirmed/voided.">✓ Completed</button>
   <button class="btn btn-sm mdr-only completed-only" id="btnPendingOnly" onclick="togglePendingOnly()" style="display:none;background:transparent;color:var(--text2);border:1px solid var(--border);" title="Show only jobs with a second Confirmed/Void event waiting on your Approve/Reject decision">🕐 Pending Review</button>
   <button class="btn btn-sm mdr-only completed-only" id="btnAddPending" onclick="openAddPendingModal()" style="display:none;background:transparent;color:var(--text2);border:1px solid var(--border);" title="Manually queue recovered Confirmed/Void data for a job (e.g. numbers pulled from Brightree) — goes through the same Approve/Reject review, nothing is written until you approve it">➕ Add Pending Correction</button>
+  <button class="btn btn-sm mdr-only" id="btnFindDups" onclick="openFindDuplicatesModal()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Scan all records for likely duplicates (same Job # + patient, or same Job # + reference #) and review each one — nothing merges until you approve it">⧉ Find Duplicates</button>
   <div class="spills" id="spills"></div>
 </div>
 
@@ -882,6 +883,49 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     </div>
     <div class="mftr">
       <button class="btn btn-primary" onclick="closeRebookModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIND DUPLICATES scan (MDR only) — see scanJobDuplicates()/openFindDuplicatesModal().
+     Each candidate pair is Approve (merge now, via mergeDuplicateRecords) or Reject
+     (dismissed — won't resurface this exact pair again). Nothing merges on its own. -->
+<div class="moverlay" id="findDupsOverlay">
+  <div class="modal" style="max-width:560px;">
+    <div class="mhdr">
+      <span class="mtitle">⧉ Find Duplicates</span>
+      <button class="closebtn" onclick="closeFindDuplicatesModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--text2);line-height:1.5;">
+        Same Job #, and either the same patient or a shared reference #. Approve merges the two records into one (combining notes, pieces, and references); Reject dismisses this pair.
+      </div>
+      <div id="findDupsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-primary" onclick="closeFindDuplicatesModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD-RECORD DUPLICATE REVIEW (MDR only) — pops when a manually-added record's Job #
+     already exists on another record. The new record is kept (not blocked), but this
+     review stays up until resolved. See reviewDupAddQueue()/resolveDupAdd(). -->
+<div class="moverlay" id="dupAddOverlay">
+  <div class="modal" style="max-width:560px;">
+    <div class="mhdr">
+      <span class="mtitle">⚠ Job # Already Exists</span>
+      <button class="closebtn" onclick="null"></button>
+    </div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--text2);line-height:1.5;">
+        The record you just added uses a Job # that's already on another record. Both records were kept — review the difference below, then merge them or keep them separate.
+      </div>
+      <div id="dupAddBody" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-sm" id="dupAddMergeBtn" style="background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="dupAddMergeNow()">Merge Now</button>
+      <button class="btn btn-primary" onclick="dupAddKeepSeparate()">Keep Both — Resolved</button>
     </div>
   </div>
 </div>
@@ -1214,8 +1258,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.3.0';
-const BUILD_DATE = '2026-11-09';
+const VERSION = '1.4.0';
+const BUILD_DATE = '2026-11-10';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1229,6 +1273,26 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.0',
+    date:'Nov 10, 2026',
+    items:[
+      'Replaced "Load Daily" and "Load Confirmed/Void" with a single "📥 Load CSV" button (MDR only). Power BI\'s "MDR | SGI PUEX Report" can now export New, Confirmed, and Void rows together in one file — each row is routed automatically by its own Pickup/Exchange Status, using the exact same matching/merge logic as before (nothing about how a row resolves onto a record changed). The upload is locked to the combined report\'s exact column headers; a CSV missing any of them is rejected with a message telling you to download the correct report instead of guessing from the filename.',
+    ]
+  },
+  {
+    version:'1.3.1',
+    date:'Nov 10, 2026',
+    items:[
+      'Fixed a real identity-collision risk: SGI sometimes leaves patient name as the literal placeholder "Unknown" (a required field with no real name yet), and a blank name could also round-trip through SharePoint\'s Title field and come back as "Unknown" too. patientMatch() previously fell back to name-only equality, so two different "Unknown" records could get treated as the same patient if they ever shared a reused job#/reference/entry ID. Fixed: "Unknown" (and a truly blank name) never counts as a name match on its own, in every place patientMatch() is used.',
+      'Manual "Add Record": trying to add a record for a Job # that already exists no longer silently creates a duplicate. The new record still saves (you can override), but a review popup opens on load showing the differences between it and the existing record for that job, and stays open until you resolve it.',
+      'New alert (not blocking): if a Daily/Confirmed-Void row comes in with a reference # that already exists on a different Job #, you\'ll be notified. This usually means an old job was never closed out and needs attention.',
+      'New "Find Duplicates" tool (button near Pending Review) scans existing records for likely duplicates — same Job # + patientMatch(), or same reference #, whichever flags more — and surfaces each one to Approve or Reject, same pattern as the Pending Review queue. Nothing merges without you confirming it.',
+      'Completed tab: the SGI Qty box is now always orange, regardless of match/short/over/issue state (matching how the MDR Confirmed Qty box is always blue).',
+      'New "View Changes" button on a record\'s detail view shows SharePoint\'s own field-by-field change history (old value → new value, who, when) without leaving the app.',
+      'Daily/Confirmed-Void import: a row with a real patient name but no resolvable Patient ID now shows a small flag on the record instead of silently saving with a blank PID.'
+    ]
+  },
   {
     version:'1.3.0',
     date:'Nov 9, 2026',
@@ -1814,8 +1878,10 @@ function parseCSV(text){
 }
 
 
-function loadDaily(text){
-  const rows=parseCSV(text);if(!rows.length){toast('Daily CSV empty','e');return 0;}
+function loadDaily(text, preRows){
+  // preRows: when called from loadCombined() with rows already split out by status —
+  // skips re-parsing text (which is null in that case).
+  const rows=preRows || parseCSV(text);if(!rows.length){toast('Daily CSV empty','e');return 0;}
   // Guard: data.csv (Load Daily) is only ever supposed to carry "New" rows — anything
   // Brightree has already resolved belongs in the Confirmed & Void file instead. If this
   // file has non-New rows in it, it's the wrong report (or downloaded before Brightree
@@ -1868,8 +1934,15 @@ function loadDaily(text){
   function patientMatch(aName,aId,bName,bId){
     const idA=normIdStr(aId), idB=normIdStr(bId);
     if(idA && idB) return idA===idB;
-    const nA=normName(aName);
-    return !!nA && nA===normName(bName);
+    const nA=normName(aName), nB=normName(bName);
+    // "Unknown" is SGI's own required-field placeholder (and also what a genuinely
+    // blank patient name round-trips to through SharePoint's Title fallback — see
+    // recToSP()) — never a real identity. Two different "Unknown" placeholder rows
+    // must never count as the same patient just because the text matches; without
+    // this, a reused job#/reference between two different "Unknown" rows (which does
+    // happen) would silently merge two different people's data together.
+    if(!nA || !nB || nA==='unknown' || nB==='unknown') return false;
+    return nA===nB;
   }
   // Any reference token in common?
   function refOverlap(aSet,bSet){
@@ -1888,6 +1961,12 @@ function loadDaily(text){
 
   // Rebookings detected this load (same patient+ref but a different, non-blank job#)
   const rebookings=[];
+  // v1.3.1: a reference # that already exists on a DIFFERENT Job #, regardless of
+  // patient — usually means an old job was never closed out. Alert only, never blocks.
+  const refJobAlerts=[];
+  // v1.3.1: rows with a real patient name but no resolvable Patient ID — flagged on
+  // the record (rec.pidFlag) instead of silently saving with a blank PID.
+  const blankPidFlags=[];
   // Ids of records actually touched (new or changed) by THIS import — used so the
   // post-import SharePoint sync only writes what changed instead of re-syncing
   // every record the app has ever loaded.
@@ -1988,6 +2067,16 @@ function loadDaily(text){
 
     const inc={patientName,patientId,jobNum,soIds,pickupDate,entryId,pieces,hasMemoryDownload,refSet:refTokens(soIds)};
 
+    // Reference # reused on a different Job #, regardless of patient — alert only.
+    const incJobN=normIdStr(jobNum);
+    if(incJobN && inc.refSet.size){
+      const clash=records.find(r=>{
+        const exJobN=normIdStr(r.jobNum);
+        return exJobN && exJobN!==incJobN && refOverlap(inc.refSet, refTokens(r.soIds));
+      });
+      if(clash) refJobAlerts.push({ref:soIds, oldJob:clash.jobNum, newJob:jobNum});
+    }
+
     const match=findMatch(inc);
     if(match){
       doMerge(match, inc);
@@ -1998,6 +2087,9 @@ function loadDaily(text){
         if(!match.hasMemoryDownload){ match.hasMemoryDownload=true; changed=true; }
         if((match.pieces||[]).length && !match.pieces.some(p=>p.memoryDownload)){ memoryDownloadDevice(match.pieces).memoryDownload=true; changed=true; }
         if(changed){ saveRecs(match,{skipSync:true}); touchedIds.add(match.id); }
+      }
+      if(match.patientName && match.patientName.trim() && match.patientName.trim().toLowerCase()!=='unknown' && !match.patientId){
+        blankPidFlags.push({patientName:match.patientName, jobNum:match.jobNum});
       }
       return;
     }
@@ -2020,6 +2112,11 @@ function loadDaily(text){
     records.push(rec);
     added++;
     touchedIds.add(rec.id);
+    // Real name, no resolvable Patient ID — flag rather than silently save blank
+    // (computed live off patientName/patientId wherever shown — see pidMissing()).
+    if(patientName && patientName.trim() && patientName.trim().toLowerCase()!=='unknown' && !patientId){
+      blankPidFlags.push({patientName:rec.patientName, jobNum:rec.jobNum});
+    }
   });
 
   saveRecs();
@@ -2046,6 +2143,19 @@ function loadDaily(text){
     }
   }
 
+  // Reference reused on a different Job # (any patient) — non-blocking alert.
+  if(refJobAlerts.length && isMDR()){
+    refJobAlerts.forEach(a=>{
+      console.warn(`[MDR] Reference ${a.ref} already on Job #${a.oldJob} — new row is Job #${a.newJob}`);
+      logAppAction('Reference reused', `Ref ${a.ref||'—'} already on Job #${a.oldJob} — new row is Job #${a.newJob}`);
+    });
+    toast(`⚠ ${refJobAlerts.length} reference # reused on a different Job # — check for an old job not closed out (see Activity Log).`, 'e');
+  }
+  // Real name, no resolvable Patient ID — non-blocking flag.
+  if(blankPidFlags.length && isMDR()){
+    toast(`⚠ ${blankPidFlags.length} row(s) had a patient name but no Patient ID — flagged on the record.`, 'e');
+  }
+
   return {count:added+merged, touchedIds:[...touchedIds]};
 }
 
@@ -2070,6 +2180,162 @@ function closeRebookModal(){
 }
 
 // ══════════════════════════════════
+//  FIND DUPLICATES (manual scan, v1.3.1) — MDR-only tool near Pending Review.
+//  Broader than the automatic "⧉ N records · Merge" badge (dupGroupKey() below, which
+//  requires an exact PID/name match): this also catches same-Job#-different-name cases
+//  like a blank/"Unknown" manual Add Record landing on a job that already has a real
+//  name on it (see Job 3975519). Nothing merges without an explicit Approve click, and
+//  a Rejected pair is remembered so it doesn't resurface on the next scan.
+// ══════════════════════════════════
+function getDismissedDupPairs(){
+  try{ return JSON.parse(localStorage.getItem('mdr_dup_dismissed')||'[]'); }catch(e){ return []; }
+}
+function dismissDupPair(key){
+  const list=getDismissedDupPairs();
+  if(!list.includes(key)){ list.push(key); localStorage.setItem('mdr_dup_dismissed', JSON.stringify(list)); }
+}
+function scanJobDuplicates(){
+  const dismissed=new Set(getDismissedDupPairs());
+  const out=[]; const seen=new Set();
+  for(let i=0;i<records.length;i++){
+    const a=records[i];
+    const jobA=normIdStr(a.jobNum);
+    if(!jobA) continue;
+    for(let j=i+1;j<records.length;j++){
+      const b=records[j];
+      if(normIdStr(b.jobNum)!==jobA) continue;
+      const key=[a.id,b.id].sort().join('|');
+      if(seen.has(key)||dismissed.has(key)) continue;
+      const byPatient=patientMatch(a.patientName,a.patientId,b.patientName,b.patientId);
+      const byRef=refOverlap(refTokens(a.soIds),refTokens(b.soIds));
+      if(!byPatient && !byRef) continue;
+      seen.add(key);
+      out.push({key,a,b,byPatient,byRef});
+    }
+  }
+  return out;
+}
+function openFindDuplicatesModal(){
+  renderFindDupsList();
+  const ov=document.getElementById('findDupsOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeFindDuplicatesModal(){
+  const ov=document.getElementById('findDupsOverlay');
+  if(ov) ov.classList.remove('open');
+}
+function renderFindDupsList(){
+  const body=document.getElementById('findDupsList');
+  if(!body) return;
+  const list=scanJobDuplicates();
+  if(!list.length){ body.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px 0;">No likely duplicates found.</div>'; return; }
+  body.innerHTML=list.map(d=>{
+    const why = d.byPatient && d.byRef ? 'same patient + same reference' : (d.byPatient?'same patient':'same reference #');
+    return `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--surface2);">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">Job #${esc(d.a.jobNum||'—')} · matched on ${why}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:160px;"><div style="font-size:12px;font-weight:700;color:var(--text);">${esc(d.a.patientName||'Unknown')}</div><div style="font-size:10px;color:var(--text2);">PID: ${esc(d.a.patientId||'—')} · Ref: ${esc(d.a.soIds||'—')} · ${(d.a.pieces||[]).length} piece(s)</div></div>
+        <div style="flex:1;min-width:160px;"><div style="font-size:12px;font-weight:700;color:var(--text);">${esc(d.b.patientName||'Unknown')}</div><div style="font-size:10px;color:var(--text2);">PID: ${esc(d.b.patientId||'—')} · Ref: ${esc(d.b.soIds||'—')} · ${(d.b.pieces||[]).length} piece(s)</div></div>
+      </div>
+      <div style="margin-top:7px;display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:rgba(56,217,169,.15);border:1px solid var(--border);color:var(--text2);" onclick="approveDupPair('${d.key}','${d.a.id}','${d.b.id}')">✓ Approve — Merge</button>
+        <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);color:var(--text2);" onclick="rejectDupPair('${d.key}')">✕ Reject</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function approveDupPair(key,aId,bId){
+  const group=[records.find(r=>r.id===aId),records.find(r=>r.id===bId)].filter(Boolean);
+  if(group.length<2){ toast('Record no longer found','e'); renderFindDupsList(); return; }
+  const keeper=pickMergeKeeper(group);
+  const other=group.find(r=>r.id!==keeper.id);
+  mergeDuplicateRecords(keeper.id,[other.id]);
+  dismissDupPair(key);
+  renderFindDupsList();
+}
+function rejectDupPair(key){
+  dismissDupPair(key);
+  renderFindDupsList();
+  toast('Dismissed — won\'t be flagged again','i');
+}
+
+// ══════════════════════════════════
+//  ADD-RECORD DUPLICATE REVIEW (v1.3.1) — triggered from saveModal() when a brand-new
+//  manual record is saved with a Job # that already exists on another record. The save
+//  is NOT blocked (both records are kept, per Antwain's answer: "Let them override,
+//  create duplicate record ID to keep separate records"), but this review queue opens
+//  on load and stays up until each item is resolved (Merge Now or Keep Both).
+// ══════════════════════════════════
+function getDupAddQueue(){
+  try{ return JSON.parse(localStorage.getItem('mdr_dup_add_queue')||'[]'); }catch(e){ return []; }
+}
+function saveDupAddQueue(q){ localStorage.setItem('mdr_dup_add_queue', JSON.stringify(q)); }
+function queueDupAddReview(newId,existingId,jobNum){
+  const q=getDupAddQueue();
+  q.push({key:gid(),newId,existingId,jobNum});
+  saveDupAddQueue(q);
+}
+function reviewDupAddQueue(){
+  // Drop entries whose records no longer exist (e.g. already merged/deleted elsewhere).
+  const q=getDupAddQueue().filter(item=>records.some(r=>r.id===item.newId)&&records.some(r=>r.id===item.existingId));
+  saveDupAddQueue(q);
+  if(!q.length) return;
+  renderDupAddReview(q[0]);
+  const ov=document.getElementById('dupAddOverlay');
+  if(ov) ov.classList.add('open');
+}
+function renderDupAddReview(item){
+  const body=document.getElementById('dupAddBody');
+  if(!body) return;
+  const a=records.find(r=>r.id===item.newId), b=records.find(r=>r.id===item.existingId);
+  if(!a||!b) return;
+  body.dataset.key=item.key; body.dataset.newId=item.newId; body.dataset.existingId=item.existingId;
+  body.innerHTML=`
+    <div style="font-size:11px;color:var(--text3);">Job #${esc(item.jobNum||'—')}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:160px;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--surface2);">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Just added</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);">${esc(a.patientName||'Unknown')}</div>
+        <div style="font-size:10px;color:var(--text2);">PID: ${esc(a.patientId||'—')} · Ref: ${esc(a.soIds||'—')} · ${(a.pieces||[]).length} piece(s)</div>
+      </div>
+      <div style="flex:1;min-width:160px;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--surface2);">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Existing record</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);">${esc(b.patientName||'Unknown')}</div>
+        <div style="font-size:10px;color:var(--text2);">PID: ${esc(b.patientId||'—')} · Ref: ${esc(b.soIds||'—')} · ${(b.pieces||[]).length} piece(s)</div>
+      </div>
+    </div>`;
+}
+function dupAddMergeNow(){
+  const body=document.getElementById('dupAddBody');
+  const newId=body?.dataset.newId, existingId=body?.dataset.existingId;
+  if(newId && existingId && records.some(r=>r.id===newId) && records.some(r=>r.id===existingId)){
+    const group=[records.find(r=>r.id===newId),records.find(r=>r.id===existingId)];
+    const keeper=pickMergeKeeper(group);
+    const other=group.find(r=>r.id!==keeper.id);
+    mergeDuplicateRecords(keeper.id,[other.id]);
+  }
+  advanceDupAddReview();
+}
+function dupAddKeepSeparate(){
+  advanceDupAddReview();
+}
+function advanceDupAddReview(){
+  let q=getDupAddQueue();
+  const body=document.getElementById('dupAddBody');
+  const key=body?.dataset.key;
+  if(key) q=q.filter(item=>item.key!==key);
+  saveDupAddQueue(q);
+  q=q.filter(item=>records.some(r=>r.id===item.newId)&&records.some(r=>r.id===item.existingId));
+  if(q.length){
+    renderDupAddReview(q[0]);
+  } else {
+    const ov=document.getElementById('dupAddOverlay');
+    if(ov) ov.classList.remove('open');
+  }
+}
+
+// ══════════════════════════════════
 //  IDENTITY / MATCH HELPERS (shared by Load Confirmed/Void and duplicate detection)
 // ══════════════════════════════════
 function normName(s){
@@ -2084,13 +2350,26 @@ function refTokens(s){
 function patientMatch(aName,aId,bName,bId){
   const idA=normIdStr(aId), idB=normIdStr(bId);
   if(idA && idB) return idA===idB;
-  const nA=normName(aName);
-  return !!nA && nA===normName(bName);
+  const nA=normName(aName), nB=normName(bName);
+  // "Unknown" is SGI's own required-field placeholder (and also what a genuinely
+  // blank patient name round-trips to through SharePoint's Title fallback — see
+  // recToSP()) — never a real identity. Two different "Unknown" placeholder rows
+  // must never count as the same patient just because the text matches; without
+  // this, a reused job#/reference between two different "Unknown" rows (which does
+  // happen) would silently merge two different people's data together.
+  if(!nA || !nB || nA==='unknown' || nB==='unknown') return false;
+  return nA===nB;
 }
 function refOverlap(aSet,bSet){
   if(!aSet.size||!bSet.size) return false;
   for(const t of aSet) if(bSet.has(t)) return true;
   return false;
+}
+// A real patient name came in with no resolvable Patient ID. Computed live off the
+// record's current fields (never stored) so it's always accurate — including after a
+// later import or manual edit fills the PID in — and needs no new SharePoint column.
+function pidMissing(r){
+  return !!(r.patientName && r.patientName.trim() && r.patientName.trim().toLowerCase()!=='unknown' && !r.patientId);
 }
 
 // ══════════════════════════════════
@@ -2291,8 +2570,8 @@ function submitAddPendingModal(){
 // NOT touch piece-level data for a Confirmed match (SGI's own check-in work stays as-is).
 // Every auto-fill below is "if not already marked" — it only fills a blank/unchecked
 // field, never undoes something a person already set by hand.
-function loadConfirmedVoid(text){
-  const rows=parseCSV(text);if(!rows.length){toast('Confirmed/Void CSV empty','e');return 0;}
+function loadConfirmedVoid(text, preRows){
+  const rows=preRows || parseCSV(text);if(!rows.length){toast('Confirmed/Void CSV empty','e');return 0;}
   function col(row,...names){
     for(const n of names){const k=Object.keys(row).find(k=>k.trim().toLowerCase()===n.toLowerCase());if(k&&row[k]!==undefined)return row[k].trim();}
     return'';
@@ -2312,8 +2591,15 @@ function loadConfirmedVoid(text){
   function patientMatch(aName,aId,bName,bId){
     const idA=normIdStr(aId), idB=normIdStr(bId);
     if(idA && idB) return idA===idB;
-    const nA=normName(aName);
-    return !!nA && nA===normName(bName);
+    const nA=normName(aName), nB=normName(bName);
+    // "Unknown" is SGI's own required-field placeholder (and also what a genuinely
+    // blank patient name round-trips to through SharePoint's Title fallback — see
+    // recToSP()) — never a real identity. Two different "Unknown" placeholder rows
+    // must never count as the same patient just because the text matches; without
+    // this, a reused job#/reference between two different "Unknown" rows (which does
+    // happen) would silently merge two different people's data together.
+    if(!nA || !nB || nA==='unknown' || nB==='unknown') return false;
+    return nA===nB;
   }
   function refOverlap(aSet,bSet){
     if(!aSet.size||!bSet.size) return false;
@@ -2342,6 +2628,9 @@ function loadConfirmedVoid(text){
   const noMatches=[]; // rows that matched no existing record (a new record gets created for each)
   const conflicts=[]; // rows that matched a patient but with a conflicting non-blank Job# (kept separate)
   const dupeMatches=[]; // rows that matched MORE than one existing record (pre-existing duplicate data)
+  // v1.3.1: same two non-blocking alerts as Load Daily — see loadDaily() for rationale.
+  const refJobAlerts=[];
+  const blankPidFlags=[];
   const touchedIds=new Set();
   // Returns EVERY existing record that matches, not just the first. Production data has
   // pre-existing duplicates (e.g. a stray hand-added record sitting alongside the real
@@ -2391,6 +2680,16 @@ function loadConfirmedVoid(text){
     }
 
     const inc={patientName,patientId,jobNum,soIds,entryId,refSet:refTokens(soIds)};
+
+    const incJobN=normIdStr(jobNum);
+    if(incJobN && inc.refSet.size){
+      const clash=records.find(r=>{
+        const exJobN=normIdStr(r.jobNum);
+        return exJobN && exJobN!==incJobN && refOverlap(inc.refSet, refTokens(r.soIds));
+      });
+      if(clash) refJobAlerts.push({ref:soIds, oldJob:clash.jobNum, newJob:jobNum});
+    }
+
     const matches=findMatches(inc);
 
     if(matches.length){
@@ -2445,6 +2744,9 @@ function loadConfirmedVoid(text){
         // resolvedPieces is new data on every import even when nothing else changed
         // (the CSV's own reported quantities can differ run to run), so it's always saved.
         changed=true;
+        if(ex.patientName && ex.patientName.trim() && ex.patientName.trim().toLowerCase()!=='unknown' && !ex.patientId){
+          blankPidFlags.push({patientName:ex.patientName, jobNum:ex.jobNum});
+        }
         if(changed){ saveRecs(ex,{skipSync:true}); touchedIds.add(ex.id); matched++; }
         else { skipped++; }
       });
@@ -2469,6 +2771,9 @@ function loadConfirmedVoid(text){
     records.push(rec);
     created++;
     touchedIds.add(rec.id);
+    if(patientName && patientName.trim() && patientName.trim().toLowerCase()!=='unknown' && !patientId){
+      blankPidFlags.push({patientName:rec.patientName, jobNum:rec.jobNum});
+    }
   });
 
   saveRecs();
@@ -2491,7 +2796,105 @@ function loadConfirmedVoid(text){
     console.warn('[MDR] Confirmed/Void rows kept separate — conflicting Job#:',conflicts);
     toast(`⚠ ${conflicts.length} row(s) had a conflicting Job# and were kept separate — see console.`,'e');
   }
+  if(refJobAlerts.length && isMDR()){
+    refJobAlerts.forEach(a=>{
+      console.warn(`[MDR] Reference ${a.ref} already on Job #${a.oldJob} — new row is Job #${a.newJob}`);
+      logAppAction('Reference reused', `Ref ${a.ref||'—'} already on Job #${a.oldJob} — new row is Job #${a.newJob}`);
+    });
+    toast(`⚠ ${refJobAlerts.length} reference # reused on a different Job # — check for an old job not closed out (see Activity Log).`, 'e');
+  }
+  if(blankPidFlags.length && isMDR()){
+    toast(`⚠ ${blankPidFlags.length} row(s) had a patient name but no Patient ID — flagged on the record.`, 'e');
+  }
   return {count:matched+created, touchedIds:[...touchedIds]};
+}
+
+// ══════════════════════════════════
+//  COMBINED LOAD (v1.3.1) — one upload instead of two. Power BI can now export a
+// single CSV carrying all three Pickup/Exchange statuses (New/Confirmed/Void) in one
+// sheet; this splits it by its own Pickup/Exchange Status column and routes each row
+// through the SAME loadDaily()/loadConfirmedVoid() logic as before (via preRows, so
+// neither function re-parses the text or re-runs its own file-level guards) — nothing
+// about the matching/merge/Pending Review logic changes, only how the rows get there.
+// ══════════════════════════════════
+// "Lock it to matching headers only" — validated by column headers, not filename,
+// since this file's name is whatever Power BI exports it as. Header match is
+// case/trailing-space insensitive, same tolerance as col() elsewhere in this file.
+const COMBINED_REQUIRED_HEADERS=['patient name','job #','pieces','otherids','dropoff by','pickup date','entry id','pickup/exchange status'];
+function loadCombined(text){
+  const rows=parseCSV(text);
+  if(!rows.length){ toast('CSV empty','e'); return {count:0, touchedIds:[]}; }
+  const haveKeys=Object.keys(rows[0]||{}).map(k=>k.trim().toLowerCase());
+  const missing=COMBINED_REQUIRED_HEADERS.filter(req=>!haveKeys.includes(req));
+  if(missing.length){
+    toast(`⚠ Not loaded — this CSV is missing expected column(s): ${missing.join(', ')}. Make sure you're uploading the combined MDR | SGI PUEX Report export.`,'e');
+    console.warn('[MDR] Combined CSV rejected — missing headers:',missing,'had:',haveKeys);
+    return {count:0, touchedIds:[]};
+  }
+  const statusKey=Object.keys(rows[0]).find(k=>k.trim().toLowerCase()==='pickup/exchange status');
+  const newRows=[], cvRows=[]; let otherStatus=0;
+  rows.forEach(r=>{
+    const v=(r[statusKey]||'').trim().toLowerCase();
+    if(v==='new') newRows.push(r);
+    else if(v==='confirmed'||v==='void') cvRows.push(r);
+    else otherStatus++;
+  });
+  const dailyResult = newRows.length ? loadDaily(null, newRows) : {count:0, touchedIds:[]};
+  const cvResult = cvRows.length ? loadConfirmedVoid(null, cvRows) : {count:0, touchedIds:[]};
+  if(otherStatus){
+    console.warn(`[MDR] Combined CSV: ${otherStatus} row(s) had an unrecognized Pickup/Exchange Status and were skipped.`);
+  }
+  if(!newRows.length && !cvRows.length){
+    toast('⚪ Combined CSV loaded — no New, Confirmed, or Void rows found','i');
+  }
+  return {
+    count:(dailyResult.count||0)+(cvResult.count||0),
+    touchedIds:[...(dailyResult.touchedIds||[]),...(cvResult.touchedIds||[])]
+  };
+}
+
+function handleLoadCombinedCSV(e){
+  const f=e.target.files[0];
+  if(!f){ toast('No file selected','e'); return; }
+  if(!f.name.toLowerCase().endsWith('.csv')){
+    toast('Wrong file — please load a .csv export','e');
+    e.target.value='';
+    return;
+  }
+  logAppAction('Load CSV', `Loaded file: ${f.name}`);
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const text=ev.target.result;
+      const result=loadCombined(text);
+      markLastUpdated();
+      buildChips();renderTable();renderStats();
+      if(result.count > 0){
+        if(!spSiteId || !spListId){
+          try{ await ensureSPIds(); }catch(e){ console.error('ensureSPIds failed during Load CSV:',e); }
+        }
+        if(spSiteId && spListId){
+          const touchedSet=new Set(result.touchedIds);
+          const toSync=records.filter(r=>touchedSet.has(r.id));
+          await syncAllToSharePoint(toSync);
+        } else {
+          setSyncStatus('error','\u26a0 Not connected to SharePoint \u2014 changes saved locally only. Do NOT refresh until this clears.');
+          toast('Not connected to SharePoint \u2014 records saved locally only','e');
+        }
+        await _flushAuditQueue();
+      } else {
+        _flushAuditQueue();
+      }
+      // Auto-save a timestamped copy to SharePoint Documents, same archive Load Daily used.
+      saveCSVToDocuments(text);
+    } catch(err){
+      toast('Error reading file: '+err.message,'e');
+      console.error('handleLoadCombinedCSV error:',err);
+    }
+  };
+  reader.onerror=()=>toast('Failed to read file','e');
+  reader.readAsText(f);
+  e.target.value='';
 }
 
 function handleLoadConfirmedVoid(e){
@@ -3560,19 +3963,22 @@ function buildCompletedCompare(rec){
     // never overwrite a piece's own real, non-zero SGI-entered qty with a flat 0. Only
     // pieces that are themselves blank or actually 0 get the 🚫 treatment; any piece
     // with a real different value falls through to the normal match/short/over logic.
-    let sCardCls, sIcon, sVal, sCls;
+    // SGI Qty box is always orange (sCls), regardless of match/short/over/issue state —
+    // same rule as the MDR Confirmed Qty box always being blue. The card color (sCardCls)
+    // and the icon (sIcon) still reflect the real match/short/over/manual/missing state.
+    let sCardCls, sIcon, sVal, sCls='qorange';
     if(sgiAllZero && (rcv===null||rcv===undefined||Number(rcv)===0)){
-      sCardCls='p-partial'; sIcon='🚫'; sVal=0; sCls='';
+      sCardCls='p-partial'; sIcon='🚫'; sVal=0;
     } else if(rcv===null||rcv===undefined){
-      sCardCls='p-partial'; sIcon='🛑'; sVal=null; sCls='';
+      sCardCls='p-partial'; sIcon='🛑'; sVal=null;
     } else if(!p.fromSource){
-      sCardCls='p-ok'; sIcon='✍🏼'; sVal=rcv; sCls='';
+      sCardCls='p-ok'; sIcon='✍🏼'; sVal=rcv;
     } else if(rcv===req){
-      sCardCls='p-ok'; sIcon='🏷️'; sVal=rcv; sCls='qmatch';
+      sCardCls='p-ok'; sIcon='🏷️'; sVal=rcv;
     } else if(rcv<req){
-      sCardCls='p-partial'; sIcon='🔻'; sVal=rcv; sCls='qshort';
+      sCardCls='p-partial'; sIcon='🔻'; sVal=rcv;
     } else {
-      sCardCls='p-over'; sIcon='🔺'; sVal=rcv; sCls='qover';
+      sCardCls='p-over'; sIcon='🔺'; sVal=rcv;
     }
     sgiLines.push(compItem(sCardCls,p,outerIcon,[
       {val:req,cls:'qblue'},
@@ -3830,7 +4236,7 @@ function renderRow(r,rowNum){
         :isSGI()
           ?`<a class="pname-link" href="#" onclick="openEditModal('${r.id}');return false;">${esc(r.patientName)}</a>`
           :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}${copyIcon(r.patientName,'Copy patient name')}</div>
-      <div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;"><span class="pid">${esc(r.patientId)}</span>${copyIcon(r.patientId,'Copy patient ID')}</div>
+      <div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;"><span class="pid">${esc(r.patientId)}</span>${copyIcon(r.patientId,'Copy patient ID')}${pidMissing(r)?` <span title="Name came in with no resolvable Patient ID" style="color:var(--yellow);">⚠ no PID</span>`:''}</div>
     </td>
     <td style="text-align:center"><span class="row-num" style="display:block;font-size:9px;color:var(--text3);line-height:1.1">${rowNum||''}</span><span class="copy-hover-group">${renderJobLink(r.jobNum)}${copyIcon(r.jobNum,'Copy job number')}</span>${(()=>{const dup=_activeDupMap.get(r.id);return dup?`<div><button class="btn btn-sm" style="font-size:9px;padding:1px 5px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records</button></div>`:'';})()}</td>
     <td class="pcell">${renderPcell(r)}</td>
@@ -5259,8 +5665,7 @@ function applyRoleUI(){
 
   if(isSGI()){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>{
-      const t = b.textContent.trim();
-      if(['Load Daily'].some(s=>t.includes(s)) || b.classList.contains('mdr-only')){
+      if(b.classList.contains('mdr-only')){
         b.style.display = 'none';
       }
     });
@@ -5723,6 +6128,7 @@ async function loadFromSharePoint(){
     loadStorageLocal(); buildChips(); renderTable(); renderStats();
     toast('SharePoint unavailable \u2014 showing local cache','i');
   }
+  if(isMDR()) reviewDupAddQueue();
 }
 
 // Per-record save queue — keyed by the record's local id. Two saves for the SAME

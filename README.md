@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.2.1` (November 9, 2026)
+**Version:** `1.4.0` (November 10, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -15,7 +15,7 @@ A shared tracker for equipment exchanges and pickups between MDR and SGI Logisti
 | `offline-sample-csv/data.csv`, `offline-sample-csv/Confirmed___Void_data.csv` | Anonymized sample data for the offline build — real job/date/piece data with every patient name swapped for a fake one. |
 | `README.md` | This file. |
 
-`data.csv` (the daily Power BI export) is **not** part of the app and must never be committed to the repo. You pick it from your PC with **Load Daily**.
+`data.csv` (the Power BI export) is **not** part of the app and must never be committed to the repo. You pick it from your PC with **Load CSV**.
 
 **Version marker:** `const VERSION = '...'` near the top of the script, following standard SemVer (`MAJOR.MINOR.PATCH`):
 - **MAJOR** - breaks or redefines something existing (a SharePoint schema change, a field that no longer means what it used to, an auth-method swap, a core status rule rebuilt). Resets MINOR and PATCH to 0.
@@ -45,7 +45,7 @@ Versioning switched to SemVer starting at `1.0.0` on November 8, 2026. Older `CH
 
 - **Open it directly in a browser** — just double-click the file, no server or sign-in needed.
 - Instead of "Sign in with Microsoft," you'll see a small **Continue as MDR / Continue as SGI** screen. Pick whichever side you want to test.
-- Load the sample data with the app's own buttons, same as always: **Load Daily** → `offline-sample-csv/data.csv`, **Load Confirmed/Void** → `offline-sample-csv/Confirmed___Void_data.csv`.
+- Load the sample data with the app's own button, same as always: **Load CSV** → either `offline-sample-csv/data.csv` or `offline-sample-csv/Confirmed___Void_data.csv` (or a combined export with both — see "Load CSV (MDR)" below).
   - Those two CSVs are your real daily/Confirmed-Void data with **every patient name replaced by a fake one** (job numbers, dates, pieces, and statuses are untouched). Safe to hand to someone else for a demo.
 - Nothing in offline mode touches SharePoint. Whatever you load or change stays only in that browser's local storage — close the tab or clear your browser data and it's gone.
 - Switching roles (MDR/SGI) means reloading the page — there's no sign-out button, just refresh and pick again.
@@ -62,17 +62,17 @@ Versioning switched to SemVer starting at `1.0.0` on November 8, 2026. Older `CH
 | Refresh | All | Reloads every record from SharePoint. |
 | **CSV** (green) | All | Downloads the rows **on screen** as a CSV (see Exporting). |
 | **PDF** (red) | All | Prints or saves the rows on screen as a PDF report. MDR also gets a brief "SGI approximate arrival" notice when clicking either export button, logged to the App Log. |
-| Load Daily | MDR | Imports today's `data.csv` from Power BI (see Load Daily). Refuses the file if it contains anything other than "New" rows. |
-| Load Confirmed/Void | MDR | Imports Brightree's `Confirmed & Void_data.csv` and resolves matching jobs (see Load Confirmed/Void). |
+| **📥 Load CSV** | MDR | Imports a Power BI CSV export — New, Confirmed, and Void rows can all be in the same file, and each row is routed automatically by its own status (see Load CSV). Refuses the file if it's missing any of the expected columns. |
 | **✓ Completed** | MDR | Opens the Completed tab — a separate, read-only comparison of Confirmed/Void jobs (see Completed tab below). |
-| Add Record | All | Adds a job by hand. |
+| Add Record | All | Adds a job by hand. Saving on a Job # that already exists no longer silently creates a duplicate — both records are kept, and a review popup opens (and reopens on reload until resolved) comparing the two so you can merge or keep them separate. |
+| **⧉ Find Duplicates** | MDR | Scans every record for likely duplicates — same Job # + same patient, or same Job # + same reference # — and lists each pair to Approve (merge) or Reject (dismiss). Nothing merges without you clicking Approve. |
 | Clear Cache | All | Wipes this browser's saved data and tokens and reloads. Fixes most odd behavior. You sign in again after. |
 | App Log | MDR | Who did what, and when (sign-ins, loads, exports, refreshes). |
 | Updates | All | Full update history. |
 
 Next to the buttons, the **presence bar** shows who else has the tracker open (seen in the last 10 minutes). The **sync light** shows Saved, Syncing, Synced or an error.
 
-Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the most recent time the tracker was refreshed by either Load Daily or Load Confirmed/Void.
+Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the most recent time the tracker was refreshed by **Load CSV**.
 
 **MDR only:** on every page load, a reminder pops up not to print the report before SGI's data is back in. Close it with the X or by clicking outside it — that's logged to the App Log, and it doesn't block anything else from loading. (This reminder does not show for antwainjordan@mdr.net.)
 
@@ -88,7 +88,7 @@ Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the mo
 | Pending | **Every still-open job, including late/Incomplete ones** — so MDR warehouse staff watching Pending (or 1:1 Match) never miss something SGI physically returned without updating the system. Use **Hide Late & Incomplete** to actually hide the late ones from view when wanted. | Job Closed but not yet Confirmed, **or** still open but the Late By Date hasn't passed yet — **or** Partial and not yet Confirmed. |
 | Partial | Multi-piece job with at least one piece checked but not all of them — Job Closed or not. A Partial, not-yet-Confirmed job shows under **both** Pending and Incomplete at once (deliberately — so it can't be missed under either filter), regardless of Job Closed or the Late By Date, until every piece is explicitly checked or the job is Confirmed. Leaving a piece unchecked is never treated as "not picked up" — that's a separate, explicit checkbox (No Pickup). | Same. |
 | Processing | ⚠️ Deprecated — logic removed. Chip and dropdown option stay visible but always show/match 0 records until it's rebuilt. | (not shown) |
-| Complete | Confirmed (set by Load Confirmed/Void, either a Confirmed or a Void row). | Same. |
+| Complete | Confirmed (set by Load CSV, either a Confirmed or a Void row). | Same. |
 | No Pick up | No Pickup is checked, regardless of other status. | Same. |
 | All Active | Everything **except** Confirmed/Void jobs — those are sealed onto the separate **✓ Completed** tab instead (see below). | Everything. |
 
@@ -115,7 +115,7 @@ Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the mo
 | Job Closed (SGI) | Checking it stamps Date Returned with today's date. |
 | No Pickup | Marks the job as nothing collected: every piece is checked with qty 0, and Date Returned and Job Closed are stamped. Shows an X. |
 | Verified (MDR RCV) | MDR confirms the items were received. SGI can see it but can't change it. |
-| Closed (Brightree) | MDR's final sign-off (same field that used to show as "Confirmed (Portal)" — renamed, same behavior). It moves the record to Complete for both sides. Checked by hand, or automatically by **Load Confirmed/Void**. |
+| Closed (Brightree) | MDR's final sign-off (same field that used to show as "Confirmed (Portal)" — renamed, same behavior). It moves the record to Complete for both sides. Checked by hand, or automatically by **Load CSV**. |
 | SGI Notes / MDR Notes | Free text, saved when you leave the box. SGI can read MDR notes but not edit them. |
 | Activity (clock icon) | That record's full change history from SharePoint. |
 
@@ -130,34 +130,21 @@ Next to the Exchange/Pickup/Mixed/All Done legend, **Last Updated** shows the mo
 - **Memory Download stays with its device.** The daily marks it on the device's own line (`Exchange - Memory Download -- Oximeter MBH2311043`), so that exact piece is flagged ★ MD. It is counted in the Memory Download pill and printed on the PDF/CSV notes (MDR only).
 - The **Memory Download** checkbox in **Edit Record** is for the whole order. If you tick it and no piece is flagged yet, the app flags the device (the oximeter or apnea monitor, otherwise the piece with a serial). Unticking it clears the flag from every piece.
 
-## Load Daily (MDR)
+## Load CSV (MDR)
 
-1. Export the Power BI daily report as **`data.csv`**. The file must be named exactly that.
-2. Click **Load Daily** and pick it.
-3. The app:
-   - matches each row to an existing record by **patient plus at least one shared reference** (or the same Entry ID or job #). Patient IDs like `13961` and `13961.00` count as the same.
-   - fills in blanks on existing records (job #, pickup date, Entry ID and so on), adds new references and pieces, and updates expected quantities. It **never** removes pieces or overwrites MDR's check-in work.
-   - adds new records for anything it can't match.
-   - treats **Return** lines (for example `Return - Memory Download -- Oximeter ...`) as **Pickups**, keeping the Memory Download on that device.
-   - fills each device's serial number from its name.
-   - saves only the new or changed records to SharePoint, and puts a timestamped copy of the CSV in SharePoint Documents under **Daily Uploads**.
-4. **Rebookings:** if the same patient and reference come in with a **different** job #, the app keeps them as two separate records and shows a list so you can check them.
-5. If SharePoint isn't connected, a red banner says the records were saved locally only. **Don't refresh** until it clears.
-6. **Wrong-file guard:** if `data.csv` contains any row whose status isn't "New" (because Brightree has already resolved it), the import is refused with a warning instead of silently loading an already-resolved job back into the queue. Download the correct report and try again.
+Starting in `1.4.0`, the old **Load Daily** and **Load Confirmed/Void** buttons were replaced by a single **📥 Load CSV** button. Power BI's **"MDR | SGI PUEX Report"** export can include **New**, **Confirmed**, and **Void** rows together in one file — each row is routed to exactly the same matching/merge logic that "Load Daily" and "Load Confirmed/Void" always used, nothing about how a row resolves onto a record changed, only how many files you have to pick.
 
-## Load Confirmed/Void (MDR)
-
-Brightree's second daily export — jobs it has already resolved — lists each one as **Confirmed** or **Void**. Loading it is what actually gets a resolved job off of SGI's Pending queue and print.
-
-1. Export the Confirmed & Void report from Brightree.
-2. Click **Load Confirmed/Void** and pick it. The filename just needs to contain "Confirmed" and "Void" and end in `.csv` — small naming differences (spacing, a re-download's `(1)`, etc.) are fine.
-3. The app:
-   - matches each row to **every** existing record it fits (patient plus at least one shared reference, Entry ID, or job #) — not just the first one found. If a patient/job has a pre-existing duplicate record (for example a stray hand-added row sitting alongside the real Daily-sourced one), both get resolved, so neither one is left stuck in Pending.
-   - on each match, fills in **Closed (Brightree)** (and **Verified** for a Confirmed row, or the full **No Pickup** behavior — every piece checked, qty 0, Date Returned stamped — for a Void row), but **only for fields that aren't already set**. Nothing you or SGI already marked by hand gets overwritten or undone, and piece quantities SGI already checked in are left exactly as they are.
-   - creates a new record, already resolved, for any row that doesn't match an existing one.
-   - a row that matches a patient but carries a conflicting, different job # is kept separate (same rebooking-style safety as Load Daily) and listed in the console.
-   - if a row matched more than one existing record, it's listed in the console (and a toast warns you) — worth a look to clean up the duplicate, even though both copies are now resolved.
-4. Once a job is marked Closed (Brightree), it moves to Complete for both MDR and SGI and drops out of the default Pending view and print.
+1. Export the report from Power BI, including whichever of New/Confirmed/Void you want to load — all three at once is fine, so is just one.
+2. Click **Load CSV** and pick the file.
+3. The app checks the file has the columns the combined report always has (`Patient Name`, `Job #`, `Pieces`, `OtherIDs`, `DropOff By`, `Pickup Date`, `Entry ID`, `Pickup/Exchange Status`). If any are missing, nothing is loaded and you get a message telling you which columns it expected — there's no filename check, so a correctly-headed file loads no matter what it's named.
+4. Each row is then split out by its own `Pickup/Exchange Status` and handled exactly as before:
+   - **New** rows go through the same logic "Load Daily" always used — matches each row to an existing record by **patient plus at least one shared reference** (or the same Entry ID or job #; patient IDs like `13961` and `13961.00` count as the same), fills in blanks on existing records, adds new references and pieces, updates expected quantities, adds new records for anything it can't match, treats **Return** lines as **Pickups**, and fills each device's serial number from its name. It **never** removes pieces or overwrites MDR's check-in work.
+   - **Confirmed** and **Void** rows go through the same logic "Load Confirmed/Void" always used — matches each row to **every** existing record it fits, not just the first one found (so a pre-existing duplicate record doesn't leave one copy stuck in Pending), fills in **Closed (Brightree)** (and **Verified** for Confirmed, or the full **No Pickup** behavior for Void) only for fields that aren't already set, and creates a new record, already resolved, for any row that doesn't match an existing one.
+   - **Rebookings/conflicts:** if the same patient and reference come in with a **different** job #, both New and Confirmed/Void rows keep the records separate and list them so you can check them.
+   - Any row with a status other than New/Confirmed/Void is skipped and noted in the console.
+5. Saves only the new or changed records to SharePoint, and puts a timestamped copy of the CSV in SharePoint Documents under **Daily Uploads**.
+6. If SharePoint isn't connected, a red banner says the records were saved locally only. **Don't refresh** until it clears.
+7. Once a job is marked Closed (Brightree), it moves to Complete for both MDR and SGI and drops out of the default Pending view and print.
 
 ## Completed tab (MDR)
 
@@ -187,7 +174,7 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 ## How saving works (for troubleshooting)
 
 - Every change saves to this browser first, then to SharePoint.
-- Saves for the same record always go out **one at a time, in order**: single edits, Load Daily batches and refresh retries all use the same queue. An older save can't undo a newer one, and a new record is created on SharePoint only once.
+- Saves for the same record always go out **one at a time, in order**: single edits, Load CSV batches and refresh retries all use the same queue. An older save can't undo a newer one, and a new record is created on SharePoint only once.
 - A record whose SharePoint save hasn't been confirmed is kept on **Refresh** and retried automatically.
 - SharePoint throttling (429/503) is retried with back-off. The sync light says "Rate-limited, retrying".
 - A record deleted locally but not yet on SharePoint is retried until it succeeds, so it doesn't come back on refresh.
@@ -210,7 +197,7 @@ The Completed tab's MDR column, Actions column, No Match flag, and Pending Revie
 - Repeat for a column named `MatchReasons`, Plain text, save
 - Repeat for a third column named `PendingResolved`, Plain text, save
 
-There's no "unlimited length" toggle to look for — that setting only exists for document library columns. A list's Multiple lines of text column already holds roughly 64,000 characters by default, same as the existing `Pieces` column. After all three columns exist, open the tracker and run **Load Confirmed/Void** once to backfill every record whose CSV row still matches. A record confirmed before these columns existed, or whose original Confirmed/Void CSV export is no longer available, stays blank on the left — there's no way around that one. `PendingResolved` starts empty for everyone and only fills in going forward (or when you use "Add Pending Correction" to backfill a specific job by hand).
+There's no "unlimited length" toggle to look for — that setting only exists for document library columns. A list's Multiple lines of text column already holds roughly 64,000 characters by default, same as the existing `Pieces` column. After all three columns exist, open the tracker and run **Load CSV** once (with a Confirmed/Void export, or a combined one) to backfill every record whose CSV row still matches. A record confirmed before these columns existed, or whose original Confirmed/Void CSV export is no longer available, stays blank on the left — there's no way around that one. `PendingResolved` starts empty for everyone and only fills in going forward (or when you use "Add Pending Correction" to backfill a specific job by hand).
 
 ## Deploying an update
 
@@ -224,6 +211,21 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.0`
+
+- **Replaced "Load Daily" and "Load Confirmed/Void" with one "📥 Load CSV" button** (MDR only). Power BI's "MDR | SGI PUEX Report" export can now include New, Confirmed, and Void rows together in one file — each row is routed automatically by its own `Pickup/Exchange Status` into exactly the same matching/merge logic the two old buttons always used; nothing about how a row resolves onto a record changed, only how many files you have to pick each time.
+- **Locked to matching headers only**: the upload is accepted or rejected purely on whether the file has the columns the combined report always has (`Patient Name`, `Job #`, `Pieces`, `OtherIDs`, `DropOff By`, `Pickup Date`, `Entry ID`, `Pickup/Exchange Status`) — there's no filename check. A file missing any of those columns is rejected with a message naming which ones it expected, instead of guessing from the name.
+- See "Load CSV (MDR)" above for the full behavior (unchanged from the old Load Daily/Load Confirmed/Void, just combined into one step).
+
+## Changes in `1.3.1`
+
+- **Fixed a real identity-collision risk**: SGI sometimes leaves patient name as the literal placeholder "Unknown" (a required field with no real name yet), and a blank name could also round-trip through SharePoint's `Title` field and come back as "Unknown" too. The patient-matching logic previously fell back to name-only equality, so two different "Unknown" records could get treated as the same patient if they ever shared a reused job#/reference/entry ID. Fixed: "Unknown" (and a truly blank name) never counts as a name match on its own.
+- **Manual "Add Record" duplicate check**: saving a new record for a Job # that already exists no longer silently creates a duplicate. The new record still saves (you can override), but a review popup opens — on save and again on the next load until resolved — comparing it against the existing record, with **Merge Now** or **Keep Both — Resolved**.
+- **New "⧉ Find Duplicates" tool** (button near Add Record): scans existing records for likely duplicates — same Job # + patient match, or same Job # + same reference #, whichever flags it — and surfaces each pair to Approve (merge) or Reject (dismiss, won't resurface). Nothing merges without you confirming it.
+- **New alert (non-blocking)**: if a Daily or Confirmed/Void row comes in with a reference # that already exists on a *different* Job #, you're notified via toast and the App Log — regardless of whether the patient matches. This usually means an old job was never closed out.
+- **Daily/Confirmed-Void import**: a row with a real patient name but no resolvable Patient ID now shows a small "⚠ no PID" flag next to the Patient ID in the table, instead of silently saving with it blank. Computed live off the record's own fields — no SharePoint schema change needed, and it clears itself the moment a PID is filled in.
+- Completed tab: the SGI Qty box is now always orange, regardless of match/short/over/issue state (matching how the MDR Confirmed Qty box is always blue).
 
 ## Changes in `1.3.0`
 
