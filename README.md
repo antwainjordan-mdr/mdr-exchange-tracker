@@ -68,7 +68,6 @@ Versioning switched to SemVer starting at `1.0.0` on November 8, 2026. Older `CH
 | **⧉ Find Duplicates** | MDR | Scans every record for likely duplicates — same Job # + same patient, or same Job # + same reference # — and lists each pair to Approve (merge) or Reject (dismiss). Nothing merges without you clicking Approve. |
 | Clear Cache | All | Wipes this browser's saved data and tokens and reloads. Fixes most odd behavior. You sign in again after. |
 | App Log | MDR | Who did what, and when (sign-ins, loads, exports, refreshes). |
-| **📊 Inventory Reports** | MDR, with xMDR Tools | Only shows on a PC with the xMDR Tools extension (1.19.0 or newer), so SGI never sees it. Opens a window that runs xMDR Tools' Inventory Reports: SGI OrderReport, Appsmith Table1Copy and the 7 Brightree inventory reports, saved one at a time (SalesTrend last) into `Downloads\Claude outputs\Inventory Reports`. Shows a ✓ / ✗ line per report with ▶ Run for one report, plus a "PUEX status shows None" list with a Copy button. The run itself happens in the extension, so closing the window or the tab doesn't stop it. Nothing here touches SharePoint. |
 | Updates | All | Full update history. |
 
 Next to the buttons, the **presence bar** shows who else has the tracker open (seen in the last 10 minutes). The **sync light** shows Saved, Syncing, Synced or an error.
