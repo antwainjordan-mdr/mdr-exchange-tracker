@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.13` (November 12, 2026)
+**Version:** `1.4.14` (November 11, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,16 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.14`
+
+- **Active tab: new piece card layout.** The checkbox sits outside the card on the left, vertically centered to it. For pieces added by hand, the ✍🏼 / ✕ remove button sits outside the card on the right, opposite the checkbox.
+- **Lock and badge:** the lock (🔒 or ✍🏼) is in the card's top left corner, with the PKP / EXC / RTN badge right under it.
+- **Item name:** centered in the space to the right of the lock and badge. The serial number stays on its own line under the name.
+- **Short / Over / Match:** sits in line with the item name. When the name wraps to two lines, the word is vertically centered to the name.
+- **Qty boxes:** the MDR requested qty and SGI received qty are smaller (spinner arrows hidden so the numbers stay readable) and sit in the bottom right corner. The MDR box is always blue and the SGI box is always orange, whatever the Match / Short / Over state. The card's border and background still show that state.
+- **Column width:** the Active tab's Pieces / Items column is back to its older, narrower size (225px to 280px).
+- The Completed tab is unchanged. `index-offline.html` has the same changes, and its SharePoint handling is untouched.
 
 ## Changes in `1.4.13`
 

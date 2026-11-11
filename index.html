@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.13">
+<meta name="version" content="1.4.14">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -243,19 +243,34 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
    so the flat .arow rows below have room for the Short/Over/Match text without
    crowding (see .arow — Antwain: "need to have a slightly different style than the
    Complete/Void... they became too narrow and now we're missing the short/over text"). */
-.acell{min-width:260px;max-width:400px;}
+.acell{min-width:225px;max-width:280px;}
 /* Active tab piece rows — own boxed card (not the Completed tab's .pitem cards):
    checkbox, badge, lock, name, Short/Over/Match text, then two qty boxes side by
    side (MDR requested — always blue, read-only — and the SGI received qty, which
    is the editable one and carries the match/short/over color). The whole card's
    border is colored to match once a source piece has been checked in. */
-.arow{display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:6px;background:var(--surface2);margin-bottom:4px;}
+/* 1.4.14 layout (Antwain's mockup): checkbox outside the card on the left, remove
+   button (manual pieces) outside on the right, both vertically centered to the card.
+   Inside: lock top-left with the PKP/EXC/RTN badge under it; the item name centered in
+   the space right of that column; Short/Over/Match in line with the name (centered to
+   it when it wraps to 2 lines); MDR + SGI qty boxes, smaller, in the bottom right. */
+.arow-outer{display:flex;align-items:center;gap:4px;margin-bottom:4px;min-width:0;}
+.arow-outer>.pcb{flex:0 0 auto;}
+.arm-slot{flex:0 0 16px;display:flex;align-items:center;justify-content:center;}
+.arow{flex:1 1 auto;min-width:0;display:flex;align-items:stretch;gap:5px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);}
+.atags{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:3px;}
+.amain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.anameline{flex:1 1 auto;display:flex;align-items:center;gap:4px;min-width:0;}
+.aqrow{display:flex;justify-content:flex-end;}
+.arow .qpair{gap:3px;}
+.arow .qrcv{width:28px;padding:1px 2px;font-size:10.5px;-moz-appearance:textfield;appearance:textfield;}
+.arow .qrcv::-webkit-inner-spin-button,.arow .qrcv::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
 .arow.av-match{border-color:var(--green);background:rgba(56,217,169,.07);}
 .arow.av-short{border-color:var(--yellow);background:rgba(247,201,72,.07);}
 .arow.av-over{border-color:var(--red);background:rgba(239,68,68,.07);}
 .qpair{display:flex;align-items:center;gap:4px;flex-shrink:0;}
-.aname2{flex:1 1 90px;font-size:11px;color:var(--text);min-width:90px;line-height:1.3;overflow-wrap:break-word;}
-.avarword{font-size:10px;font-weight:700;margin-left:5px;white-space:nowrap;}
+.aname2{flex:1 1 auto;min-width:0;font-size:11px;color:var(--text);line-height:1.3;text-align:center;overflow-wrap:anywhere;}
+.avarword{flex:0 0 auto;font-size:9.5px;font-weight:700;white-space:nowrap;}
 .avarword.avar-match{color:var(--green);}
 .avarword.avar-short{color:var(--yellow);}
 .avarword.avar-over{color:var(--red);}
@@ -1308,8 +1323,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.13';
-const BUILD_DATE = '2026-11-12';
+const VERSION = '1.4.14';
+const BUILD_DATE = '2026-11-11';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1323,6 +1338,15 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.14',
+    date:'Nov 11, 2026',
+    items:[
+      'Active tab: new piece card layout. The checkbox sits outside the card on the left, and the remove button for hand-added pieces sits outside on the right, both centered to the card.',
+      'Active tab: the lock is in the top left corner of the card with the PKP / EXC / RTN badge under it. The item name is centered in the space beside them, and Short / Over / Match sits in line with the name.',
+      'Active tab: the MDR and SGI qty boxes are smaller and sit in the bottom right corner. The MDR box is always blue and the SGI box is always orange, whatever the Match / Short / Over state. The card border still shows that state.',
+    ],
+  },
   {
     version:'1.4.13',
     date:'Nov 12, 2026',
@@ -4559,17 +4583,24 @@ function renderPcell(r){
     // Manually-added pieces (not from source) keep the same boxed qty look but are
     // not editable here — the qty was fixed at add time.
     const qtyBox=p.fromSource
-      ?`<input type="number" class="qrcv qrcv-sgi${m?' qmatch':''}${isShort?' qshort':''}${isOver?' qover':''}" value="${rcv}" min="0"
+      ?`<input type="number" class="qrcv qrcv-sgi qorange" value="${rcv}" min="0"
           placeholder="${p.expectedQty||''}"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
-      :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
+      :`<input type="number" class="qrcv qrcv-sgi qorange" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
     const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}`;
-    return`<div class="arow${cardCls}">
+    // 1.4.14: checkbox and remove button sit OUTSIDE the card; MDR qty box stays blue
+    // and the SGI qty box stays orange no matter the Match/Short/Over state (the card's
+    // own border/background still carries that color).
+    return`<div class="arow-outer">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
-      ${badge}${lock}
-      <span class="aname2">${nameHtml}${varLabel}</span>
-      <span class="qpair">${mdrBox}${qtyBox}</span>
-      ${delBtn}
+      <div class="arow${cardCls}">
+        <div class="atags">${lock}${badge}</div>
+        <div class="amain">
+          <div class="anameline"><span class="aname2">${nameHtml}</span>${varLabel}</div>
+          <div class="aqrow"><span class="qpair">${mdrBox}${qtyBox}</span></div>
+        </div>
+      </div>
+      <span class="arm-slot">${delBtn}</span>
     </div>`;
   }).join('');
   return`<div class="phdr"><button class="sabtn" onclick="toggleAll('${r.id}')">${allChk?'☐ Deselect All':'☑ Select All'}</button></div>
@@ -4733,15 +4764,13 @@ function updatePieceQty(rid,pid,val){
 
 function refreshPiece(rec,p){
   const cb=document.querySelector(`input.pcb[onchange*="'${p.id}'"]`);if(!cb)return;
-  const item=cb.closest('.arow');if(!item)return;
+  const outer=cb.closest('.arow-outer');const item=outer&&outer.querySelector('.arow');if(!item)return;
   const isShort=p.receivedQty!==null&&p.receivedQty<p.expectedQty;
   const isOver=p.receivedQty!==null&&p.receivedQty>p.expectedQty;
   const qi=item.querySelector('.qrcv-sgi');
   if(qi){
+    // SGI box stays orange regardless of Match/Short/Over (1.4.14).
     qi.value=p.receivedQty!==null?p.receivedQty:'';
-    qi.classList.toggle('qmatch',p.receivedQty!==null&&p.receivedQty===p.expectedQty);
-    qi.classList.toggle('qshort',isShort);
-    qi.classList.toggle('qover',isOver);
   }
   const lbl=item.querySelector('.avarword');
   item.classList.remove('av-match','av-over','av-short');
