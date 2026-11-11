@@ -218,8 +218,8 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - **Lock and badge:** the lock (🔒 or ✍🏼) is in the card's top left corner, with the PKP / EXC / RTN badge right under it.
 - **Item name:** centered in the space to the right of the lock and badge. The serial number stays on its own line under the name.
 - **Short / Over / Match:** sits in line with the item name. When the name wraps to two lines, the word is vertically centered to the name.
-- **Qty boxes:** the MDR requested qty and SGI received qty are smaller (spinner arrows hidden so the numbers stay readable) and sit in the bottom right corner. The MDR box is always blue and the SGI box is always orange, whatever the Match / Short / Over state. The card's border and background still show that state.
-- **Column width:** the Active tab's Pieces / Items column is back to its older, narrower size (225px to 280px).
+- **Qty boxes:** the MDR requested qty and SGI received qty are smaller (spinner arrows hidden so the numbers stay readable) and stacked on the right side of the card, MDR on top. The item name is vertically centered between the lock/badge stack on the left and the qty stack on the right, so each card stays short top to bottom. The MDR box is always blue and the SGI box is always red, whatever the Match / Short / Over state. The card's border and background still show that state.
+- **Column width:** the Active tab's Pieces / Items column uses its older width (225px to 280px).
 - The Completed tab is unchanged. `index-offline.html` has the same changes, and its SharePoint handling is untouched.
 
 ## Changes in `1.4.13`
