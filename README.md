@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.9` (November 10, 2026)
+**Version:** `1.4.11` (November 11, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -68,6 +68,7 @@ Versioning switched to SemVer starting at `1.0.0` on November 8, 2026. Older `CH
 | **⧉ Find Duplicates** | MDR | Scans every record for likely duplicates — same Job # + same patient, or same Job # + same reference # — and lists each pair to Approve (merge) or Reject (dismiss). Nothing merges without you clicking Approve. |
 | Clear Cache | All | Wipes this browser's saved data and tokens and reloads. Fixes most odd behavior. You sign in again after. |
 | App Log | MDR | Who did what, and when (sign-ins, loads, exports, refreshes). |
+| **📊 Inventory Reports** | MDR, with xMDR Tools | Only shows on a PC with the xMDR Tools extension (1.19.0 or newer), so SGI never sees it. Opens a window that runs xMDR Tools' Inventory Reports: SGI OrderReport, Appsmith Table1Copy and the 7 Brightree inventory reports, saved one at a time (SalesTrend last) into `Downloads\Claude outputs\Inventory Reports`. Shows a ✓ / ✗ line per report with ▶ Run for one report, plus a "PUEX status shows None" list with a Copy button. The run itself happens in the extension, so closing the window or the tab doesn't stop it. Nothing here touches SharePoint. |
 | Updates | All | Full update history. |
 
 Next to the buttons, the **presence bar** shows who else has the tracker open (seen in the last 10 minutes). The **sync light** shows Saved, Syncing, Synced or an error.
@@ -211,6 +212,18 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.11`
+
+- **📊 Inventory Reports** button in the header (MDR view only, and only when the xMDR Tools extension 1.19.0+ is installed). It opens a window that starts xMDR Tools' Inventory Reports run and shows its progress and the "PUEX status shows None" list. The work happens in the extension (`exchange-bridge.js`); the page only says hello, sends Start / ▶ Run, and draws the state it gets back. See the xMDR Tools README.
+- The button is re-checked whenever the MDR/SGI view changes (`applyRoleUI` calls `invShowBtn()`), so the SGI preview hides it too.
+- `<meta name="version">` now carries the app version (`1.4.11`) instead of an old date stamp, so every version marker in the file matches.
+- `index-offline.html` has the same code (button, window, script, `invShowBtn()` call, version markers) so the two files don't drift apart. The button stays hidden there: xMDR Tools only connects to the live site, so the offline copy never gets an answer.
+
+## Changes in `1.4.10`
+
+- **Active tab: "Pieces / Items" rows have their own flat, single-line style again** — checkbox, badge, lock, name, Short/Over/Match text with a requested-qty `×N` tag, and one color-coded received-qty box. This is no longer the Completed tab's boxed card layout, which had made the column too narrow and clipped the Short/Over text. The Completed/Void tab's cards are untouched; Active and Completed now use fully separate CSS classes, so a change to one tab can't bleed into the other.
+- **Active tab: widened the "Pieces / Items" column** (up to 400px) for the flat row style.
 
 ## Changes in `1.4.9`
 

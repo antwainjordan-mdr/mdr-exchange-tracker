@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="20261103120000">
+<meta name="version" content="1.4.11">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -239,6 +239,21 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 
 /* PIECES */
 .pcell{min-width:220px;max-width:320px;}
+/* Active tab's own "Pieces / Items" column — wider than the Completed tab's .pcell
+   so the flat .arow rows below have room for the Short/Over/Match text without
+   crowding (see .arow — Antwain: "need to have a slightly different style than the
+   Complete/Void... they became too narrow and now we're missing the short/over text"). */
+.acell{min-width:260px;max-width:400px;}
+/* Active tab piece rows — flat, borderless list (not the Completed tab's boxed
+   .pitem cards): checkbox, badge, lock, name, Short/Over/Match text + requested-qty
+   tag, one received-qty box, delete button, all on one line that wraps as needed. */
+.arow{display:flex;align-items:center;gap:5px;padding:4px 2px;flex-wrap:wrap;}
+.aname2{flex:1 1 90px;font-size:11px;color:var(--text);min-width:90px;line-height:1.3;overflow-wrap:break-word;}
+.avarword{font-size:10px;font-weight:700;margin-left:5px;white-space:nowrap;}
+.avarword.avar-match{color:var(--green);}
+.avarword.avar-short{color:var(--yellow);}
+.avarword.avar-over{color:var(--red);}
+.aqtytag{font-size:10px;color:var(--text3);margin-left:5px;font-weight:600;white-space:nowrap;}
 /* Completed tab Actions column — equal breathing room from the columns on both sides
    (per Antwain: "equidistant apart on both sides of touching columns"), content
    top-aligned so a 4-category block doesn't visually crowd the row below it, and each
@@ -577,6 +592,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <button class="btn btn-sm mdr-only" onclick="openAppAuditLog(event)" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="View app activity log">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>App Log
     </button>
+    <button class="btn btn-sm" id="btnInvReports" onclick="openInvReports()" style="display:none;background:transparent;color:var(--text2);border:1px solid var(--border);" title="Download the inventory reports (SGI, Appsmith, Brightree) into Downloads\Claude outputs\Inventory Reports. Shows only when the xMDR Tools extension (1.19.0+) is installed.">📊 Inventory Reports</button>
     <button class="btn btn-sm" onclick="openChangelog()" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="View update history">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Updates
     </button>
@@ -865,6 +881,22 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <button class="closebtn" onclick="closeAppAuditLog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div id="appAuditBody"><div class="audit-loading">No activity recorded yet.</div></div>
+</div>
+
+<!-- INVENTORY REPORTS (1.4.11) - runs in the xMDR Tools extension; button only shows when xMDR Tools answers -->
+<div class="moverlay" id="invOverlay" onclick="if(event.target===this)closeInvReports()">
+  <div class="modal" style="max-width:560px;">
+    <div class="mhdr">
+      <span class="mtitle">Inventory Reports</span>
+      <button class="closebtn" onclick="closeInvReports()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--text2);">Saves to <code>Downloads\Claude outputs\Inventory Reports</code>, replacing the old copies. Brightree reports are requested again when there's nothing newer than the last download. Keeps running if you close this window.</div>
+      <div id="invList" style="display:flex;flex-direction:column;gap:4px;"></div>
+      <div id="invMsg" style="display:none;"></div>
+    </div>
+    <div class="mftr"><button class="btn btn-primary btn-sm" id="invGo" onclick="invStartRun()">⬇ Get Inventory Reports</button></div>
+  </div>
 </div>
 
 <!-- CHANGELOG / WHAT'S NEW -->
@@ -1271,8 +1303,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.9';
-const BUILD_DATE = '2026-11-10';
+const VERSION = '1.4.11';
+const BUILD_DATE = '2026-11-11';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1286,6 +1318,21 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.11',
+    date:'Nov 11, 2026',
+    items:[
+      'New "📊 Inventory Reports" button in the header (MDR only, and only on a PC with the xMDR Tools extension 1.19.0 or newer). It downloads the SGI OrderReport, the Appsmith Table1Copy and the 7 Brightree inventory reports into Downloads\\Claude outputs\\Inventory Reports, one at a time, SalesTrend last. Progress and any "PUEX status shows None" notes show in its window.',
+    ],
+  },
+  {
+    version:'1.4.10',
+    date:'Nov 10, 2026',
+    items:[
+      'Active tab: "Pieces / Items" rows are back to their own flat, single-line style (checkbox, badge, lock, name, Short/Over/Match text + requested-qty tag, one color-coded received-qty box) instead of sharing the Completed tab\'s boxed card layout. The shared layout had made the column too narrow and clipped the Short/Over text. The Completed/Void tab\'s cards are untouched — Active and Completed now have fully separate styling, so a change to one can never affect the other.',
+      'Active tab: widened the "Pieces / Items" column (up to 400px) to give the flat row more breathing room.',
+    ],
+  },
   {
     version:'1.4.9',
     date:'Nov 10, 2026',
@@ -4387,7 +4434,7 @@ function renderRow(r,rowNum){
       <div class="copy-hover-group" style="display:flex;align-items:center;gap:3px;"><span class="pid">${esc(r.patientId)}</span>${copyIcon(r.patientId,'Copy patient ID')}${pidMissing(r)?` <span title="Name came in with no resolvable Patient ID" style="color:var(--yellow);">⚠ no PID</span>`:''}</div>
     </td>
     <td style="text-align:center"><span class="row-num" style="display:block;font-size:9px;color:var(--text3);line-height:1.1">${rowNum||''}</span><span class="copy-hover-group">${renderJobLink(r.jobNum)}${copyIcon(r.jobNum,'Copy job number')}</span>${(()=>{const dup=_activeDupMap.get(r.id);return dup?`<div><button class="btn btn-sm" style="font-size:9px;padding:1px 5px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records</button></div>`:'';})()}</td>
-    <td class="pcell">${renderPcell(r)}</td>
+    <td class="acell">${renderPcell(r)}</td>
     <td>${refHtml}</td>
     <td class="ret-cell${r.dateReturned?' has-date':''}">${retHtml}</td>
     <td class="ctr">
@@ -4448,12 +4495,17 @@ function renderPcell(r){
     return`<div style="color:var(--text3);font-size:11px;font-style:italic">No items — <button class="addpbtn" onclick="event.stopPropagation();openPopup(event,'${r.id}')">+ add</button></div>`;
   }
   const allChk=r.pieces.every(p=>p.checked);
+  // Active tab piece rows use their OWN flat-row style (.arow/.aname2/.avarword),
+  // separate from the Completed/Void tab's boxed .pitem cards — Antwain: "The Item
+  // boxes on the Active page need to have a slightly different style than the
+  // Complete/Void... Please return the Active page back to [the flat-row view]. Do
+  // not affect the Complete/Void." Nothing here shares a class with compItem()'s
+  // markup, so changes here can never touch the Completed tab's cards.
   const items=r.pieces.map(p=>{
     const rcv=p.receivedQty!==null?p.receivedQty:'';
     const m=rcv!==''&&parseInt(rcv)===p.expectedQty;
     const isShort=rcv!==''&&parseInt(rcv)<p.expectedQty;
     const isOver=rcv!==''&&parseInt(rcv)>p.expectedQty;
-    const cls='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
     const badge=pieceBadge(p);
     // Manually-added pieces (not from source, can't be verified against anything SGI
     // sent) get ✍🏼 in the lock slot instead of 🔒, same meaning as the Completed tab's
@@ -4466,19 +4518,20 @@ function renderPcell(r){
       ?`<button class="prmbtn prmbtn-manual" onclick="removePieceInline('${r.id}','${p.id}')" title="Remove"><span class="prm-pencil">✍🏼</span><span class="prm-x">✕</span></button>`
       :'';
     const variance=pieceVariance(p);
-    // Icon convention matches the Active dashboard's own checklist: 🏷️ = exact 1:1
-    // match, 🔺 = received MORE than requested (overage), 🔻 = received LESS than
-    // requested (shortage). Only shown for source pieces once a qty's been entered.
-    const varIcon=p.fromSource&&rcv!==''&&variance!=='uncounted'
-      ?(variance==='match'?'🏷️':variance==='overage'?'🔺':'🔻')
+    // Text label next to the name — Short/Over/Match — only shown for source pieces
+    // once a qty's been entered. Always emit the span (empty/hidden otherwise) so
+    // refreshPiece() has a stable element to update in place after a qty edit.
+    const varWord=p.fromSource&&rcv!==''&&variance!=='uncounted'
+      ?(variance==='match'?'Match':variance==='overage'?'Over':'Short')
       :'';
-    const varLabel=varIcon
-      ?`<span class="pvarlbl" style="font-size:14px;">${varIcon}</span>`
-      :`<span class="pvarlbl" style="display:none"></span>`;
-    // MDR QTY box — always blue, always read-only, shows the requested amount.
-    // Sits right beside the SGI return qty box, same boxed look.
-    const mdrQtyBox=(p.expectedQty!==undefined&&p.expectedQty!==null)
-      ?`<input type="number" class="qrcv qblue" value="${esc(p.expectedQty)}" readonly title="MDR requested qty">`
+    const varCls=variance==='match'?'avar-match':variance==='overage'?'avar-over':'avar-short';
+    const varLabel=varWord
+      ?`<span class="avarword ${varCls}">${varWord}</span>`
+      :`<span class="avarword" style="display:none"></span>`;
+    // Requested qty shown as a plain "×N" tag next to the name (not its own box) —
+    // the single qty box below is the actual received/entered amount.
+    const qtyTag=(p.expectedQty!==undefined&&p.expectedQty!==null)
+      ?`<span class="aqtytag">×${esc(p.expectedQty)}</span>`
       :'';
     // Manually-added pieces (not from source) keep the same boxed qty look but are
     // not editable here — the qty was fixed at add time.
@@ -4488,24 +4541,12 @@ function renderPcell(r){
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
       :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
     const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}`;
-    return`<div class="pcard-outer">
+    return`<div class="arow">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
-      <div class="${cls.trim()}">
-        <div class="pihead">
-          <div class="pihead-tags">${lock}</div>
-          <span class="pname2">${nameHtml}</span>
-          <div class="pihead-tags" style="visibility:hidden" aria-hidden="true">${lock}</div>
-        </div>
-        <div class="qrow-center">
-          ${badge}
-          ${varLabel}
-          <div class="qwrap">
-            ${mdrQtyBox}
-            ${qtyBox}
-          </div>
-          ${delBtn}
-        </div>
-      </div>
+      ${badge}${lock}
+      <span class="aname2">${nameHtml}${varLabel}${qtyTag}</span>
+      ${qtyBox}
+      ${delBtn}
     </div>`;
   }).join('');
   return`<div class="phdr"><button class="sabtn" onclick="toggleAll('${r.id}')">${allChk?'☐ Deselect All':'☑ Select All'}</button></div>
@@ -4593,7 +4634,7 @@ function noPickupChanged(id, checked){
   saveRecs(rec);
   const tr=document.querySelector(`tr[data-id="${id}"]`);
   if(tr){
-    const pcell=tr.querySelector('.pcell');
+    const pcell=tr.querySelector('.acell');
     if(pcell)pcell.innerHTML=renderPcell(rec);
     const retInp=tr.querySelector('.ret-cell input.dtext');
     if(retInp){ retInp.value=rec.dateReturned?fmtDateFull(rec.dateReturned):''; retInp.dataset.lastValid=rec.dateReturned||''; }
@@ -4669,10 +4710,9 @@ function updatePieceQty(rid,pid,val){
 
 function refreshPiece(rec,p){
   const cb=document.querySelector(`input.pcb[onchange*="'${p.id}'"]`);if(!cb)return;
-  const item=cb.closest('.pcard-outer')?.querySelector('.pitem');if(!item)return;
+  const item=cb.closest('.arow');if(!item)return;
   const isShort=p.receivedQty!==null&&p.receivedQty<p.expectedQty;
   const isOver=p.receivedQty!==null&&p.receivedQty>p.expectedQty;
-  item.className='pitem '+(p.checked?(isShort?'p-partial':isOver?'p-over':'p-ok'):'');
   const qi=item.querySelector('.qrcv-sgi');
   if(qi){
     qi.value=p.receivedQty!==null?p.receivedQty:'';
@@ -4680,15 +4720,15 @@ function refreshPiece(rec,p){
     qi.classList.toggle('qshort',isShort);
     qi.classList.toggle('qover',isOver);
   }
-  const lbl=item.querySelector('.pvarlbl');
+  const lbl=item.querySelector('.avarword');
   if(lbl){
-    // Same convention as renderPcell(): 🏷️ match, 🔺 over (received more), 🔻 short
-    // (received less). Only for source pieces once a qty's been entered.
-    const fromSource=!!item.querySelector('.plocki');
-    if(!fromSource||p.receivedQty===null){ lbl.textContent=''; lbl.style.display='none'; }
-    else if(isOver){ lbl.textContent='🔺'; lbl.style.display=''; }
-    else if(isShort){ lbl.textContent='🔻'; lbl.style.display=''; }
-    else { lbl.textContent='🏷️'; lbl.style.display=''; }
+    // Same convention as renderPcell(): Match/Over/Short text, colored to match the
+    // qty box's own border. Only for source pieces once a qty's been entered.
+    lbl.classList.remove('avar-match','avar-over','avar-short');
+    if(!p.fromSource||p.receivedQty===null){ lbl.textContent=''; lbl.style.display='none'; }
+    else if(isOver){ lbl.textContent='Over'; lbl.classList.add('avar-over'); lbl.style.display=''; }
+    else if(isShort){ lbl.textContent='Short'; lbl.classList.add('avar-short'); lbl.style.display=''; }
+    else { lbl.textContent='Match'; lbl.classList.add('avar-match'); lbl.style.display=''; }
   }
 }
 
@@ -4734,7 +4774,7 @@ function toggleAll(rid){
   saveRecs(rec);
   const tr=document.querySelector(`tr[data-id="${rid}"]`);
   if(tr){
-    const td=tr.querySelector('.pcell');if(td)td.innerHTML=renderPcell(rec);
+    const td=tr.querySelector('.acell');if(td)td.innerHTML=renderPcell(rec);
     const retInp=tr.querySelector('.ret-cell input.dtext');
     if(retInp){ retInp.value=rec.dateReturned?fmtDateFull(rec.dateReturned):''; retInp.dataset.lastValid=rec.dateReturned||''; }
     const retCal=tr.querySelector('.ret-cell input.dhiddencal');
@@ -4816,7 +4856,7 @@ function removePieceInline(rid,pid){
   rec.pieces=rec.pieces.filter(p=>p.id!==pid);
   saveRecs(rec);
   const tr=document.querySelector(`tr[data-id="${rid}"]`);
-  if(tr){const td=tr.querySelector('.pcell');if(td)td.innerHTML=renderPcell(rec);}
+  if(tr){const td=tr.querySelector('.acell');if(td)td.innerHTML=renderPcell(rec);}
   refreshRowStatus(rec);renderStats();
 }
 
@@ -5294,7 +5334,7 @@ function savePopup(){
   if(isMDR()) rec.mdrNotes = document.getElementById('popup-mdrNotes').value;
   saveRecs(rec);
   const tr = document.querySelector(`tr[data-id="${popupRecId}"]`);
-  if(tr){ const td=tr.querySelector('.pcell'); if(td) td.innerHTML=renderPcell(rec); }
+  if(tr){ const td=tr.querySelector('.acell'); if(td) td.innerHTML=renderPcell(rec); }
   refreshRowStatus(rec); renderStats();
   // Same App Log entry the full Add/Edit modal writes on every save — the quick popup
   // used to leave zero trace in the Activity Log for the exact same kind of edit.
@@ -5846,6 +5886,7 @@ function applyRoleUI(){
     document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='none');
     if(hideReturned){ hideReturned=false; renderTable(); }
   }
+  if (typeof invShowBtn === 'function') invShowBtn();   // 1.4.11: Inventory Reports only with xMDR Tools, MDR view only
   setTimeout(updateStickyHeight, 50);
 }
 
@@ -6897,6 +6938,53 @@ function showLocalFileLock(){
   document.body.appendChild(lock);
 }
 
+</script>
+<script>
+// ─── 1.4.11: Inventory Reports (runs in xMDR Tools; this page only starts it and shows progress) ──────────
+// The page says hello; xMDR Tools' exchange-bridge.js answers with its version and the run's state ("invRun").
+// No answer (SGI, or no extension) = the button stays hidden.
+const INV_ITEMS = [['orderreport','SGI · OrderReport.csv'],['table1copy','Appsmith · Table1Copy.csv'],
+  ['patientnamelist','Brightree · PatientNameList.csv'],['listofpt','Brightree · List of PT.csv'],
+  ['inventorybi','Brightree · Inventory BI.csv'],['inventorybiv2','Brightree · Inventory BIv2.csv'],
+  ['inventoryserialbi','Brightree · InventorySerial BI.csv'],['puexlines','Brightree · CSV - PUEX Line Item Report.csv'],
+  ['salestrend','Brightree · SalesTrend.csv (last)']];
+const INV_ICON = { idle:'·', wait:'·', run:'⏳', ok:'✓', fail:'✗' };
+let invSt = { items:{} }, invAvailable = false;
+function invShowBtn(){ const b = document.getElementById('btnInvReports'); if (b) b.style.display = (invAvailable && typeof isMDR === 'function' && isMDR()) ? '' : 'none'; }
+function invEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function invVerOk(v){ const [a,b] = String(v||'').split('.').map(Number); return a > 1 || (a === 1 && b >= 19); }
+function openInvReports(){ document.getElementById('invOverlay').classList.add('open'); invRender(); }
+function closeInvReports(){ document.getElementById('invOverlay').classList.remove('open'); }
+function invStartRun(only){ window.postMessage({ __xmdrInvStart:true, only: only || null }, '*'); }
+function invRender(){
+  const st = invSt || { items:{} }, running = !!st.running;
+  const go = document.getElementById('invGo'); if (!go) return;
+  go.disabled = running; go.textContent = running ? '⏳ Getting Inventory Reports…' : '⬇ Get Inventory Reports';
+  document.getElementById('invList').innerHTML = INV_ITEMS.map(([id,label]) => {
+    const it = (st.items && st.items[id]) || { state:'idle', note:'' };
+    const col = it.state === 'ok' ? 'var(--green)' : it.state === 'fail' ? 'var(--red,#ff5c5c)' : 'var(--text2)';
+    return `<div style="display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:start;font-size:12px;">
+      <span style="color:${col};">${INV_ICON[it.state]||'·'}</span>
+      <span><b>${invEsc(label)}</b>${it.note ? `<div style="color:${it.state==='fail'?col:'var(--text3)'};font-size:11px;">${invEsc(it.note)}</div>` : ''}</span>
+      ${running ? '<span></span>' : `<button class="btn btn-xs" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Download only this one" onclick="invStartRun(['${id}'])">▶ Run</button>`}</div>`;
+  }).join('') + (st.error ? `<div style="color:var(--red,#ff5c5c);font-size:12px;">✗ ${invEsc(st.error)}</div>` : '');
+  const box = document.getElementById('invMsg'), lines = st.message || [];
+  if (lines.length) {
+    box.style.display = '';
+    box.style.cssText = 'padding:10px;border-radius:8px;border:1px solid var(--yellow);background:rgba(247,201,72,.08);font-size:12px;white-space:pre-wrap;';
+    box.innerHTML = `<b>PUEX status shows None (Shipment - USPS/SGI):</b>\n${invEsc(lines.join('\n'))}\n<button class="btn btn-xs" style="margin-top:6px;background:transparent;color:var(--text2);border:1px solid var(--border);" id="invCopy">Copy</button>`;
+    document.getElementById('invCopy').onclick = e => navigator.clipboard.writeText(lines.join('\n')).then(() => { e.target.textContent = 'Copied'; });
+  } else box.style.display = 'none';
+}
+window.addEventListener('message', e => {
+  const d = e.source === window && e.data && e.data.__xmdrInv ? e.data : null;
+  if (!d) return;
+  if (d.hello && invVerOk(d.version)) { invAvailable = true; invShowBtn(); }
+  if (d.state) { invSt = d.state; invRender(); }
+  if (d.started && !d.ok && d.error) { invSt = Object.assign({}, invSt, { error: d.error }); invRender(); }
+});
+window.postMessage({ __xmdrInvHello:true }, '*');
+setTimeout(() => window.postMessage({ __xmdrInvHello:true }, '*'), 2000);   // the extension's script may load a moment later
 </script>
 </body>
 </html>
