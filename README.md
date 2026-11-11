@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.11` (November 11, 2026)
+**Version:** `1.4.13` (November 12, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,15 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.13`
+
+- **Active tab: piece rows are boxed cards again** — checkbox, badge, lock, name, Short/Over/Match text — with the card's border/background colored green/yellow/red once a source piece is checked in.
+- **Active tab: the MDR requested qty is its own box again** (always blue, read-only), sitting right next to the SGI received-qty box, no icon between them. Replaces the inline "×N" tag from `1.4.10`/`1.4.12`.
+
+## Changes in `1.4.12`
+
+- Fixed: the received-qty box on the Active tab's piece rows had no visible border before a piece was checked in — its default border color was almost the same shade as its own background. The border now uses a lighter, clearly visible color in its default state; the green/yellow/red match/short/over borders and the blue/orange read-only borders are unchanged.
 
 ## Changes in `1.4.11`
 

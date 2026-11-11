@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.12">
+<meta name="version" content="1.4.13">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -223,16 +223,21 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
    crowding (see .arow — Antwain: "need to have a slightly different style than the
    Complete/Void... they became too narrow and now we're missing the short/over text"). */
 .acell{min-width:260px;max-width:400px;}
-/* Active tab piece rows — flat, borderless list (not the Completed tab's boxed
-   .pitem cards): checkbox, badge, lock, name, Short/Over/Match text + requested-qty
-   tag, one received-qty box, delete button, all on one line that wraps as needed. */
-.arow{display:flex;align-items:center;gap:5px;padding:4px 2px;flex-wrap:wrap;}
+/* Active tab piece rows — own boxed card (not the Completed tab's .pitem cards):
+   checkbox, badge, lock, name, Short/Over/Match text, then two qty boxes side by
+   side (MDR requested — always blue, read-only — and the SGI received qty, which
+   is the editable one and carries the match/short/over color). The whole card's
+   border is colored to match once a source piece has been checked in. */
+.arow{display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:6px;background:var(--surface2);margin-bottom:4px;}
+.arow.av-match{border-color:var(--green);background:rgba(56,217,169,.07);}
+.arow.av-short{border-color:var(--yellow);background:rgba(247,201,72,.07);}
+.arow.av-over{border-color:var(--red);background:rgba(239,68,68,.07);}
+.qpair{display:flex;align-items:center;gap:4px;flex-shrink:0;}
 .aname2{flex:1 1 90px;font-size:11px;color:var(--text);min-width:90px;line-height:1.3;overflow-wrap:break-word;}
 .avarword{font-size:10px;font-weight:700;margin-left:5px;white-space:nowrap;}
 .avarword.avar-match{color:var(--green);}
 .avarword.avar-short{color:var(--yellow);}
 .avarword.avar-over{color:var(--red);}
-.aqtytag{font-size:10px;color:var(--text3);margin-left:5px;font-weight:600;white-space:nowrap;}
 /* Completed tab Actions column — equal breathing room from the columns on both sides
    (per Antwain: "equidistant apart on both sides of touching columns"), content
    top-aligned so a 4-category block doesn't visually crowd the row below it, and each
@@ -1294,7 +1299,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.12';
+const VERSION = '1.4.13';
 const BUILD_DATE = '2026-11-12';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1318,6 +1323,14 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','
 // Data lives only in this browser's localStorage; there is nothing to sync.
 const OFFLINE_MODE = true;
 const CHANGELOG = [
+  {
+    version:'1.4.13',
+    date:'Nov 12, 2026',
+    items:[
+      'Active tab: piece rows are boxed cards again (checkbox, badge, lock, name, Short/Over/Match text), with the border/background colored by Match/Short/Over once a source piece is checked in.',
+      'Active tab: the MDR requested qty is back as its own box (always blue, read-only) sitting right next to the SGI received-qty box — no icon between them. The inline "×N" tag is gone now that the requested qty has its own box.',
+    ],
+  },
   {
     version:'1.4.12',
     date:'Nov 12, 2026',
@@ -4447,10 +4460,13 @@ function renderPcell(r){
     const varLabel=varWord
       ?`<span class="avarword ${varCls}">${varWord}</span>`
       :`<span class="avarword" style="display:none"></span>`;
-    // Requested qty shown as a plain "×N" tag next to the name (not its own box) —
-    // the single qty box below is the actual received/entered amount.
-    const qtyTag=(p.expectedQty!==undefined&&p.expectedQty!==null)
-      ?`<span class="aqtytag">×${esc(p.expectedQty)}</span>`
+    // Whole card border/background follows the same Match/Over/Short state as the
+    // text label above (only for source pieces once a qty's been entered).
+    const cardCls=varWord?' '+(variance==='match'?'av-match':variance==='overage'?'av-over':'av-short'):'';
+    // MDR requested qty — its own box, always blue, never editable, sitting right
+    // next to the SGI received box. No icon between them.
+    const mdrBox=(p.expectedQty!==undefined&&p.expectedQty!==null)
+      ?`<input type="number" class="qrcv qblue" value="${esc(p.expectedQty)}" readonly onclick="event.stopPropagation()" title="Requested qty">`
       :'';
     // Manually-added pieces (not from source) keep the same boxed qty look but are
     // not editable here — the qty was fixed at add time.
@@ -4460,11 +4476,11 @@ function renderPcell(r){
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
       :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
     const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}`;
-    return`<div class="arow">
+    return`<div class="arow${cardCls}">
       <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
       ${badge}${lock}
-      <span class="aname2">${nameHtml}${varLabel}${qtyTag}</span>
-      ${qtyBox}
+      <span class="aname2">${nameHtml}${varLabel}</span>
+      <span class="qpair">${mdrBox}${qtyBox}</span>
       ${delBtn}
     </div>`;
   }).join('');
@@ -4640,14 +4656,15 @@ function refreshPiece(rec,p){
     qi.classList.toggle('qover',isOver);
   }
   const lbl=item.querySelector('.avarword');
+  item.classList.remove('av-match','av-over','av-short');
   if(lbl){
     // Same convention as renderPcell(): Match/Over/Short text, colored to match the
     // qty box's own border. Only for source pieces once a qty's been entered.
     lbl.classList.remove('avar-match','avar-over','avar-short');
     if(!p.fromSource||p.receivedQty===null){ lbl.textContent=''; lbl.style.display='none'; }
-    else if(isOver){ lbl.textContent='Over'; lbl.classList.add('avar-over'); lbl.style.display=''; }
-    else if(isShort){ lbl.textContent='Short'; lbl.classList.add('avar-short'); lbl.style.display=''; }
-    else { lbl.textContent='Match'; lbl.classList.add('avar-match'); lbl.style.display=''; }
+    else if(isOver){ lbl.textContent='Over'; lbl.classList.add('avar-over'); lbl.style.display=''; item.classList.add('av-over'); }
+    else if(isShort){ lbl.textContent='Short'; lbl.classList.add('avar-short'); lbl.style.display=''; item.classList.add('av-short'); }
+    else { lbl.textContent='Match'; lbl.classList.add('avar-match'); lbl.style.display=''; item.classList.add('av-match'); }
   }
 }
 
