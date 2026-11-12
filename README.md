@@ -217,8 +217,8 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - **Active tab piece cards, reworked again:**
   - The lock (🔒 or ✍🏼) sits above the checkbox, outside the card's left edge, both aligned to the top. The ✍🏼 / ✕ remove button for hand-added pieces sits outside on the right, also top-aligned.
   - Inside the card there are three columns. The PKP / EXC / RTN badge sits at the **bottom left**.
-  - The item name is 13px and vertically centered in the card, with the serial number on the same line in smaller gray text (it wraps only when there's no room). Short / Over / Match is smaller (10.5px) and right aligned, sitting next to the qty boxes. Cards are about 40px tall.
-  - The qty boxes are wider, have their arrows back, and sit side by side in the **bottom right** in both views: MDR inside, SGI at the card's edge.
+  - The item name is 13px and vertically centered in the card, with the serial number on the same line in smaller gray text (it wraps only when there's no room). Short / Over / Match is smaller (10.5px) and sits centered above the SGI qty box. Cards are about 40px tall.
+  - The qty boxes are narrow (24px) with no arrows and sit side by side in the **bottom right** in both views: MDR inside, SGI at the card's edge. An empty, editable SGI box is blank, with a blinking caret centered inside it until a number is typed (it no longer shows the requested qty as faded hint text).
   - The MDR box is always `#4f8ef7` blue, in every theme and in SGI view (the SGI theme used to turn it red). The SGI box is always red.
   - The Pieces / Items column is back to 260px to 400px.
 - **Locks:**
@@ -231,7 +231,8 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
   - It takes `MDR_PUEX_Status_Backfill.csv`, built from Brightree's PUEX Line Item Report with each PUEX's patient looked up through the Sales Order it was first placed on. The file has one row per line item: PUEX ID, PUEX Status, Patient ID, Patient Name, Sched Date, Item, Type, Qty.
   - It matches **existing records only**, on the patient ID plus the 5-digit PUEX # in Reference. A record with no PID matches on the PUEX # if its name agrees or is blank. It never adds a record.
   - It fills only what's missing: Patient Name (blank or "Unknown"), Patient ID and Pickup Date, which then lock. On still-open records it also sets Closed (Brightree), Job Closed, Date Returned, Verified (Confirmed) or No Pickup (Void), and saves Brightree's line quantities for the Completed tab if none are saved yet. A record whose PUEX is still New in Brightree only gets its missing fields filled.
-  - Records already Confirmed keep their status. Any whose Brightree status disagrees is listed in the preview.
+  - On records already Confirmed, Brightree's status is applied too. Brightree Void checks No Pickup. Brightree Confirmed on a record marked Void unchecks No Pickup and checks Verified. Records Brightree still shows as **New** are left as is and listed in the preview.
+  - After Apply, a CSV of everything it completed downloads automatically (`MDR_PUEX_Backfill_Completed_YYYY-MM-DD.csv`).
   - It shows a preview first. Nothing is saved until you click Apply, and it's logged to the App Log.
   - It will be removed in `1.4.16`. `index-offline.html` doesn't have it.
 

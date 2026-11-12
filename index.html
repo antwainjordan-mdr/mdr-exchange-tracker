@@ -259,15 +259,23 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
 .arow-outer{display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;min-width:0;}
 .aside{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:3px;}
 .aside .plocki{font-size:12px;line-height:1;}
-.arm-slot{flex:0 0 18px;display:flex;justify-content:center;padding-top:4px;}
-.arow{flex:1 1 auto;min-width:0;min-height:40px;box-sizing:border-box;display:flex;align-items:stretch;gap:8px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);}
+.arm-slot{flex:0 0 22px;display:flex;justify-content:center;padding-top:4px;}
+.arow{flex:1 1 auto;min-width:0;min-height:40px;box-sizing:border-box;display:flex;align-items:stretch;gap:8px;padding:2px 10px 2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);}
 .atags{flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;}
 .anameline{flex:1 1 auto;align-self:center;display:flex;align-items:center;gap:6px;min-width:0;}
 .anamecell{flex:1 1 auto;min-width:0;display:flex;justify-content:center;}
 .asn{font-size:10px;color:var(--text3);margin-left:6px;white-space:nowrap;display:inline-block;}
 .aqrow{flex:0 0 auto;display:flex;align-items:flex-end;justify-content:flex-end;}
-.arow .qpair{gap:4px;}
-.arow .qrcv{width:48px;font-size:12px;padding:1px 2px 1px 6px;}
+/* qty block: row 1 = Short/Over/Match centered above the SGI box; row 2 = MDR | SGI */
+.aqgrid{display:grid;grid-template-columns:24px 24px;column-gap:4px;row-gap:1px;align-items:end;}
+.aqvar{grid-column:2;display:flex;justify-content:center;width:24px;min-height:12px;line-height:12px;white-space:nowrap;}
+.arow .qrcv{width:24px;font-size:12px;padding:1px 0;text-align:center;-moz-appearance:textfield;appearance:textfield;}
+.arow .qrcv::-webkit-inner-spin-button,.arow .qrcv::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+/* Empty, editable SGI qty: a blinking caret centered inside the box until a number is typed. */
+@keyframes qcaret{0%,49%{--qph:var(--red);}50%,100%{--qph:transparent;}}
+.arow .qrcv-sgi:not([readonly]):placeholder-shown{animation:qcaret 1.06s infinite;}
+.arow .qrcv-sgi::placeholder{color:var(--qph,var(--red));opacity:1;font-weight:400;}
+.arow .qrcv-sgi:focus::placeholder{color:transparent;}
 .qrcv.qmdr{border-color:#4f8ef7;color:#4f8ef7;}
 .arow.av-match{border-color:var(--green);background:rgba(56,217,169,.07);}
 .arow.av-short{border-color:var(--yellow);background:rgba(247,201,72,.07);}
@@ -1365,11 +1373,11 @@ const CHANGELOG = [
     version:'1.4.15',
     date:'Nov 11, 2026',
     items:[
-      'Active tab: piece cards reworked. The lock sits above the checkbox outside the card\'s left edge, both aligned to the top. Inside the card, the PKP / EXC / RTN badge sits at the bottom left. The item name is larger and vertically centered in the card, with the serial number on the same line. Short / Over / Match is smaller and right aligned next to the qty boxes. Cards are shorter.',
-      'Active tab: the qty boxes are wider, have their arrows back, and sit side by side in the bottom right in both views: MDR inside, SGI at the card\'s edge. The MDR box is always blue (#4f8ef7), in every theme and in SGI view too. The SGI box is always red.',
+      'Active tab: piece cards reworked. The lock sits above the checkbox outside the card\'s left edge, both aligned to the top. Inside the card, the PKP / EXC / RTN badge sits at the bottom left. The item name is larger and vertically centered in the card, with the serial number on the same line. Short / Over / Match is smaller and sits centered above the SGI qty box. Cards are shorter.',
+      'Active tab: the qty boxes are narrower with no arrows and sit side by side in the bottom right in both views: MDR inside, SGI at the card\'s edge. An empty SGI box is blank with a blinking caret centered inside it until a number is typed. The MDR box is always blue (#4f8ef7), in every theme and in SGI view too. The SGI box is always red.',
       'Locks: when Load CSV matches a hand-added record, its source fields (Patient Name, Patient ID, Pickup Date, Entry ID) now lock. Job # also locks when it came from the CSV. Reference stays editable.',
       'Status: Confirmed and Void jobs no longer show in SGI\'s view at all (MDR still sees them only under Completed). For SGI, Complete now means Job Closed.',
-      'TEMPORARY: new "🧾 PUEX Backfill" button (MDR only) for a one-time status catch-up from Brightree\'s full PUEX history. It shows a preview first and saves nothing until you click Apply. It only updates existing records and never adds one. It fills in missing Name, PID, Pickup Date, Closed (Brightree), Job Closed, Date Returned, Verified (Confirmed) or No Pickup (Void). Confirmed records whose Brightree status disagrees are listed, not changed. This button will be removed in 1.4.16.',
+      'TEMPORARY: new "🧾 PUEX Backfill" button (MDR only) for a one-time status catch-up from Brightree\'s full PUEX history. It shows a preview first and saves nothing until you click Apply. It only updates existing records and never adds one. It fills in missing Name, PID, Pickup Date, Closed (Brightree), Job Closed, Date Returned, Verified (Confirmed) or No Pickup (Void). On records already Confirmed, Brightree\'s Void or Confirmed is applied too, except ones Brightree still shows as New, which are left as is and listed. A CSV of everything completed downloads after Apply. This button will be removed in 1.4.16.',
     ],
   },
   {
@@ -3195,9 +3203,12 @@ function puexbfBuildPlan(rows){
     if(!r.pickupDate&&dates.length){ set.pickupDate=dates[0]; set.dropOffBy=computeLateBy(dates[0]); lock.push('pickupDate'); notes.push('Pickup Date'); }
     let resolvedPieces=null;
     if(r.confirmed){
-      if(status==='new') plan.mismatches.push({...label,why:'Tracker is Confirmed, Brightree still shows New'});
-      else if(status==='void'&&!r.noPickup) plan.mismatches.push({...label,why:'Tracker is Confirmed, Brightree shows Void'});
-      else if(status==='confirmed'&&r.noPickup) plan.mismatches.push({...label,why:'Tracker is Void (No Pickup), Brightree shows Confirmed'});
+      // Antwain: a Confirmed record Brightree still shows as New is left alone (listed).
+      // Otherwise Brightree's Confirmed/Void wins: Void -> No Pickup; Confirmed on a
+      // record marked Void -> uncheck No Pickup, check Verified.
+      if(status==='new') plan.mismatches.push({...label,why:'Tracker is Confirmed, Brightree still shows New (left as is)'});
+      else if(status==='void'&&!r.noPickup){ set.noPickup=true; notes.push('No Pickup (Brightree Void)'); if(!r.dateReturned){ set.dateReturned=tod(); notes.push('Date Returned'); } if(!r.jobClosed){ set.jobClosed=true; notes.push('Job Closed'); } }
+      else if(status==='confirmed'&&r.noPickup){ set.noPickup=false; notes.push('No Pickup unchecked (Brightree Confirmed)'); if(!r.verified){ set.verified=true; notes.push('Verified'); } }
     } else if(status!=='new'){
       set.confirmed=true; notes.push('Closed (Brightree)');
       if(!r.jobClosed){ set.jobClosed=true; notes.push('Job Closed'); }
@@ -3222,20 +3233,22 @@ function puexbfRenderPreview(fname){
   const p=_puexbfPlan, body=document.getElementById('puexbfBody');
   const closing=p.changes.filter(c=>c.set.confirmed);
   const nV=closing.filter(c=>c.status==='void').length, nC=closing.length-nV;
-  const fillOnly=p.changes.length-closing.length;
+  const corrected=p.changes.filter(c=>!c.set.confirmed&&('noPickup' in c.set));
+  const fillOnly=p.changes.length-closing.length-corrected.length;
   const row=(c,extra)=>`<tr><td>${esc(c.patient)}</td><td>${esc(c.pid||'—')}</td><td>${esc(c.job||'—')}</td><td>${esc(c.puex)}</td><td>${esc(extra)}</td></tr>`;
   const table=(title,list,fn)=>list.length?`<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">${title} (${list.length})</div><div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;"><table class="puexbf-t"><tr><th>Patient</th><th>PID</th><th>Job #</th><th>PUEX</th><th>Details</th></tr>${list.map(fn).join('')}</table></div>`:'';
   body.innerHTML=`
     <div style="font-size:12px;color:var(--text2);line-height:1.6;">
       File: <b>${esc(fname)}</b> · ${p.fileCount} PUEX #s<br>
       <b>${closing.length}</b> open record(s) will be closed: <b>${nC}</b> Confirmed, <b>${nV}</b> Void.<br>
+      <b>${corrected.length}</b> already-Confirmed record(s) will be corrected to Brightree's Void / Confirmed.<br>
       <b>${fillOnly}</b> other record(s) will only get missing Name / PID / Pickup Date filled.<br>
-      <b>${p.mismatches.length}</b> Confirmed record(s) disagree with Brightree (listed, not changed).<br>
+      <b>${p.mismatches.length}</b> Confirmed record(s) Brightree still shows as New (listed, left as is).<br>
       <b>${p.skipped.length}</b> record(s) skipped because the patient didn't match. ${p.noMatch} record(s) had no PUEX # in the file.<br>
       No records will be added.
     </div>
-    ${table('Will change',p.changes,c=>row(c,(c.set.confirmed?(c.status==='void'?'Void: ':'Confirmed: '):'')+c.notes.join(', ')))}
-    ${table('Confirmed in tracker, Brightree disagrees',p.mismatches,c=>row(c,c.why))}
+    ${table('Will change',p.changes,c=>row(c,(c.status!=='new'&&(c.set.confirmed||'noPickup' in c.set)?(c.status==='void'?'Void: ':'Confirmed: '):'')+c.notes.join(', ')))}
+    ${table('Confirmed in tracker, Brightree still New (left as is)',p.mismatches,c=>row(c,c.why))}
     ${table('Skipped, patient did not match',p.skipped,c=>row(c,c.why))}`;
   document.getElementById('puexbfApply').disabled=!p.changes.length;
 }
@@ -3259,6 +3272,17 @@ async function applyPuexBackfill(){
     else { setSyncStatus('error','⚠ Not connected to SharePoint — changes saved locally only. Do NOT refresh until this clears.'); toast('Not connected to SharePoint — saved locally only','e'); }
   }catch(err){ console.error('PUEX backfill sync:',err); toast('Sync error: '+err.message,'e'); }
   const closed=p.changes.filter(c=>c.set.confirmed).length;
+  // CSV of everything this run completed (Antwain asked for one after the backfill).
+  try{
+    const hdr=['Patient','Patient ID','Job #','PUEX','Brightree Status','Changes'];
+    const lines=[hdr.join(',')].concat(p.changes.filter(c=>touched.some(t=>t.id===c.id)).map(c=>{
+      const r=records.find(x=>x.id===c.id)||{};
+      return [r.patientName||c.patient, r.patientId||c.pid, r.jobNum||c.job, c.puex, c.status.charAt(0).toUpperCase()+c.status.slice(1), c.notes.join('; ')].map(csvEsc).join(',');
+    }));
+    const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`MDR_PUEX_Backfill_Completed_${tod()}.csv`;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  }catch(err){ console.error('PUEX backfill CSV:',err); }
   logAppAction('PUEX Backfill', `Applied: ${touched.length} record(s) updated (${closed} closed), ${p.mismatches.length} mismatch(es) listed, ${p.skipped.length} skipped`);
   await _flushAuditQueue();
   console.log('[MDR] PUEX backfill mismatches:',p.mismatches,'skipped:',p.skipped);
@@ -4769,7 +4793,7 @@ function renderPcell(r){
     // not editable here — the qty was fixed at add time.
     const qtyBox=p.fromSource
       ?`<input type="number" class="qrcv qrcv-sgi qred" value="${rcv}" min="0"
-          placeholder="${p.expectedQty||''}"
+          placeholder="|"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
       :`<input type="number" class="qrcv qrcv-sgi qred" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
     const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span class="asn">SN: ${esc(p.serialNum)}</span>`:''}`;
@@ -4781,8 +4805,8 @@ function renderPcell(r){
       <div class="aside">${lock}<input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)"></div>
       <div class="arow${cardCls}">
         <div class="atags">${badge}</div>
-        <div class="anameline"><div class="anamecell"><span class="aname2">${nameHtml}</span></div>${varLabel}</div>
-        <div class="aqrow"><span class="qpair">${mdrBox}${qtyBox}</span></div>
+        <div class="anameline"><div class="anamecell"><span class="aname2">${nameHtml}</span></div></div>
+        <div class="aqrow"><span class="aqgrid"><span class="aqvar">${varLabel}</span>${mdrBox}${qtyBox}</span></div>
       </div>
       <span class="arm-slot">${delBtn}</span>
     </div>`;
