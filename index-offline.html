@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.13">
+<meta name="version" content="1.4.15">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -228,13 +228,32 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
    side (MDR requested — always blue, read-only — and the SGI received qty, which
    is the editable one and carries the match/short/over color). The whole card's
    border is colored to match once a source piece has been checked in. */
-.arow{display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:6px;background:var(--surface2);margin-bottom:4px;}
+/* 1.4.15 layout (Antwain): lock stacked over the checkbox OUTSIDE the card's left
+   wall, top-aligned (more space under the checkbox than above it); remove button for
+   hand-added pieces outside on the right, also top-aligned. Inside, 3 columns per
+   Antwain's boundary-box drawing: PKP/EXC/RTN badge in the BOTTOM-left; the item name
+   (text left aligned, block centered) with Short/Over/Match beside it, vertically
+   centered in the card; MDR qty (fixed blue, inside) and SGI qty (red, at the card's
+   edge) side by side in the BOTTOM-right, with their arrows, in both views. */
+.arow-outer{display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;min-width:0;}
+.aside{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:3px;}
+.aside .plocki{font-size:12px;line-height:1;}
+.arm-slot{flex:0 0 18px;display:flex;justify-content:center;padding-top:4px;}
+.arow{flex:1 1 auto;min-width:0;min-height:40px;box-sizing:border-box;display:flex;align-items:stretch;gap:8px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);}
+.atags{flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;}
+.anameline{flex:1 1 auto;align-self:center;display:flex;align-items:center;gap:6px;min-width:0;}
+.anamecell{flex:1 1 auto;min-width:0;display:flex;justify-content:center;}
+.asn{font-size:10px;color:var(--text3);margin-left:6px;white-space:nowrap;display:inline-block;}
+.aqrow{flex:0 0 auto;display:flex;align-items:flex-end;justify-content:flex-end;}
+.arow .qpair{gap:4px;}
+.arow .qrcv{width:48px;font-size:12px;padding:1px 2px 1px 6px;}
+.qrcv.qmdr{border-color:#4f8ef7;color:#4f8ef7;}
 .arow.av-match{border-color:var(--green);background:rgba(56,217,169,.07);}
 .arow.av-short{border-color:var(--yellow);background:rgba(247,201,72,.07);}
 .arow.av-over{border-color:var(--red);background:rgba(239,68,68,.07);}
 .qpair{display:flex;align-items:center;gap:4px;flex-shrink:0;}
-.aname2{flex:1 1 90px;font-size:11px;color:var(--text);min-width:90px;line-height:1.3;overflow-wrap:break-word;}
-.avarword{font-size:10px;font-weight:700;margin-left:5px;white-space:nowrap;}
+.aname2{flex:0 1 auto;min-width:0;font-size:13px;color:var(--text);line-height:1.3;text-align:left;overflow-wrap:anywhere;}
+.avarword{flex:0 0 auto;font-size:10.5px;font-weight:700;white-space:nowrap;}
 .avarword.avar-match{color:var(--green);}
 .avarword.avar-short{color:var(--yellow);}
 .avarword.avar-over{color:var(--red);}
@@ -287,6 +306,7 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .qrcv[readonly]{opacity:.85;cursor:default;}
 .qrcv.qblue{border-color:var(--blue);color:var(--blue);}
 .qrcv.qorange{border-color:var(--orange);color:var(--orange);}
+.qrcv.qred{border-color:var(--red);color:var(--red);}
 /* Completed tab — outer status icon sits left of the card, outside its border. */
 .pcard-outer{display:flex;align-items:center;gap:4px;margin-bottom:3px;max-width:100%;min-width:0;box-sizing:border-box;}
 .pcard-outer .pitem{flex:1;min-width:0;}
@@ -1299,8 +1319,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.13';
-const BUILD_DATE = '2026-11-12';
+const VERSION = '1.4.15';
+const BUILD_DATE = '2026-11-11';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1323,6 +1343,25 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','
 // Data lives only in this browser's localStorage; there is nothing to sync.
 const OFFLINE_MODE = true;
 const CHANGELOG = [
+  {
+    version:'1.4.15',
+    date:'Nov 11, 2026',
+    items:[
+      'Active tab: piece cards reworked. The lock sits above the checkbox outside the card\'s left edge, both aligned to the top. Inside the card, the PKP / EXC / RTN badge sits at the bottom left. The item name is larger and vertically centered in the card, with the serial number on the same line. Short / Over / Match is smaller and right aligned next to the qty boxes. Cards are shorter.',
+      'Active tab: the qty boxes are wider, have their arrows back, and sit side by side in the bottom right in both views: MDR inside, SGI at the card\'s edge. The MDR box is always blue (#4f8ef7), in every theme and in SGI view too. The SGI box is always red.',
+      'Locks: when Load CSV matches a hand-added record, its source fields (Patient Name, Patient ID, Pickup Date, Entry ID) now lock. Job # also locks when it came from the CSV. Reference stays editable.',
+      'Status: Confirmed and Void jobs no longer show in SGI\'s view at all (MDR still sees them only under Completed). For SGI, Complete now means Job Closed.',
+    ],
+  },
+  {
+    version:'1.4.14',
+    date:'Nov 11, 2026',
+    items:[
+      'Active tab: new piece card layout. The checkbox sits outside the card on the left, and the remove button for hand-added pieces sits outside on the right, both centered to the card.',
+      'Active tab: the lock is in the top left corner of the card with the PKP / EXC / RTN badge under it. The item name is centered in the space beside them, and Short / Over / Match sits in line with the name.',
+      'Active tab: the MDR and SGI qty boxes are smaller and stacked on the right side of the card (MDR on top), so each card stays short. The MDR box is always blue and the SGI box is always red, whatever the Match / Short / Over state. The card border still shows that state.',
+    ],
+  },
   {
     version:'1.4.13',
     date:'Nov 12, 2026',
@@ -1830,12 +1869,19 @@ let mSrcPieces=[],mAddPieces=[];
 //     scratch because nothing existing matched it; why, in plain text (e.g. "No matching
 //     Patient ID"). Drives the "No Match" flag on the Completed tab. }
 
+// 1.4.15: the lock map decides, for every record. A hand-added record starts with an
+// empty map (fully editable); once a Load CSV row matches it, the merge writes a lock
+// map from the source data and those fields lock, same as a record the CSV created.
+// Job # locks too when it came from the CSV. Older records whose lock map predates
+// jobNum being in it: a non-blank Job # on a record that has any source lock counts.
 function isLocked(rec,field){
-  if(rec.source==='manual')return false;
-  return !!(rec.locked&&rec.locked[field]);
+  const L=rec&&rec.locked; if(!L) return false;
+  if(L[field]) return true;
+  if(field==='jobNum') return !!(rec.jobNum && String(rec.jobNum).trim() && (L.entryId||L.patientId||L.patientName||L.pickupDate));
+  return false;
 }
 function makeLockMap(obj){
-  const F=['patientName','patientId','pickupDate','entryId']; // jobNum + soIds kept editable
+  const F=['patientName','patientId','pickupDate','entryId','jobNum']; // soIds kept editable
   const m={};F.forEach(f=>{if(obj[f]&&String(obj[f]).trim())m[f]=true;});return m;
 }
 
@@ -3330,6 +3376,8 @@ function computeLateBy(pickupDate){
 // rebuilt, per "make visible but does nothing."
 function rowStatus(rec){
   if(rec.confirmed) return 'complete';
+  // 1.4.15: for SGI, Complete means Job Closed (returned to MDR).
+  if(isSGI() && rec.jobClosed) return 'complete';
   if(rec.jobClosed) return 'pending';
   return isPastLateDate(rec) ? 'incomplete' : 'pending';
 }
@@ -3348,6 +3396,7 @@ function isPastLateDate(rec){
 // than silently landing in only one of the two.
 function isPendingBucket(rec){
   if(rec.confirmed) return false;
+  if(isSGI() && rec.jobClosed) return false; // SGI: Job Closed is Complete (1.4.15)
   // MDR: every still-open job lives under Pending — including the late/Incomplete
   // ones — so MDR warehouse staff watching the Pending tab (or 1:1 Match) never miss
   // something SGI physically returned without updating the system, and never tell
@@ -3361,6 +3410,7 @@ function isPendingBucket(rec){
 }
 function isIncompleteBucket(rec){
   if(rec.confirmed) return false;
+  if(isSGI() && rec.jobClosed) return false; // SGI: Job Closed is Complete (1.4.15)
   if(isPartialStatus(rec)) return true;
   return !rec.jobClosed && isPastLateDate(rec);
 }
@@ -3465,11 +3515,10 @@ function baseFiltered(){
     if(hideOverdue && isOverdue(r)) return false;
     // "Hide Returned Jobs" — SGI only. Job Closed means SGI already returned it.
     if(hideReturned && isSGI() && r.jobClosed) return false;
-    // MDR: Confirmed/Void jobs are fully resolved and sealed onto the separate Completed
-    // tab (see renderCompletedTable()) — "All Active" always excludes them, no toggle.
-    // SGI never sets Confirmed/Void (that only happens via MDR's Confirmed/Void CSV
-    // import), so this never applies to SGI.
-    if(isMDR() && r.confirmed) return false;
+    // Confirmed/Void jobs are fully resolved: MDR sees them only on the separate
+    // Completed tab (see renderCompletedTable()), and SGI doesn't see them at all
+    // (1.4.15 — SGI's own Complete is Job Closed, see rowStatus()).
+    if(r.confirmed) return false;
     const pd=r.pickupDate||'';
     if(activeMon&&activeMon!=='all'&&!pd.startsWith(activeMon))return false;
     if(rangeS&&pd&&pd<rangeS)return false;
@@ -4466,22 +4515,28 @@ function renderPcell(r){
     // MDR requested qty — its own box, always blue, never editable, sitting right
     // next to the SGI received box. No icon between them.
     const mdrBox=(p.expectedQty!==undefined&&p.expectedQty!==null)
-      ?`<input type="number" class="qrcv qblue" value="${esc(p.expectedQty)}" readonly onclick="event.stopPropagation()" title="Requested qty">`
+      ?`<input type="number" class="qrcv qmdr" value="${esc(p.expectedQty)}" readonly onclick="event.stopPropagation()" title="MDR requested qty">`
       :'';
     // Manually-added pieces (not from source) keep the same boxed qty look but are
     // not editable here — the qty was fixed at add time.
     const qtyBox=p.fromSource
-      ?`<input type="number" class="qrcv qrcv-sgi${m?' qmatch':''}${isShort?' qshort':''}${isOver?' qover':''}" value="${rcv}" min="0"
+      ?`<input type="number" class="qrcv qrcv-sgi qred" value="${rcv}" min="0"
           placeholder="${p.expectedQty||''}"
           onchange="updatePieceQty('${r.id}','${p.id}',this.value)" onclick="event.stopPropagation()">`
-      :`<input type="number" class="qrcv qrcv-sgi" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
-    const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span style="display:block;font-size:9px;color:var(--text3);font-family:var(--font-main);">SN: ${esc(p.serialNum)}</span>`:''}`;
-    return`<div class="arow${cardCls}">
-      <input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)">
-      ${badge}${lock}
-      <span class="aname2">${nameHtml}${varLabel}</span>
-      <span class="qpair">${mdrBox}${qtyBox}</span>
-      ${delBtn}
+      :`<input type="number" class="qrcv qrcv-sgi qred" value="${rcv}" readonly onclick="event.stopPropagation()" title="Manually added — not editable">`;
+    const nameHtml=`${esc(nameWithoutSerial(p))}${(isMDR()&&p.memoryDownload)?'<span title="Memory Download on this device" style="font-size:9px;font-weight:700;color:var(--purple,#a78bfa);margin-left:4px;">★ MD</span>':''}${p.serialNum?`<span class="asn">SN: ${esc(p.serialNum)}</span>`:''}`;
+    // 1.4.15: lock stacked over the checkbox outside the card (top-aligned), remove
+    // button outside on the right. MDR qty (fixed #4f8ef7, every theme/view) sits
+    // inside, SGI qty (red) at the card's edge, regardless of Match/Short/Over (the
+    // card's own border/background still carries that color).
+    return`<div class="arow-outer">
+      <div class="aside">${lock}<input type="checkbox" class="pcb" ${p.checked?'checked':''} onchange="togglePiece('${r.id}','${p.id}',this.checked)"></div>
+      <div class="arow${cardCls}">
+        <div class="atags">${badge}</div>
+        <div class="anameline"><div class="anamecell"><span class="aname2">${nameHtml}</span></div>${varLabel}</div>
+        <div class="aqrow"><span class="qpair">${mdrBox}${qtyBox}</span></div>
+      </div>
+      <span class="arm-slot">${delBtn}</span>
     </div>`;
   }).join('');
   return`<div class="phdr"><button class="sabtn" onclick="toggleAll('${r.id}')">${allChk?'☐ Deselect All':'☑ Select All'}</button></div>
@@ -4645,15 +4700,13 @@ function updatePieceQty(rid,pid,val){
 
 function refreshPiece(rec,p){
   const cb=document.querySelector(`input.pcb[onchange*="'${p.id}'"]`);if(!cb)return;
-  const item=cb.closest('.arow');if(!item)return;
+  const outer=cb.closest('.arow-outer');const item=outer&&outer.querySelector('.arow');if(!item)return;
   const isShort=p.receivedQty!==null&&p.receivedQty<p.expectedQty;
   const isOver=p.receivedQty!==null&&p.receivedQty>p.expectedQty;
   const qi=item.querySelector('.qrcv-sgi');
   if(qi){
+    // SGI box stays red regardless of Match/Short/Over (1.4.14).
     qi.value=p.receivedQty!==null?p.receivedQty:'';
-    qi.classList.toggle('qmatch',p.receivedQty!==null&&p.receivedQty===p.expectedQty);
-    qi.classList.toggle('qshort',isShort);
-    qi.classList.toggle('qover',isOver);
   }
   const lbl=item.querySelector('.avarword');
   item.classList.remove('av-match','av-over','av-short');
@@ -4802,7 +4855,7 @@ function removePieceInline(rid,pid){
 // ─────────────────────────────────────
 // SECTION 12: MODAL
 // ─────────────────────────────────────
-const LOCKABLE=['patientName','patientId','pickupDate','entryId']; // jobNum + soIds always editable
+const LOCKABLE=['patientName','patientId','pickupDate','entryId','jobNum']; // soIds always editable
 
 function setModalField(fname,rec){
   const lockDiv=document.getElementById(`m-${fname}-lock`);
@@ -5359,13 +5412,10 @@ function openEditModal(id){
   editId=id;
   document.getElementById('mtitle').textContent='Edit Record';
   LOCKABLE.forEach(f=>setModalField(f,rec));
-  // jobNum and soIds are always editable — populate directly
-  const jnLock=document.getElementById('m-jobNum-lock');
+  // Job # is handled by setModalField() above (locked when it came from the CSV).
+  // Reference (soIds) is always editable — populate directly.
   const siLock=document.getElementById('m-soIds-lock');
-  if(jnLock)jnLock.style.display='none';
   if(siLock)siLock.style.display='none';
-  document.getElementById('m-jobNum').style.display='';
-  document.getElementById('m-jobNum').value=rec.jobNum||'';
   document.getElementById('m-soIds').style.display='';
   document.getElementById('m-soIds').value=rec.soIds||'';
 
