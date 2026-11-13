@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.15">
+<meta name="version" content="1.4.16">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -171,6 +171,17 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 .pname{font-weight:600;color:var(--text);font-size:12px;line-height:1.3;}
 .pname-link{font-weight:600;font-size:12px;line-height:1.3;color:var(--text);text-decoration:none;border-bottom:1px dashed rgba(232,234,246,.3);transition:color .15s,border-color .15s;}
 .pname-link:hover{color:var(--accent);border-bottom-color:var(--accent);}
+button.pname-link{background:none;border:none;border-bottom:1px dashed rgba(232,234,246,.3);padding:0;cursor:pointer;font-family:inherit;text-align:left;}
+/* 1.4.16 Edit Record: MDR-only label links (Patient ID -> Orders, Patient Name -> Contacts,
+   Entry ID -> Appsmith) and the gray reference chips above Reference (click = copy,
+   double-click = open in Brightree). Hidden for SGI. */
+.mlink{cursor:default;}
+body.is-mdr .mlink{cursor:pointer;color:var(--accent);border-bottom:1px dashed var(--accent);}
+.refchips{display:none;flex-wrap:wrap;gap:4px;margin-bottom:4px;}
+body.is-mdr .refchips{display:flex;}
+.refchip{background:var(--surface3);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-family:var(--font-mono);font-size:11px;color:var(--text2);cursor:pointer;user-select:none;}
+.refchip:hover{border-color:var(--accent);color:var(--text);}
+
 .pid{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;}
 .tracklink{color:var(--red);text-decoration:none;font-family:var(--font-main);font-size:11px;border-bottom:1px dashed var(--red);transition:opacity .15s;}
 .tracklink:hover{opacity:.75;}
@@ -203,13 +214,13 @@ tbody td:last-child{border-radius:0 7px 7px 0;}
 /* QOL: editable date fields — a text box you can type/paste into (Q4/Q5), with the
    calendar button still beside it (a hidden native date input, opened via showPicker()
    from the visible 📅 button, writes back into the text box on pick). */
-.dfield{display:inline-flex;align-items:center;gap:2px;}
+.dfield{display:inline-flex;align-items:center;gap:2px;position:relative;} /* anchors .dhiddencal (1.4.15) so the hidden date pickers can't stretch the page below the table */
 .dtext{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--text);font-family:var(--font-main);font-size:11px;outline:none;width:84px;}
 .dtext:focus{border-color:var(--accent);}
 .dtext.finput{width:auto;flex:1;}
 .calbtn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 5px;color:var(--text2);cursor:pointer;display:flex;align-items:center;font-size:11px;line-height:1;}
 .calbtn:hover{border-color:var(--accent);color:var(--accent);}
-.dhiddencal{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
+.dhiddencal{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;}
 [data-theme="light"] .datepick{background:var(--surface2);}
 
 /* DATE RETURNED cell — red bg in print */
@@ -772,24 +783,24 @@ table.hide-mdr-notes .col-mdrnotes{display:none;}
     </div>
     <div class="mbody">
       <div class="frow mdr-modal-only">
-        <div class="fg"><label class="flabel">Patient Name</label><div id="m-patientName-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientName-lockval"></span></div><input type="text" class="finput" id="m-patientName" placeholder="Last, First"></div>
-        <div class="fg"><label class="flabel">Patient ID</label><div id="m-patientId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientId-lockval"></span></div><input type="text" class="finput" id="m-patientId" placeholder="e.g. 18366"></div>
+        <div class="fg"><label class="flabel"><span class="mlink" data-mlink="orders" title="Open Patient Orders in Brightree">Patient ID</span></label><div id="m-patientId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientId-lockval"></span></div><input type="text" class="finput" id="m-patientId" placeholder="e.g. 18366"></div>
+        <div class="fg"><label class="flabel">Reference <span style="color:var(--red);font-size:9px">*required</span></label><div id="m-refchips" class="refchips"></div><div id="m-soIds-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-soIds-lockval"></span></div><input type="text" class="finput" id="m-soIds" placeholder="e.g. 122682, 34952" oninput="renderRefChips()"></div>
       </div>
       <div class="frow mdr-modal-only">
+        <div class="fg"><label class="flabel"><span class="mlink" data-mlink="contacts" title="Open Patient Contacts in Brightree">Patient Name</span></label><div id="m-patientName-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-patientName-lockval"></span></div><input type="text" class="finput" id="m-patientName" placeholder="Last, First"></div>
         <div class="fg"><label class="flabel">Job # <span style="color:var(--red);font-size:9px">*required</span></label><div id="m-jobNum-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-jobNum-lockval"></span></div><input type="text" class="finput" id="m-jobNum" placeholder="e.g. 3946548"></div>
-        <div class="fg"><label class="flabel">Reference <span style="color:var(--red);font-size:9px">*required</span></label><div id="m-soIds-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-soIds-lockval"></span></div><input type="text" class="finput" id="m-soIds" placeholder="e.g. 122682, 34952"></div>
       </div>
       <div class="frow mdr-modal-only">
-        <div class="fg"><label class="flabel">Entry ID</label><div id="m-entryId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-entryId-lockval"></span></div><input type="text" class="finput" id="m-entryId" placeholder="e.g. 19491"></div>
-        <div class="fg"></div>
-      </div>
-      <div class="frow mdr-modal-only">
+        <div class="fg"><label class="flabel"><span class="mlink" data-mlink="appsmith" title="Open this entry in Appsmith">Entry ID</span></label><div id="m-entryId-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-entryId-lockval"></span></div><input type="text" class="finput" id="m-entryId" placeholder="e.g. 19491"></div>
         <div class="fg"><label class="flabel">Pickup Date</label><div id="m-pickupDate-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-pickupDate-lockval"></span></div><span class="dfield" id="m-pickupDate-wrap">
           <input type="text" class="dtext finput" id="m-pickupDate" placeholder="MM/DD/YYYY" onblur="modalPickupDateBlur(this)" onkeydown="if(event.key==='Enter')this.blur()">
           <button type="button" class="calbtn" onclick="openHiddenCal(event,'m-pickupDate')" title="Pick a date" tabindex="-1">📅</button>
           <input type="date" id="m-pickupDate-cal" class="dhiddencal" tabindex="-1" onchange="hiddenCalChanged('m-pickupDate','modalPickupDateBlur')">
         </span></div>
-        <div class="fg"><label class="flabel">Late by Date <span style="color:var(--text3);font-size:9px">(calculated — 3 business days from pickup)</span></label><div class="flocked"><span>🔒</span><span id="m-dropOffBy-display">—</span></div></div>
+      </div>
+      <div class="frow mdr-modal-only">
+        <div class="fg"><label class="flabel">Shipped By</label><div id="m-shippedBy-lock" class="flocked" style="display:none"><span>🔒</span><span id="m-shippedBy-lockval"></span></div><input type="text" class="finput" id="m-shippedBy" placeholder="e.g. Charleston L."></div>
+        <div class="fg"><label class="flabel">Drop Off By <span style="color:var(--text3);font-size:9px">(calculated — 3 business days from pickup)</span></label><div class="flocked"><span>🔒</span><span id="m-dropOffBy-display">—</span></div></div>
       </div>
       <!-- Pieces -->
       <div class="fg">
@@ -1327,8 +1338,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.15';
-const BUILD_DATE = '2026-11-11';
+const VERSION = '1.4.16';
+const BUILD_DATE = '2026-11-12';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1351,6 +1362,21 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','
 // Data lives only in this browser's localStorage; there is nothing to sync.
 const OFFLINE_MODE = true;
 const CHANGELOG = [
+  {
+    version:'1.4.16',
+    date:'Nov 12, 2026',
+    items:[
+      'Fixed: copy buttons now work. Each copy icon was stopping its own click before the copy code could see it.',
+      'MDR: clicking a patient name opens that patient\'s Orders page in Brightree. xMDR Tools looks up the PatientKey from the Patient ID; if the PID isn\'t in its CSV, nothing happens. SGI: patient names are plain text.',
+      'Edit Record: fields now read Patient ID | Reference, Patient Name | Job #, Entry ID | Pickup Date, Shipped By | Drop Off By (renamed from Late By Date).',
+      'Edit Record (MDR only): the Patient ID label opens Patient Orders, Patient Name opens Patient Contacts, and Entry ID opens the Appsmith entry. Gray boxes above Reference show each reference number: click copies it, double-click opens the Sales Order or PUEX in Brightree.',
+      'New Shipped By field, filled from the daily\'s Assigned To column as first name plus last initial (for example Charleston L.) and locked when it comes from the CSV. It saves to SharePoint once a ShippedBy column is added to the list.',
+      'Edit Record: the serial # box only shows for items that take one (Apnea Monitor, Oximeter, Concentrator, Suction Machine for now), or for a piece that already has a serial. The serial no longer repeats in the item name.',
+      'SGI: once a hand-added record is saved, only its Patient ID, Job # and Reference stay editable for SGI. MDR can still edit anything not locked from source.',
+      'Load CSV on a hand-added record: fills in anything missing, including a blank or Unknown name, without overwriting. A hand-added piece whose name matches a source piece becomes locked as source, keeping SGI\'s received qty; other hand-added pieces are left alone and SGI can still add or remove them.',
+      'Fixed: scrolling past the last row no longer scrolls the whole page into an empty area below the table. The hidden calendar pickers behind each date field were stretching the page; the table now always fills to the bottom of the window.',
+    ],
+  },
   {
     version:'1.4.15',
     date:'Nov 11, 2026',
@@ -1889,7 +1915,7 @@ function isLocked(rec,field){
   return false;
 }
 function makeLockMap(obj){
-  const F=['patientName','patientId','pickupDate','entryId','jobNum']; // soIds kept editable
+  const F=['patientName','patientId','pickupDate','entryId','jobNum','shippedBy']; // soIds kept editable
   const m={};F.forEach(f=>{if(obj[f]&&String(obj[f]).trim())m[f]=true;});return m;
 }
 
@@ -2221,6 +2247,9 @@ function loadDaily(text, preRows){
       if(!ex.patientId&&inc.patientId){ex.patientId=inc.patientId;changed=true;}
       if(!ex.entryId&&inc.entryId){ex.entryId=inc.entryId;changed=true;}
       if(!ex.jobNum&&inc.jobNum){ex.jobNum=inc.jobNum;changed=true;}
+      if(!ex.shippedBy&&inc.shippedBy){ex.shippedBy=inc.shippedBy;changed=true;}
+      const blankName=!ex.patientName||!ex.patientName.trim()||ex.patientName.trim().toLowerCase()==='unknown';
+      if(blankName&&inc.patientName&&inc.patientName.trim().toLowerCase()!=='unknown'){ex.patientName=inc.patientName;changed=true;}
       // Merge pieces: add new ones by name; update expected qty if it changed.
       // Preserve checked / receivedQty / serialNum so MDR's existing work is never lost,
       // and never DELETE a piece that's no longer in the daily.
@@ -2233,6 +2262,9 @@ function loadDaily(text, preRows){
             byName.set(np.name.toLowerCase(),np);
             changed=true;
           } else {
+            // 1.4.16: a hand-added piece whose name matches a source piece becomes the
+            // source piece (locked); SGI's received qty/check-in stays as entered.
+            if(!existP.fromSource){ existP.fromSource=true; if(!existP.type&&np.type) existP.type=np.type; changed=true; }
             if(existP.expectedQty!==np.expectedQty){
               existP.expectedQty=np.expectedQty; // qty changed on the source — reflect it
               changed=true;
@@ -2251,8 +2283,10 @@ function loadDaily(text, preRows){
           }
         });
       }
-      const obj={patientName:ex.patientName,patientId:ex.patientId,jobNum:ex.jobNum,soIds:ex.soIds,pickupDate:ex.pickupDate,entryId:ex.entryId};
-      ex.locked=makeLockMap(obj);
+      // Lock only what this source row actually carries (a value SGI typed that the CSV
+      // doesn't have stays editable).
+      const obj={patientName:inc.patientName&&ex.patientName,patientId:inc.patientId&&ex.patientId,jobNum:inc.jobNum&&ex.jobNum,soIds:ex.soIds,pickupDate:inc.pickupDate&&ex.pickupDate,entryId:inc.entryId&&ex.entryId,shippedBy:inc.shippedBy&&ex.shippedBy};
+      ex.locked=Object.assign({},ex.locked||{},makeLockMap(obj));
       if(changed){saveRecs(ex,{skipSync:true});merged++;touchedIds.add(ex.id);console.log(`[MDR] Merged into ${ex.patientName} (job ${ex.jobNum||'—'}, refs ${ex.soIds||'—'})`);}
       else{skipped++;}
   }
@@ -2273,8 +2307,9 @@ function loadDaily(text, preRows){
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
     // Late By Date is never read from the report — see computeLateBy().
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
+    const shippedBy=fmtShippedBy(col(row,'assigned to','assignedto','assigned_to'));
 
-    const inc={patientName,patientId,jobNum,soIds,pickupDate,entryId,pieces,hasMemoryDownload,refSet:refTokens(soIds)};
+    const inc={patientName,patientId,jobNum,soIds,pickupDate,entryId,shippedBy,pieces,hasMemoryDownload,refSet:refTokens(soIds)};
 
     // Reference # reused on a different Job #, regardless of patient — alert only.
     const incJobN=normIdStr(jobNum);
@@ -2304,7 +2339,7 @@ function loadDaily(text, preRows){
     }
 
     // ── New record ──
-    const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
+    const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId,shippedBy};
     const locked=makeLockMap(obj);
     // If this row is a Memory Download, ensure at least one piece carries the flag so it
     // persists through SharePoint serialization (the md: token in the Pieces field).
@@ -2316,7 +2351,7 @@ function loadDaily(text, preRows){
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy:computeLateBy(pickupDate),
       dateReturned:'',sgiNotes:'',mdrNotes:'',
       jobClosed:false,confirmed:false,verified:false,noPickup:false,
-      entryId,locked,pieces,hasMemoryDownload
+      entryId,shippedBy,locked,pieces,hasMemoryDownload
     };
     records.push(rec);
     added++;
@@ -2968,14 +3003,15 @@ function loadConfirmedVoid(text, preRows){
     // so that shows up as the small "No Match" reason text instead of a blank cell. ──
     const matchReasons = completedMatchReasons(inc);
     noMatches.push({patient:patientName||'(unknown)', job:jobNum||'—', status, reasons:matchReasons});
-    const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId};
+    const shippedBy=fmtShippedBy(col(row,'assigned to','assignedto','assigned_to'));
+    const obj={patientName,patientId,jobNum,soIds,pickupDate,entryId,shippedBy};
     const locked=makeLockMap(obj);
     const rec={
       id:gid(),source:'daily',
       patientName,patientId,jobNum,soIds,pickupDate,dropOffBy:computeLateBy(pickupDate),
       dateReturned:tod(),sgiNotes:'',mdrNotes:'',
       jobClosed:true,confirmed:true,verified:status==='confirmed',noPickup:status==='void',
-      entryId,locked,pieces,resolvedPieces:pieces,matchReasons
+      entryId,shippedBy,locked,pieces,resolvedPieces:pieces,matchReasons
     };
     records.push(rec);
     created++;
@@ -3492,6 +3528,94 @@ function rowType(rec){
   if(!t.length)return'unknown';if(t.length>1)return'mixed';return t[0].toLowerCase();
 }
 function esc(s){if(!s&&s!==0)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ══════════════════════════════════
+// 1.4.16 — Brightree / Appsmith links (MDR only)
+// ══════════════════════════════════
+// Patient pages need Brightree's PatientKey, not the Patient ID. xMDR Tools already
+// knows how to turn a PID into a PatientKey (from the CSV loaded into it), so the page
+// just asks the extension: it posts { __xmdrOpenPatient, pid, page } and xMDR Tools'
+// exchange-bridge.js looks up the key and opens the link. If the PID isn't in the
+// extension's CSV (or xMDR Tools isn't installed), nothing happens.
+const BT_PATIENT_URLS={
+  orders:  'https://brightree.net/F1/0351/MedRes/Patient/frmPatientOrders.aspx?PatientKey={KEY}&Edit=0&gbp=1',
+  contacts:'https://brightree.net/F1/0351/MedRes/Patient/frmPatientContactsRO.aspx?PatientKey={KEY}&Edit=0&FrmSubTab=0&gbp=1'
+};
+function openPatientBT(pid,page){
+  if(!isMDR()) return;
+  pid=String(pid||'').trim().replace(/\.0+$/,'');
+  if(!pid) return;
+  window.postMessage({ __xmdrOpenPatient:true, pid, page, url:BT_PATIENT_URLS[page]||BT_PATIENT_URLS.orders }, '*');
+}
+function appsmithEntryUrl(entryId){
+  return `https://appsmith.mdrsvrs.com/app/service-log-iv/edit-service-entry-63daca7262693232546677f4?EntryID=${encodeURIComponent(entryId)}&CameFrom=All%20Logs`;
+}
+function refBrightreeUrl(t){
+  if(/^1\d{5}$/.test(t)) return `https://brightree.net/F1/0351/MedRes/OrderEntry/frmSOOrder.aspx?SalesOrderKey=${t}&KeepSubTab=1&Edit=1&gbp=1`;
+  if(/^3\d{4}$/.test(t)) return `https://brightree.net/F1/0351/MedRes/OrderEntry/frmItemsMenu.aspx?PuExKey=${t}&gbp=1`;
+  return '';
+}
+// Edit Record label links: read the value off the record (locked) or the input (editable).
+function modalFieldValue(f){
+  const rec=editId?records.find(r=>r.id===editId):null;
+  const inp=document.getElementById('m-'+f);
+  const v=(inp&&inp.style.display!=='none'&&inp.value.trim())||(rec&&rec[f])||'';
+  return String(v).trim();
+}
+document.addEventListener('click',e=>{
+  const l=e.target.closest('.mlink'); if(!l||!isMDR()) return;
+  e.preventDefault(); e.stopPropagation();
+  const kind=l.dataset.mlink;
+  if(kind==='orders') openPatientBT(modalFieldValue('patientId'),'orders');
+  else if(kind==='contacts') openPatientBT(modalFieldValue('patientId'),'contacts');
+  else if(kind==='appsmith'){ const id=modalFieldValue('entryId'); if(id) window.open(appsmithEntryUrl(id),'_blank','noopener'); }
+});
+// Gray reference chips above Reference: one per number. Click copies; double-click
+// opens the Sales Order (6 digits starting with 1) or PUEX (5 digits starting with 3).
+function renderRefChips(){
+  const box=document.getElementById('m-refchips'); if(!box) return;
+  const val=modalFieldValue('soIds');
+  const toks=val.split(/[\s,;|\/]+/).map(t=>t.trim()).filter(Boolean);
+  box.innerHTML=toks.map(t=>`<span class="refchip" data-ref="${esc(t)}" title="Click to copy${refBrightreeUrl(t)?' · double-click to open in Brightree':''}">${esc(t)}</span>`).join('');
+}
+let _refChipTimer=null;
+document.addEventListener('click',e=>{
+  const c=e.target.closest('.refchip'); if(!c) return;
+  e.stopPropagation(); clearTimeout(_refChipTimer);
+  _refChipTimer=setTimeout(()=>{ if(typeof copyToClipboard==='function') copyToClipboard(c.dataset.ref,c); else if(navigator.clipboard) navigator.clipboard.writeText(c.dataset.ref).catch(()=>{}); },230);
+});
+document.addEventListener('dblclick',e=>{
+  const c=e.target.closest('.refchip'); if(!c) return;
+  e.stopPropagation(); clearTimeout(_refChipTimer);
+  const u=refBrightreeUrl(c.dataset.ref); if(u) window.open(u,'_blank','noopener');
+});
+// Serial # field only for items that take one. Antwain is sending the full list; until
+// then this holds the devices known to carry serials. A piece that already has a serial
+// always keeps its SN field.
+const SERIAL_ITEMS=['Apnea Monitor','Oximeter','Concentrator','Suction Machine'];
+function needsSerial(p){
+  if(p&&p.serialNum) return true;
+  const base=nameWithoutSerial(p).trim().toLowerCase();
+  return SERIAL_ITEMS.some(n=>n.toLowerCase()===base);
+}
+// "Assigned To" from the daily -> "First L." (first name + last-name initial).
+function fmtShippedBy(raw){
+  const s=String(raw||'').trim(); if(!s) return '';
+  let first='',last='';
+  if(s.includes(',')){ [last,first]=s.split(',').map(x=>x.trim()); }
+  else { const p=s.split(/\s+/); first=p[0]; last=p.length>1?p[p.length-1]:''; }
+  first=(first||'').split(/\s+/)[0];
+  return last?`${first} ${last.charAt(0).toUpperCase()}.`:first;
+}
+// SGI on a hand-added record: after it's saved, only Patient ID, Job # and Reference stay
+// editable for SGI (MDR can still edit everything that isn't locked from source).
+const SGI_AFTER_SAVE_EDITABLE=['patientId','jobNum','soIds'];
+function isFieldLocked(rec,field){
+  if(!rec) return false;
+  if(isLocked(rec,field)) return true;
+  if(isSGI() && rec.source==='manual' && !SGI_AFTER_SAVE_EDITABLE.includes(field)) return true;
+  return false;
+}
 
 // ══════════════════════════════════
 //  FILTER / SORT
@@ -4387,7 +4511,7 @@ function renderRow(r,rowNum){
   const refHtml=`<div class="refcell">${renderRefLinks(r.soIds)}</div>`;
 
   // Pickup date cell (Q4: text+calendar field when unlocked)
-  const pickupHtml=isLocked(r,'pickupDate')
+  const pickupHtml=isFieldLocked(r,'pickupDate')
     ?`<div class="flock"><span class="li2">🔒</span><span class="lv">${esc(fmtDate(r.pickupDate))}</span></div>`
     :dateFieldHtml(`pd-${r.id}`, r.pickupDate, 'pickupDateBlur', `data-recid="${r.id}" onclick="event.stopPropagation()"`);
 
@@ -4415,11 +4539,9 @@ function renderRow(r,rowNum){
   return`<tr class="${cls} clickable-row" data-id="${r.id}" onclick="rowClick(event,'${r.id}')">
     <td class="pickup-date-cell" style="min-width:115px;white-space:nowrap;">${pickupHtml}</td>
     <td>
-      <div>${isMDR() && r.entryId
-        ?`<a class="pname-link" href="https://appsmith.mdrsvrs.com/app/service-log-iv/edit-service-entry-63daca7262693232546677f4?EntryID=${encodeURIComponent(r.entryId)}&CameFrom=All%20Logs" target="_blank" rel="noopener">${esc(r.patientName)}</a>`
-        :isSGI()
-          ?`<a class="pname-link" href="#" onclick="openEditModal('${r.id}');return false;">${esc(r.patientName)}</a>`
-          :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
+      <div>${isMDR() && r.patientId
+        ?`<button type="button" class="pname-link" onclick="event.stopPropagation();openPatientBT('${esc(r.patientId)}','orders')" title="Open Patient Orders in Brightree">${esc(r.patientName)}</button>`
+        :`<span class="pname">${esc(r.patientName)}</span>`}${nameTag}</div>
       <div class="pid">${esc(r.patientId)}${pidMissing(r)?` <span title="Name came in with no resolvable Patient ID" style="color:var(--yellow);">⚠ no PID</span>`:''}</div>
     </td>
     <td style="text-align:center"><span class="row-num" style="display:block;font-size:9px;color:var(--text3);line-height:1.1">${rowNum||''}</span>${renderJobLink(r.jobNum)}${(()=>{const dup=_activeDupMap.get(r.id);return dup?`<div><button class="btn btn-sm" style="font-size:9px;padding:1px 5px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records</button></div>`:'';})()}</td>
@@ -4651,7 +4773,7 @@ function noPickupChanged(id, checked){
 // ══════════════════════════════════
 function updateF(id,field,value){
   const rec=records.find(r=>r.id===id);if(!rec)return;
-  if(isLocked(rec,field)){toast('Field is locked (from source data)','e');return;}
+  if(isFieldLocked(rec,field)){toast('Field is locked','e');return;}
   rec[field]=value;
   saveRecs(rec);
   if(field==='pickupDate')buildChips();
@@ -4863,7 +4985,7 @@ function removePieceInline(rid,pid){
 // ─────────────────────────────────────
 // SECTION 12: MODAL
 // ─────────────────────────────────────
-const LOCKABLE=['patientName','patientId','pickupDate','entryId','jobNum']; // soIds always editable
+const LOCKABLE=['patientName','patientId','pickupDate','entryId','jobNum','shippedBy']; // soIds always editable
 
 function setModalField(fname,rec){
   const lockDiv=document.getElementById(`m-${fname}-lock`);
@@ -4872,7 +4994,7 @@ function setModalField(fname,rec){
   // Pickup Date's visible/hidden toggle is on the whole text+calendar wrapper, not just
   // the inner text input (showing only the text input would orphan the calendar button).
   const toggleEl=fname==='pickupDate'?(document.getElementById('m-pickupDate-wrap')||inp):inp;
-  const locked=rec&&isLocked(rec,fname);
+  const locked=rec&&isFieldLocked(rec,fname);
   if(locked){
     lockDiv.style.display='flex';
     const rawVal=fname==='pickupDate'?fmtDate(rec[fname]):(rec[fname]||'');
@@ -5348,7 +5470,7 @@ function renderPopupCurPieces(){
         <input type="number" min="0" value="${p.receivedQty??p.expectedQty??1}" style="width:42px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;color:var(--text);"
           onchange="popupQty('${p.id}',this.value)" ${p._l&&isSGI()?'':''}>${rm}
       </div>
-      <div style="display:flex;align-items:center;gap:4px;padding-left:16px;">
+      <div style="display:${needsSerial(p)?'flex':'none'};align-items:center;gap:4px;padding-left:16px;">
         <span style="font-size:9px;color:var(--text3);white-space:nowrap;">SN:</span>
         <input type="text" data-sn="${p.id}" value="${esc(p.serialNum||'')}" placeholder="Serial # (optional)"
           style="flex:1;font-size:10px;font-family:var(--font-main);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
@@ -5426,6 +5548,7 @@ function openEditModal(id){
   if(siLock)siLock.style.display='none';
   document.getElementById('m-soIds').style.display='';
   document.getElementById('m-soIds').value=rec.soIds||'';
+  renderRefChips();
 
   updateLateByPreview();
   document.getElementById('m-sgiNotes').value=rec.sgiNotes||'';
@@ -5449,11 +5572,11 @@ function renderCurPieces(){
       <div style="display:flex;align-items:center;gap:4px;width:100%;">
         <span style="font-size:10px;flex-shrink:0">${p._l?'🔒':'✏️'}</span>
         ${badge}
-        <span style="flex:1;font-size:11px;color:var(--text)">${esc(p.name)}</span>
+        <span style="flex:1;font-size:11px;color:var(--text)">${esc(needsSerial(p)?nameWithoutSerial(p):p.name)}</span>
         <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">×${p.expectedQty}</span>
         ${!p._l?`<button onclick="rmModalPiece('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 3px;line-height:1;" title="Remove">✕</button>`:''}
       </div>
-      <div style="display:flex;align-items:center;gap:4px;padding-left:18px;width:100%;">
+      <div style="display:${needsSerial(p)?'flex':'none'};align-items:center;gap:4px;padding-left:18px;width:100%;">
         <span style="font-size:9px;color:var(--text3);white-space:nowrap;">SN:</span>
         <input type="text" data-sn="${p.id}" value="${esc(p.serialNum||'')}" placeholder="Serial # (optional)"
           style="flex:1;font-size:10px;font-family:var(--font-main);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);min-width:0;">
@@ -5571,7 +5694,7 @@ function saveModal(){
     return el.classList.contains('dtext') ? (parseFlexDate(raw)||'') : raw;
   }
   const getLocked=field=>{
-    if(editId){const rec=records.find(r=>r.id===editId);if(rec&&isLocked(rec,field))return rec[field]||'';}
+    if(editId){const rec=records.find(r=>r.id===editId);if(rec&&isFieldLocked(rec,field))return rec[field]||'';}
     return'';
   };
 
@@ -5600,7 +5723,7 @@ function saveModal(){
       id:gid(),source:'manual',
       patientName,patientId:pi,jobNum:jn,soIds:si,pickupDate:pd,dropOffBy:computeLateBy(pd),
       dateReturned:'',sgiNotes:gv('m-sgiNotes'),mdrNotes:gv('m-mdrNotes'),
-      jobClosed:false,confirmed:false,verified:false,noPickup:false,entryId:'',locked:{},pieces:allPieces,
+      jobClosed:false,confirmed:false,verified:false,noPickup:false,entryId:gv('m-entryId'),shippedBy:gv('m-shippedBy'),locked:{},pieces:allPieces,
       hasMemoryDownload:memDl
     };
     // Job # already on another record? Don't block the save (override allowed, per
@@ -5614,8 +5737,7 @@ function saveModal(){
   } else {
     recToSave = records.find(r=>r.id===editId);
     if(recToSave){
-      LOCKABLE.forEach(f=>{if(!isLocked(recToSave,f))recToSave[f]=gv(`m-${f}`)||recToSave[f];});
-      recToSave.jobNum=gv('m-jobNum')||recToSave.jobNum;
+      LOCKABLE.forEach(f=>{if(!isFieldLocked(recToSave,f))recToSave[f]=gv(`m-${f}`)||recToSave[f];});
       recToSave.soIds=normalizeRef(gv('m-soIds'))||recToSave.soIds;
       // Late By Date is calculated, never typed — always derived from the (possibly
       // just-updated) Pickup Date above, same rule as import. See computeLateBy().
@@ -5847,6 +5969,7 @@ function toggleRoleView(){
 }
 
 function applyRoleUI(){
+  document.body.classList.toggle('is-mdr', isMDR()); // 1.4.16: MDR-only links/chips
   // The MDR/SGI preview toggle is an MDR-only testing tool — hide it entirely for a
   // real SGI-authenticated session, regardless of which view is currently being
   // previewed. Gated on authenticatedRole (fixed at login), NOT on userRole/isSGI()
@@ -6139,7 +6262,14 @@ async function ensureSPIds(){
   const lists = await gGet(`/sites/${spSiteId}/lists?$filter=displayName eq 'ExchangeRecords'`);
   spListId = lists.value[0]?.id;
   if(!spListId) throw new Error('ExchangeRecords list not found');
+  // 1.4.16: only send ShippedBy once that SharePoint column exists, so saves never
+  // fail with "field not recognized" before the column has been added.
+  try{
+    const cols = await gGet(`/sites/${spSiteId}/lists/${spListId}/columns?$select=name&$top=200`);
+    spHasShippedBy = (cols.value||[]).some(c=>c.name==='ShippedBy');
+  }catch(e){ spHasShippedBy=false; }
 }
+let spHasShippedBy=false;
 
 function spToRec(item){
   const f = item.fields || {};
@@ -6164,7 +6294,7 @@ function spToRec(item){
     sgiNotes: fv('SgiNotes'), mdrNotes: fv('MdrNotes'),
     jobClosed: fbool('JobClosed'), verified: fbool('Verified'), confirmed: fbool('Confirmed'),
     noPickup: fbool('NoPickup'),
-    entryId: fv('EntryId'), locked,
+    entryId: fv('EntryId'), shippedBy: fv('ShippedBy'), locked,
     pieces, resolvedPieces, matchReasons, pendingResolved,
     hasMemoryDownload: pieces.some(p=>p.memoryDownload)
   };
@@ -6178,7 +6308,7 @@ function recToSP(r){
     DateReturned: r.dateReturned||null, SgiNotes: r.sgiNotes||'',
     MdrNotes: r.mdrNotes||'', JobClosed: !!r.jobClosed,
     Verified: !!r.verified, Confirmed: !!r.confirmed, NoPickup: !!r.noPickup,
-    EntryId: r.entryId||'', Source: r.source||'daily',
+    EntryId: r.entryId||'', ...(spHasShippedBy?{ShippedBy: r.shippedBy||''}:{}), Source: r.source||'daily',
     Pieces: serPieces(r.pieces||[]), LockedFields: JSON.stringify(r.locked||{}),
     // Completed tab's own fields — see the data-model comment up top and the
     // "Completed Tab Fixes & Questions" doc, Q2, for the ResolvedPieces/MatchReasons

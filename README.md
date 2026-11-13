@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.15` (November 11, 2026)
+**Version:** `1.4.16` (November 12, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,43 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.16`
+
+> **Before deploying:** add a **ShippedBy** column to the ExchangeRecords list (**+ Add column**, **Single line of text**, name it `ShippedBy`). The app checks for it and only saves Shipped By once it exists, so nothing breaks if it's added later.
+>
+> **xMDR Tools:** the patient links send the extension a message, `{ __xmdrOpenPatient: true, pid, page: 'orders' | 'contacts', url }`, where `url` has `{KEY}` in place of the PatientKey. xMDR Tools' `exchange-bridge.js` needs a listener that looks up the PatientKey for `pid` in its CSV, swaps it into `url`, and opens it. If the PID isn't found, it does nothing.
+
+- **Fixed: copy buttons.** Every ⧉ icon stopped its own click, so the copy code never ran. Copying now listens before anything else on the page, and also keeps the click from opening the record.
+- **Patient name in the table:** for MDR it opens the patient's **Orders** page in Brightree, through xMDR Tools' PID → PatientKey lookup. For SGI it's plain text and no longer opens the record. The Appsmith link moved to Entry ID in Edit Record.
+- **Edit Record layout,** left then right:
+  - Patient ID | Reference
+  - Patient Name | Job #
+  - Entry ID | Pickup Date
+  - Shipped By | Drop Off By (renamed from Late By Date)
+- **Edit Record links (MDR only):**
+  - The **Patient ID** label opens Patient Orders.
+  - The **Patient Name** label opens Patient Contacts.
+  - The **Entry ID** label opens the Appsmith service entry.
+  - These labels are underlined for MDR and plain for SGI.
+- **Reference boxes (MDR only):** a gray box above Reference for each number. A **single click copies** it. A **double-click opens** the Sales Order (`SalesOrderKey` = the 6-digit number starting with 1) or the PUEX (`PuExKey` = the 5-digit number starting with 3) in Brightree.
+- **Shipped By (new):**
+  - Filled from the daily's **Assigned To** column as first name plus last initial (`Lastname, Charleston` or `Charleston Lastname` becomes `Charleston L.`).
+  - Fills only when blank, and locks when it comes from the CSV.
+  - Records created from Confirmed/Void rows get it too.
+- **Serial # box:**
+  - Shows only for items in `SERIAL_ITEMS` (currently Apnea Monitor, Oximeter, Concentrator, Suction Machine; the full list is still to come), or for any piece that already has a serial.
+  - On those rows, the serial is no longer repeated in the item name.
+- **SGI and hand-added records:** once saved, SGI can only edit **Patient ID, Job # and Reference**, unless those are locked from source. Name, Pickup Date, Entry ID and Shipped By are locked for SGI. MDR can edit anything not locked from source.
+- **Load CSV onto a hand-added record:**
+  - Fills in anything missing (including a blank or "Unknown" name, plus Shipped By) and never overwrites.
+  - Only fields the CSV row actually carries get locked.
+  - A hand-added piece whose name matches a source piece becomes the source piece: it's locked, and the requested qty comes from the CSV while SGI's received qty and check-in stay.
+  - Other hand-added pieces are left alone, and SGI can still add or remove them.
+- **GitHub button** (`index.html`, only for antwainjordan@mdr.net): opens the repo's upload page, in the spot where the PUEX Backfill button used to be.
+
+- **Fixed: empty area below the table.** Each date field has a hidden calendar picker behind it. Those pickers had no anchor, so they stretched the page far below the table, and scrolling past the last row scrolled the whole page into empty space. They're now anchored to their date field, so the page is exactly one window tall and the table always reaches the bottom.
+- **Removed the temporary 🧾 PUEX Backfill button** (`index.html`). The one-time status catch-up is done. Its description under `1.4.15` is kept as a record.
 
 ## Changes in `1.4.15`
 
