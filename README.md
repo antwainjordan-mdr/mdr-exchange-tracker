@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.18` (November 12, 2026)
+**Version:** `1.4.19` (November 12, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,15 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.19`
+
+- **Completed tab: SGI Returns column removed.** Each MDR Confirmed/Void card already shows all three numbers: MDR requested, what SGI entered (with SGI's own match/short/over icon), and what Brightree confirmed or voided. It also covers lines Brightree added that SGI never had. The record detail popup drops its "Returns" section too. The Actions column still lists every SGI issue.
+- **Match column: Fulfilled vs Satisfied.**
+  - **Fulfilled** (green) means every line was confirmed exactly as requested.
+  - **Satisfied** (yellow) means the job matched and was accepted, but not exactly as asked: something was short, over, voided, left blank by SGI, or added at confirm. Actions shows why.
+  - **No Match** is unchanged.
+- **👀 flipped:** the eyes next to the MDR requested qty now look the other way. It's a CSS mirror (`.eyes-flip`), so the emoji itself is unchanged.
 
 ## Changes in `1.4.18`
 

@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.18">
+<meta name="version" content="1.4.19">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -347,6 +347,7 @@ body.is-mdr .refchips{display:flex;}
 .qrcv.qblue{border-color:var(--blue);color:var(--blue);}
 .qrcv.qorange{border-color:var(--orange);color:var(--orange);}
 .qrcv.qred{border-color:var(--red);color:var(--red);}
+.eyes-flip{display:inline-block;transform:scaleX(-1);} /* 1.4.19: 👀 looks the other way */
 /* Completed tab — outer status icon sits left of the card, outside its border. */
 .pcard-outer{display:flex;align-items:center;gap:4px;margin-bottom:3px;max-width:100%;min-width:0;box-sizing:border-box;}
 .pcard-outer .pitem{flex:1;min-width:0;}
@@ -757,8 +758,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th style="min-width:90px">Drop Off Date</th>
         <th style="min-width:100px;max-width:120px">Patient</th>
         <th style="min-width:70px">Job #</th>
-        <th style="min-width:260px">SGI Returns</th>
-        <th style="min-width:280px">MDR Confirmed/Void<br><span style="font-size:9px;color:var(--text3);font-weight:400">what Brightree reported</span></th>
+        <th style="min-width:300px">MDR Confirmed/Void<br><span style="font-size:9px;color:var(--text3);font-weight:400">what Brightree reported</span></th>
         <th style="min-width:160px">Actions<br><span style="font-size:9px;color:var(--text3);font-weight:400">if any</span></th>
         <th style="min-width:90px">Reference</th>
         <th class="ctr" style="min-width:60px">Total Qty<br><span style="font-size:9px;color:var(--text3);font-weight:400">Confirmed/Voided</span></th>
@@ -1366,7 +1366,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.18';
+const VERSION = '1.4.19';
 const BUILD_DATE = '2026-11-12';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1381,6 +1381,15 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.19',
+    date:'Nov 12, 2026',
+    items:[
+      'Completed tab: removed the SGI Returns column. The MDR Confirmed/Void card already shows all three numbers (MDR requested, what SGI entered, what Brightree confirmed or voided). The record detail popup drops it too.',
+      'Completed tab: the Match column now reads Fulfilled only when every line was confirmed exactly as requested. A job that matched and was accepted, but not exactly as asked (short, over, voided or a line added at confirm), reads Satisfied. No Match is unchanged.',
+      'Completed tab: the 👀 next to the MDR requested qty now looks the other way.',
+    ],
+  },
   {
     version:'1.4.18',
     date:'Nov 12, 2026',
@@ -4354,7 +4363,7 @@ function compItem(cls,p,outerIcon,boxes){
   // icon bound to whichever qty box it applies to).
   const lock=p.fromSource?'<span class="plocki">🔒</span>':'';
   const name=esc(p.name);
-  const qtyHtml=boxes.map(b=>`<div class="qwrap">${b.icon?`<span class="pvarlbl" style="font-size:14px;">${b.icon}</span>`:''}${qbox(b.val,b.cls)}</div>`).join('');
+  const qtyHtml=boxes.map(b=>`<div class="qwrap">${b.icon?`<span class="pvarlbl${b.icon==='👀'?' eyes-flip':''}" style="font-size:14px;">${b.icon}</span>`:''}${qbox(b.val,b.cls)}</div>`).join('');
   const qrowCls=boxes.length===2?'qrow-center qrow-halves':'qrow-center';
   const outerTitle={'🚫':'No Pickup / all zero','🛑':'SGI qty blank','✍🏼':'Manually entered','✅':'Checked'}[outerIcon]||'';
   return `<div class="pcard-outer">
@@ -4616,7 +4625,11 @@ function buildCompletedCompare(rec){
 
   const totalQty=mdrPieces.reduce((sum,p)=>sum+(Number(p.expectedQty)||0),0);
   const actionsHtml = renderActionsCategories(pieceRecords, mdrPieces);
+  // 1.4.19: Fulfilled only when every line was confirmed exactly as requested — nothing
+  // short, over, voided, blank or added at confirm time. Otherwise it's Satisfied.
+  const exact = !rec.noPickup && pieceRecords.length>0 && pieceRecords.every(pr=>!pr.isExtra && !pr.voided && pr.conf!==null && pr.conf!==undefined && Number(pr.conf)===Number(pr.req));
   return {
+    exact,
     sgiHtml: sgiLines.length?sgiLines.join(''):'<span style="color:var(--text3)">No items</span>',
     mdrHtml: mdrLines.length?mdrLines.join(''):'<span style="color:var(--text3)">No items</span>',
     actionsHtml,
@@ -4678,7 +4691,7 @@ function renderCompletedTable(){
     const cmp = buildCompletedCompare(r);
     const matchCell = noMatch
       ? `<div style="color:var(--red);font-weight:700;font-size:13px;">No Match</div><div style="font-size:9px;color:var(--text3);margin-top:2px;line-height:1.4;">${r.matchReasons.map(esc).join('<br>')}</div>`
-      : `<span style="color:var(--green);font-weight:600;">Fulfilled</span>`;
+      : matchLabelHtml(cmp);
     const dup=dupMap.get(r.id);
     const dupBadge = dup
       ? `<div style="margin-top:3px"><button class="btn btn-sm" style="font-size:9px;padding:2px 6px;background:rgba(255,159,10,.15);border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();mergeDuplicatesFor('${r.id}')" title="Merge these duplicate SharePoint records into one">⧉ ${dup.count} records · Merge</button></div>`
@@ -4691,7 +4704,6 @@ function renderCompletedTable(){
       <td style="text-align:center">${esc(fmtDate(r.dropOffBy))||'—'}</td>
       <td style="max-width:120px;overflow-wrap:break-word;"><div class="copy-hover-group" style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:3px;text-align:center;">${esc(r.patientName)}${copyIcon(r.patientName,'Copy patient name')}</div><div class="copy-hover-group" style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:var(--text3);text-align:center;">${esc(r.patientId)}${copyIcon(r.patientId,'Copy patient ID')}</div></td>
       <td style="text-align:center"><span class="copy-hover-group">${esc(r.jobNum)||'—'}${copyIcon(r.jobNum,'Copy job number')}</span>${dupBadge}${pendingBadge}</td>
-      <td class="pcell"><div class="plist">${cmp.sgiHtml}</div></td>
       <td class="pcell"><div class="plist">${cmp.mdrHtml}</div></td>
       <td class="pactions">${cmp.actionsHtml}</td>
       <td><div class="refcell">${renderRefLinks(r.soIds)}</div></td>
@@ -4706,7 +4718,7 @@ function renderCompletedTable(){
   const hasMore = !searchActive && visibleRows.length < rows.length;
   if(hasMore){
     const sentinelIdx = Math.max(0, Math.floor(rowHtmls.length*2/3)-1);
-    rowHtmls.splice(sentinelIdx, 0, `<tr id="completedSentinel"><td colspan="9" style="text-align:center;padding:10px;color:var(--text3);font-size:11px;">Loading more… (${visibleRows.length} of ${rows.length})</td></tr>`);
+    rowHtmls.splice(sentinelIdx, 0, `<tr id="completedSentinel"><td colspan="8" style="text-align:center;padding:10px;color:var(--text3);font-size:11px;">Loading more… (${visibleRows.length} of ${rows.length})</td></tr>`);
   }
   tbody.innerHTML = rowHtmls.join('');
   setupCompletedLazyLoad(hasMore);
@@ -4738,13 +4750,20 @@ function completedRowClick(event,id){
   if(!isInteractive) openCompletedDetail(id);
 }
 
+// 1.4.19 Match label: Fulfilled = 100% what was requested; Satisfied = matched to the
+// job and accepted, but not exactly what was asked for (see Actions for why).
+function matchLabelHtml(cmp){
+  return cmp&&cmp.exact
+    ? `<span style="color:var(--green);font-weight:600;" title="Every line confirmed exactly as requested">Fulfilled</span>`
+    : `<span style="color:var(--yellow);font-weight:600;" title="Matched and accepted, but not exactly what was requested — see Actions">Satisfied</span>`;
+}
 function openCompletedDetail(id){
   const r=records.find(x=>x.id===id); if(!r) return;
   const cmp=buildCompletedCompare(r);
   const noMatch=Array.isArray(r.matchReasons)&&r.matchReasons.length>0;
   const matchHtml=noMatch
     ? `<div style="color:var(--red);font-weight:700;">No Match</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">${r.matchReasons.map(esc).join('<br>')}</div>`
-    : `<span style="color:var(--green);font-weight:600;">Fulfilled</span>`;
+    : matchLabelHtml(cmp);
   document.getElementById('completedDetailBody').innerHTML = `
     <div class="frow">
       <div class="fg"><label class="flabel">Patient Name</label><div class="flocked" ${r.patientName?`data-copy="${esc(r.patientName)}" title="Click to copy"`:''}><span>🔒</span><span>${esc(r.patientName)||'—'}</span></div></div>
@@ -4757,10 +4776,6 @@ function openCompletedDetail(id){
     <div class="frow">
       <div class="fg"><label class="flabel">Drop Off Date</label><div class="flocked" ${r.dropOffBy?`data-copy="${esc(fmtDate(r.dropOffBy))}" title="Click to copy"`:''}><span>🔒</span><span>${esc(fmtDate(r.dropOffBy))||'—'}</span></div></div>
       <div class="fg"><label class="flabel">Match</label><div class="flocked">${matchHtml}</div></div>
-    </div>
-    <div class="fg">
-      <label class="flabel">Returns</label>
-      <div class="plist">${cmp.sgiHtml}</div>
     </div>
     <div class="fg">
       <label class="flabel">MdR ${r.noPickup?'Voided':'Confirmed'}</label>
