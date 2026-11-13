@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.19">
+<meta name="version" content="1.4.21">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -518,7 +518,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
-#fi-daily,#fi-confirmedvoid,#fi-combined,#fi-refclean{display:none;}
+#fi-daily,#fi-confirmedvoid,#fi-combined,#fi-refclean,#fi-btsync{display:none;}
 .puexbf-t{width:100%;border-collapse:collapse;font-size:11px;min-width:0;}
 .puexbf-t th,.puexbf-t td{padding:3px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}
 @media(max-width:700px){.hdr{padding:8px 12px;}.toolbar{padding:7px 12px;}.twrap{padding:8px 6px;}table{min-width:900px;}.frow{grid-template-columns:1fr;}.spills{display:none;}}
@@ -630,6 +630,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     
     <label class="btn btn-daily btn-sm mdr-only" title="Load the combined PowerBI CSV (New/Confirmed/Void all in one export) — rows are routed automatically by their own status">📥 Load CSV<input type="file" id="fi-combined" accept=".csv" onchange="handleLoadCombinedCSV(event)"></label>
     <label class="btn btn-sm mdr-only" style="background:#0f766e;color:#fff;" title="TEMPORARY: one-time Reference Cleanup. Pick MDR_Reference_Cleanup.csv; shows a preview before anything is saved.">🧹 Ref Cleanup<input type="file" id="fi-refclean" accept=".csv" onchange="handleRefCleanup(event)"></label>
+    <label class="btn btn-sm mdr-only" style="background:#7c3aed;color:#fff;" title="TEMPORARY: one-time Brightree sync of the Completed tab. Pick MDR_BT_Sync.csv; shows a preview before anything is saved.">🔄 BT Sync<input type="file" id="fi-btsync" accept=".csv" onchange="handleBtSync(event)"></label>
     <a class="btn btn-sm" id="btnGitHub" href="https://github.com/antwainjordan-mdr/mdr-exchange-tracker/upload/main" target="_blank" rel="noopener" style="display:none;background:#24292f;color:#fff;" title="Upload files to the GitHub repo">GitHub</a>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
@@ -990,6 +991,21 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <div class="mftr">
       <button class="btn" onclick="closeRefCleanup()" style="background:transparent;border:1px solid var(--border);color:var(--text2);">Cancel</button>
       <button class="btn btn-primary" id="refcleanApply" onclick="applyRefCleanup()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPORARY (1.4.21): BT Sync preview. -->
+<div class="moverlay" id="btsyncOverlay">
+  <div class="modal" style="max-width:900px;">
+    <div class="mhdr">
+      <span class="mtitle">🔄 BT Sync: Preview</span>
+      <button class="closebtn" onclick="closeBtSync()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" id="btsyncBody"></div>
+    <div class="mftr">
+      <button class="btn" onclick="closeBtSync()" style="background:transparent;border:1px solid var(--border);color:var(--text2);">Cancel</button>
+      <button class="btn btn-primary" id="btsyncApply" onclick="applyBtSync()">Apply</button>
     </div>
   </div>
 </div>
@@ -1366,7 +1382,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.19';
+const VERSION = '1.4.21';
 const BUILD_DATE = '2026-11-12';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1381,6 +1397,23 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.21',
+    date:'Nov 12, 2026',
+    items:[
+      'Completed tab: a piece SGI added by hand now shows MDR requested 0, since MDR never asked for it. SGI\'s own count still shows in the SGI box.',
+      'Completed tab: once Brightree has reported a PUEX, every requested item it didn\'t report now shows Brightree 0 instead of blank, and every item Brightree reported shows as a line. An item MDR never requested shows requested 0 next to Brightree\'s qty (marked ⁉️). Blank now only means no Brightree lines are on file for that job.',
+      'Completed tab: a Brightree line now pairs with the requested item by serial number when the names differ (e.g. "PM 100N Oximeter-" and "Oximeter MBH2601543"), or by name when SGI picked a different type.',
+      'TEMPORARY: new "🔄 BT Sync" button (MDR only) for a one-time pass over the Completed tab using Brightree\'s PUEX Line Item Report. Brightree is the source of truth: a PUEX it shows Confirmed or Void keeps its record Completed, gets its status matched and any missing Brightree lines filled in. A PUEX it still shows as New goes back to Active (Closed (Brightree) and MDR RCV unchecked). Preview first, nothing saved until Apply, and a CSV of what changed downloads after.',
+    ],
+  },
+  {
+    version:'1.4.20',
+    date:'Nov 12, 2026',
+    items:[
+      'Completed tab: new Abandoned label (red) in the Match column. It shows when SGI reported items returned on a line and Brightree confirmed a different amount, more or less. Order: Fulfilled (100% as requested), then Abandoned, then Satisfied. No Match is unchanged.',
+    ],
+  },
   {
     version:'1.4.19',
     date:'Nov 12, 2026',
@@ -3352,6 +3385,141 @@ async function applyRefCleanup(){
   btn.textContent='Apply'; closeRefCleanup(); _refcleanPlan=null;
 }
 
+// ══════════════════════════════════
+// TEMPORARY (1.4.21): one-time Brightree sync of the Completed tab.
+// Reads MDR_BT_Sync.csv (built from Brightree's PUEX Line Item Report, patient found via
+// the Sales Order): PUEX ID, PUEX Status, Patient ID, Patient Name, Sched Date, Item,
+// Type, Qty, Serial — one row per line item. Brightree is the source of truth. For every
+// record on the Completed tab (Closed (Brightree) checked):
+//   • its PUEX is Confirmed/Void in Brightree -> stays Completed; status matched (Void:
+//     No Pickup; Confirmed: MDR RCV, No Pickup off); Brightree lines filled in if none
+//     are on file yet.
+//   • its PUEX is still New in Brightree -> back to Active (Closed (Brightree) and
+//     MDR RCV unchecked).
+// Never adds a record. Patient ID must match Brightree's. Preview first; Apply saves;
+// a CSV of what changed downloads after.
+// ══════════════════════════════════
+const BTSYNC_HEADERS=['puex id','puex status','patient id','patient name','sched date','item','type','qty','serial'];
+let _btsyncPlan=null;
+function handleBtSync(e){
+  const f=e.target.files[0]; e.target.value='';
+  if(!f){ toast('No file selected','e'); return; }
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const rows=parseCSV(ev.target.result);
+      const have=Object.keys(rows[0]||{}).map(k=>k.trim().toLowerCase());
+      const missing=BTSYNC_HEADERS.filter(h=>!have.includes(h));
+      if(!rows.length||missing.length){ toast('⚠ Not the BT Sync file — missing column(s): '+(missing.join(', ')||'all'),'e'); return; }
+      logAppAction('BT Sync', `Previewed file: ${f.name}`);
+      _btsyncPlan=btsyncBuildPlan(rows);
+      btsyncRenderPreview(f.name);
+      document.getElementById('btsyncOverlay').classList.add('open');
+    }catch(err){ toast('Error reading file: '+err.message,'e'); console.error('BT Sync:',err); }
+  };
+  reader.onerror=()=>toast('Failed to read file','e');
+  reader.readAsText(f);
+}
+function btsyncBuildPlan(rows){
+  const col=(row,n)=>{const k=Object.keys(row).find(k=>k.trim().toLowerCase()===n);return k?String(row[k]||'').trim():'';};
+  const nid=s=>(s==null?'':String(s)).trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,'');
+  const map=new Map();
+  rows.forEach(row=>{
+    const id=nid(col(row,'puex id')); if(!id) return;
+    let m=map.get(id);
+    if(!m){ m={status:col(row,'puex status').toLowerCase(),pid:nid(col(row,'patient id')),name:col(row,'patient name'),lines:[]}; map.set(id,m); }
+    const item=col(row,'item'); if(item) m.lines.push({item,type:col(row,'type'),qty:parseInt(col(row,'qty'))||0,serial:col(row,'serial')});
+  });
+  const plan={fill:[],reopen:[],skipped:[],notInFile:[],fileCount:map.size};
+  records.filter(r=>r.confirmed).forEach(r=>{
+    const toks=[...new Set(((r.soIds||'').match(/\b3\d{4}\b/g)||[]).map(nid))];
+    const hits=toks.filter(t=>map.has(t));
+    const label={id:r.id,patient:r.patientName||'(no name)',pid:r.patientId||'',job:r.jobNum||'',puex:(hits.length?hits:toks).join(', ')||'—'};
+    if(!hits.length){ plan.notInFile.push({...label,why:toks.length?'PUEX not in the Brightree report':'No PUEX # in Reference'}); return; }
+    const H=hits.map(t=>map.get(t));
+    const pids=[...new Set(H.map(h=>h.pid).filter(Boolean))];
+    if(pids.length>1){ plan.skipped.push({...label,why:'PUEX #s belong to different patients in Brightree'}); return; }
+    if(r.patientId && pids[0] && nid(r.patientId)!==pids[0]){ plan.skipped.push({...label,why:`Patient ID differs (Brightree: ${pids[0]})`}); return; }
+    const sts=H.map(h=>h.status);
+    const status=sts.includes('new')?'new':sts.every(x=>x==='void')?'void':'confirmed';
+    const set={}, notes=[];
+    if(status==='new'){
+      set.confirmed=false; notes.push('Closed (Brightree) unchecked');
+      if(r.verified){ set.verified=false; notes.push('MDR RCV unchecked'); }
+      plan.reopen.push({...label,status,set,notes}); return;
+    }
+    if(status==='void'&&!r.noPickup){ set.noPickup=true; notes.push('No Pickup'); }
+    if(status==='confirmed'){
+      if(r.noPickup){ set.noPickup=false; notes.push('No Pickup unchecked'); }
+      if(!r.verified){ set.verified=true; notes.push('MDR RCV'); }
+    }
+    if(!r.jobClosed){ set.jobClosed=true; notes.push('Job Closed'); }
+    if(!r.dateReturned){ set.dateReturned=tod(); notes.push('Date Returned'); }
+    let resolvedPieces=null;
+    if(!(Array.isArray(r.resolvedPieces)&&r.resolvedPieces.length)){
+      const agg=new Map();
+      H.forEach(h=>h.lines.forEach(l=>{
+        const type=normPieceType(l.type), key=l.item.toLowerCase()+'|'+type+'|'+(l.serial||'').toLowerCase();
+        const p=agg.get(key); if(p) p.expectedQty+=l.qty;
+        else agg.set(key,{id:gid(),name:l.item,type,expectedQty:l.qty,receivedQty:null,checked:false,fromSource:true,serialNum:l.serial||'',memoryDownload:false});
+      }));
+      if(agg.size){ resolvedPieces=[...agg.values()]; notes.push('Brightree lines: '+resolvedPieces.map(p=>`${p.name} ×${p.expectedQty}`).join('; ')); }
+    }
+    if(notes.length) plan.fill.push({...label,status,set,resolvedPieces,notes});
+  });
+  return plan;
+}
+function btsyncRenderPreview(fname){
+  const p=_btsyncPlan, body=document.getElementById('btsyncBody');
+  const row=c=>`<tr><td>${esc(c.patient)}</td><td>${esc(c.pid||'—')}</td><td>${esc(c.job||'—')}</td><td>${esc(c.puex)}</td><td>${esc(c.status?c.status.charAt(0).toUpperCase()+c.status.slice(1):'')}</td><td>${esc(c.notes?c.notes.join(', '):c.why)}</td></tr>`;
+  const table=(title,list)=>list.length?`<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">${title} (${list.length})</div><div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;"><table class="puexbf-t"><tr><th>Patient</th><th>PID</th><th>Job #</th><th>PUEX</th><th>Brightree</th><th>Details</th></tr>${list.map(row).join('')}</table></div>`:'';
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">
+      File: <b>${esc(fname)}</b> · ${p.fileCount} PUEX #s · checks every record on the Completed tab<br>
+      <b>${p.fill.length}</b> Completed record(s) will be updated to match Brightree (status and/or missing Brightree lines).<br>
+      <b>${p.reopen.length}</b> record(s) go back to Active — Brightree still shows their PUEX as New.<br>
+      <b>${p.skipped.length}</b> skipped (patient didn't match). <b>${p.notInFile.length}</b> listed only (PUEX not in the report).<br>
+      No records will be added.
+    </div>
+    ${table('Will update (stays Completed)',p.fill)}
+    ${table('Back to Active (Brightree still New)',p.reopen)}
+    ${table('Skipped, patient did not match',p.skipped)}
+    ${table('Not checked, PUEX not in the report',p.notInFile)}`;
+  const n=p.fill.length+p.reopen.length, btn=document.getElementById('btsyncApply');
+  btn.disabled=!n; btn.textContent=n?`Apply (${n})`:'Apply';
+}
+function closeBtSync(){ document.getElementById('btsyncOverlay').classList.remove('open'); }
+async function applyBtSync(){
+  const p=_btsyncPlan; if(!p) return;
+  const all=p.fill.concat(p.reopen); if(!all.length) return;
+  const btn=document.getElementById('btsyncApply'); btn.disabled=true; btn.textContent='Saving…';
+  const touched=[];
+  all.forEach(c=>{
+    const r=records.find(x=>x.id===c.id); if(!r) return;
+    Object.entries(c.set).forEach(([k,v])=>{ r[k]=v; });
+    if(c.resolvedPieces) r.resolvedPieces=c.resolvedPieces;
+    saveRecs(r,{skipSync:true}); touched.push(r);
+  });
+  saveRecs();
+  buildChips();renderTable();renderStats();
+  try{
+    if(!spSiteId||!spListId){ try{ await ensureSPIds(); }catch(e){ console.error('ensureSPIds failed during BT Sync:',e); } }
+    if(spSiteId&&spListId) await syncAllToSharePoint(touched);
+    else { setSyncStatus('error','⚠ Not connected to SharePoint — changes saved locally only. Do NOT refresh until this clears.'); toast('Not connected to SharePoint — saved locally only','e'); }
+  }catch(err){ console.error('BT Sync sync:',err); toast('Sync error: '+err.message,'e'); }
+  try{
+    const hdr=['Patient','Patient ID','Job #','PUEX','Brightree Status','Result','Changes'];
+    const lines=[hdr.join(',')].concat(all.filter(c=>touched.some(t=>t.id===c.id)).map(c=>[c.patient,c.pid,c.job,c.puex,c.status,c.status==='new'?'Back to Active':'Stays Completed',c.notes.join('; ')].map(csvEsc).join(',')));
+    const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`MDR_BT_Sync_Completed_${tod()}.csv`;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  }catch(err){ console.error('BT Sync CSV:',err); }
+  logAppAction('BT Sync', `Applied: ${p.fill.length} updated, ${p.reopen.length} back to Active, ${p.skipped.length} skipped`);
+  await _flushAuditQueue();
+  toast(`✓ BT Sync: ${p.fill.length} updated, ${p.reopen.length} back to Active`,'s');
+  btn.textContent='Apply'; closeBtSync(); _btsyncPlan=null;
+}
+
 function handleLoadConfirmedVoid(e){
   const f=e.target.files[0];
   if(!f){ toast('No file selected','e'); return; }
@@ -4512,7 +4680,9 @@ function buildCompletedCompare(rec){
   const sgiLines=[], mdrLines=[], pieceRecords=[];
 
   sgiPieces.forEach(p=>{
-    const req=p.expectedQty, rcv=p.receivedQty;
+    // 1.4.21: a piece SGI added by hand was never requested by MDR, so its requested qty
+    // reads 0 here (SGI's own count still shows in the SGI box).
+    const req=p.fromSource?p.expectedQty:0, rcv=p.receivedQty;
     const name=esc(p.name);
 
     // Outer status icon — one value, used on both this piece's SGI card and MDR card.
@@ -4551,15 +4721,32 @@ function buildCompletedCompare(rec){
     // Claim the matching MDR-side piece (by type+name) so anything left over after this
     // loop is a piece Brightree reported that was never on the SGI side at all.
     const bucket=mdrByKey.get(pieceMatchKey(p));
-    const mdrPiece=bucket&&bucket.length?bucket.shift():null;
+    let mdrPiece=bucket&&bucket.length?bucket.shift():null;
+    // 1.4.21: Brightree often names a device differently than the daily ("PM 100N
+    // Oximeter-" vs "Oximeter MBH2601543"), so fall back to the same serial number, then
+    // to the same name with a different type (SGI picked Pickup, Brightree said Exchange).
+    if(!mdrPiece){
+      const sn=String(p.serialNum||serialFromName(p.name)||'').toLowerCase();
+      const free=mdrPieces.filter(m=>!usedMdr.has(m));
+      mdrPiece = (sn && free.find(m=>{ const ms=String(m.serialNum||serialFromName(m.name)||'').toLowerCase(); return ms&&ms===sn; }))
+              || free.find(m=>String(m.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
+              || null;
+      if(mdrPiece){ const b2=mdrByKey.get(pieceMatchKey(mdrPiece)); if(b2){ const i=b2.indexOf(mdrPiece); if(i>-1) b2.splice(i,1); } }
+    }
     if(mdrPiece) usedMdr.add(mdrPiece);
 
     // ── MDR side: Requested Qty, SGI Qty (reusing the same values/icon as the SGI
     // card above), then Confirmed Qty — always 3 boxes, the Confirmed box always blue. ──
     if(!mdrPiece){
       let m2Icon, m3Val, m3Cls;
+      // 1.4.21: once Brightree has reported this PUEX (it has lines on file), a requested
+      // item it didn't report was confirmed as 0 — show 0, not blank. Blank only means
+      // no Brightree lines are on file for this job at all.
+      const btReported = mdrPieces.length>0;
       if(mdrAllZero){
         m2Icon='🚫'; m3Val=0; m3Cls='qblue';
+      } else if(btReported){
+        m2Icon='🛑'; m3Val=0; m3Cls='qblue';
       } else {
         m2Icon='🛑'; m3Val=null; m3Cls='';
       }
@@ -4568,7 +4755,7 @@ function buildCompletedCompare(rec){
         {val:sVal,cls:sCls,icon:sIcon},
         {val:m3Val,cls:m3Cls,icon:m2Icon}
       ]));
-      pieceRecords.push({name:p.name, type:p.type, req, rcv:sVal, conf:(mdrAllZero?0:null), voided:!!mdrAllZero});
+      pieceRecords.push({name:p.name, type:p.type, req, rcv:sVal, conf:((mdrAllZero||btReported)?0:null), voided:!!mdrAllZero});
       return;
     }
     const conf=mdrPiece.expectedQty;
@@ -4615,10 +4802,11 @@ function buildCompletedCompare(rec){
   mdrPieces.forEach(p=>{
     if(usedMdr.has(p)) return;
     const qty=p.expectedQty;
+    // 1.4.21: MDR never requested this item, so its requested box reads 0.
     mdrLines.push(compItem('p-over',p,'✍🏼',[
-      {val:qty,cls:'qblue',icon:'👀'},
+      {val:0,cls:'qblue',icon:'👀'},
       {val:null,cls:'',icon:'✍🏼'},
-      {val:qty,cls:'qblue',icon:'✍🏼'}
+      {val:qty,cls:'qblue',icon:'⁉️'}
     ]));
     pieceRecords.push({name:p.name, type:p.type, isExtra:true, conf:qty});
   });
@@ -4628,8 +4816,11 @@ function buildCompletedCompare(rec){
   // 1.4.19: Fulfilled only when every line was confirmed exactly as requested — nothing
   // short, over, voided, blank or added at confirm time. Otherwise it's Satisfied.
   const exact = !rec.noPickup && pieceRecords.length>0 && pieceRecords.every(pr=>!pr.isExtra && !pr.voided && pr.conf!==null && pr.conf!==undefined && Number(pr.conf)===Number(pr.req));
+  // 1.4.20: Abandoned — SGI reported something came back (qty > 0) on a line, and
+  // Brightree confirmed a different amount (more or less). Outranks Satisfied.
+  const abandoned = !exact && pieceRecords.some(pr=>!pr.isExtra && pr.rcv!==null && pr.rcv!==undefined && Number(pr.rcv)>0 && pr.conf!==null && pr.conf!==undefined && Number(pr.conf)!==Number(pr.rcv));
   return {
-    exact,
+    exact, abandoned,
     sgiHtml: sgiLines.length?sgiLines.join(''):'<span style="color:var(--text3)">No items</span>',
     mdrHtml: mdrLines.length?mdrLines.join(''):'<span style="color:var(--text3)">No items</span>',
     actionsHtml,
@@ -4753,9 +4944,9 @@ function completedRowClick(event,id){
 // 1.4.19 Match label: Fulfilled = 100% what was requested; Satisfied = matched to the
 // job and accepted, but not exactly what was asked for (see Actions for why).
 function matchLabelHtml(cmp){
-  return cmp&&cmp.exact
-    ? `<span style="color:var(--green);font-weight:600;" title="Every line confirmed exactly as requested">Fulfilled</span>`
-    : `<span style="color:var(--yellow);font-weight:600;" title="Matched and accepted, but not exactly what was requested — see Actions">Satisfied</span>`;
+  if(cmp&&cmp.exact) return `<span style="color:var(--green);font-weight:600;" title="Every line confirmed exactly as requested">Fulfilled</span>`;
+  if(cmp&&cmp.abandoned) return `<span style="color:var(--red);font-weight:700;" title="SGI reported items returned, but Brightree confirmed a different amount — see Actions">Abandoned</span>`;
+  return `<span style="color:var(--yellow);font-weight:600;" title="Matched and accepted, but not exactly what was requested — see Actions">Satisfied</span>`;
 }
 function openCompletedDetail(id){
   const r=records.find(x=>x.id===id); if(!r) return;

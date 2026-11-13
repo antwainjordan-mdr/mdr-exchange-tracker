@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.19">
+<meta name="version" content="1.4.21">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1338,7 +1338,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.19';
+const VERSION = '1.4.21';
 const BUILD_DATE = '2026-11-12';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1362,6 +1362,22 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','
 // Data lives only in this browser's localStorage; there is nothing to sync.
 const OFFLINE_MODE = true;
 const CHANGELOG = [
+  {
+    version:'1.4.21',
+    date:'Nov 12, 2026',
+    items:[
+      'Completed tab: a piece SGI added by hand now shows MDR requested 0, since MDR never asked for it. SGI\'s own count still shows in the SGI box.',
+      'Completed tab: once Brightree has reported a PUEX, every requested item it didn\'t report now shows Brightree 0 instead of blank, and every item Brightree reported shows as a line. An item MDR never requested shows requested 0 next to Brightree\'s qty (marked ⁉️). Blank now only means no Brightree lines are on file for that job.',
+      'Completed tab: a Brightree line now pairs with the requested item by serial number when the names differ (e.g. "PM 100N Oximeter-" and "Oximeter MBH2601543"), or by name when SGI picked a different type.',
+    ],
+  },
+  {
+    version:'1.4.20',
+    date:'Nov 12, 2026',
+    items:[
+      'Completed tab: new Abandoned label (red) in the Match column. It shows when SGI reported items returned on a line and Brightree confirmed a different amount, more or less. Order: Fulfilled (100% as requested), then Abandoned, then Satisfied. No Match is unchanged.',
+    ],
+  },
   {
     version:'1.4.19',
     date:'Nov 12, 2026',
@@ -4269,7 +4285,9 @@ function buildCompletedCompare(rec){
   const sgiLines=[], mdrLines=[], pieceRecords=[];
 
   sgiPieces.forEach(p=>{
-    const req=p.expectedQty, rcv=p.receivedQty;
+    // 1.4.21: a piece SGI added by hand was never requested by MDR, so its requested qty
+    // reads 0 here (SGI's own count still shows in the SGI box).
+    const req=p.fromSource?p.expectedQty:0, rcv=p.receivedQty;
     const name=esc(p.name);
 
     // Outer status icon — one value, used on both this piece's SGI card and MDR card.
@@ -4308,15 +4326,32 @@ function buildCompletedCompare(rec){
     // Claim the matching MDR-side piece (by type+name) so anything left over after this
     // loop is a piece Brightree reported that was never on the SGI side at all.
     const bucket=mdrByKey.get(pieceMatchKey(p));
-    const mdrPiece=bucket&&bucket.length?bucket.shift():null;
+    let mdrPiece=bucket&&bucket.length?bucket.shift():null;
+    // 1.4.21: Brightree often names a device differently than the daily ("PM 100N
+    // Oximeter-" vs "Oximeter MBH2601543"), so fall back to the same serial number, then
+    // to the same name with a different type (SGI picked Pickup, Brightree said Exchange).
+    if(!mdrPiece){
+      const sn=String(p.serialNum||serialFromName(p.name)||'').toLowerCase();
+      const free=mdrPieces.filter(m=>!usedMdr.has(m));
+      mdrPiece = (sn && free.find(m=>{ const ms=String(m.serialNum||serialFromName(m.name)||'').toLowerCase(); return ms&&ms===sn; }))
+              || free.find(m=>String(m.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
+              || null;
+      if(mdrPiece){ const b2=mdrByKey.get(pieceMatchKey(mdrPiece)); if(b2){ const i=b2.indexOf(mdrPiece); if(i>-1) b2.splice(i,1); } }
+    }
     if(mdrPiece) usedMdr.add(mdrPiece);
 
     // ── MDR side: Requested Qty, SGI Qty (reusing the same values/icon as the SGI
     // card above), then Confirmed Qty — always 3 boxes, the Confirmed box always blue. ──
     if(!mdrPiece){
       let m2Icon, m3Val, m3Cls;
+      // 1.4.21: once Brightree has reported this PUEX (it has lines on file), a requested
+      // item it didn't report was confirmed as 0 — show 0, not blank. Blank only means
+      // no Brightree lines are on file for this job at all.
+      const btReported = mdrPieces.length>0;
       if(mdrAllZero){
         m2Icon='🚫'; m3Val=0; m3Cls='qblue';
+      } else if(btReported){
+        m2Icon='🛑'; m3Val=0; m3Cls='qblue';
       } else {
         m2Icon='🛑'; m3Val=null; m3Cls='';
       }
@@ -4325,7 +4360,7 @@ function buildCompletedCompare(rec){
         {val:sVal,cls:sCls,icon:sIcon},
         {val:m3Val,cls:m3Cls,icon:m2Icon}
       ]));
-      pieceRecords.push({name:p.name, type:p.type, req, rcv:sVal, conf:(mdrAllZero?0:null), voided:!!mdrAllZero});
+      pieceRecords.push({name:p.name, type:p.type, req, rcv:sVal, conf:((mdrAllZero||btReported)?0:null), voided:!!mdrAllZero});
       return;
     }
     const conf=mdrPiece.expectedQty;
@@ -4372,10 +4407,11 @@ function buildCompletedCompare(rec){
   mdrPieces.forEach(p=>{
     if(usedMdr.has(p)) return;
     const qty=p.expectedQty;
+    // 1.4.21: MDR never requested this item, so its requested box reads 0.
     mdrLines.push(compItem('p-over',p,'✍🏼',[
-      {val:qty,cls:'qblue',icon:'👀'},
+      {val:0,cls:'qblue',icon:'👀'},
       {val:null,cls:'',icon:'✍🏼'},
-      {val:qty,cls:'qblue',icon:'✍🏼'}
+      {val:qty,cls:'qblue',icon:'⁉️'}
     ]));
     pieceRecords.push({name:p.name, type:p.type, isExtra:true, conf:qty});
   });
@@ -4385,8 +4421,11 @@ function buildCompletedCompare(rec){
   // 1.4.19: Fulfilled only when every line was confirmed exactly as requested — nothing
   // short, over, voided, blank or added at confirm time. Otherwise it's Satisfied.
   const exact = !rec.noPickup && pieceRecords.length>0 && pieceRecords.every(pr=>!pr.isExtra && !pr.voided && pr.conf!==null && pr.conf!==undefined && Number(pr.conf)===Number(pr.req));
+  // 1.4.20: Abandoned — SGI reported something came back (qty > 0) on a line, and
+  // Brightree confirmed a different amount (more or less). Outranks Satisfied.
+  const abandoned = !exact && pieceRecords.some(pr=>!pr.isExtra && pr.rcv!==null && pr.rcv!==undefined && Number(pr.rcv)>0 && pr.conf!==null && pr.conf!==undefined && Number(pr.conf)!==Number(pr.rcv));
   return {
-    exact,
+    exact, abandoned,
     sgiHtml: sgiLines.length?sgiLines.join(''):'<span style="color:var(--text3)">No items</span>',
     mdrHtml: mdrLines.length?mdrLines.join(''):'<span style="color:var(--text3)">No items</span>',
     actionsHtml,
@@ -4510,9 +4549,9 @@ function completedRowClick(event,id){
 // 1.4.19 Match label: Fulfilled = 100% what was requested; Satisfied = matched to the
 // job and accepted, but not exactly what was asked for (see Actions for why).
 function matchLabelHtml(cmp){
-  return cmp&&cmp.exact
-    ? `<span style="color:var(--green);font-weight:600;" title="Every line confirmed exactly as requested">Fulfilled</span>`
-    : `<span style="color:var(--yellow);font-weight:600;" title="Matched and accepted, but not exactly what was requested — see Actions">Satisfied</span>`;
+  if(cmp&&cmp.exact) return `<span style="color:var(--green);font-weight:600;" title="Every line confirmed exactly as requested">Fulfilled</span>`;
+  if(cmp&&cmp.abandoned) return `<span style="color:var(--red);font-weight:700;" title="SGI reported items returned, but Brightree confirmed a different amount — see Actions">Abandoned</span>`;
+  return `<span style="color:var(--yellow);font-weight:600;" title="Matched and accepted, but not exactly what was requested — see Actions">Satisfied</span>`;
 }
 function openCompletedDetail(id){
   const r=records.find(x=>x.id===id); if(!r) return;

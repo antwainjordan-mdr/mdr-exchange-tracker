@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.19` (November 12, 2026)
+**Version:** `1.4.21` (November 12, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,30 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.21`
+
+- **Completed tab: everything Brightree reported shows up, and missing items show 0.** Example: MDR requests 5 D, SGI returns 5 E, Brightree confirms 5 E. The tab shows:
+  - **D Cylinder:** requested 5, SGI blank, Brightree **0**, not blank.
+  - **E Cylinder:** requested 0, SGI 5, Brightree 5, as its own line.
+  - A requested item that Brightree didn't report reads Brightree 0 once that job has any Brightree lines on file. **Blank** now only means no Brightree lines are on file for the job.
+  - An item Brightree reported that MDR never requested reads requested **0**, next to Brightree's qty (⁉️). A piece SGI added by hand also reads requested 0.
+- **Pairing Brightree lines:** a Brightree line now pairs with the requested item by **serial number** when the names differ ("PM 100N Oximeter-" = "Oximeter MBH2601543"). It also pairs by name when SGI chose a different type.
+- **TEMPORARY (`index.html` only): 🔄 BT Sync button** (MDR only), for a one-time pass over the Completed tab. **Brightree is the source of truth.**
+  - It takes `MDR_BT_Sync.csv`, built from Brightree's PUEX Line Item Report with each PUEX's patient found through its Sales Order. The file has one row per line item: PUEX ID, PUEX Status, Patient ID, Patient Name, Sched Date, Item, Type, Qty, Serial.
+  - It checks every record on the Completed tab, meaning Closed (Brightree) is checked. The Patient ID has to match Brightree's, and it never adds a record.
+  - **Brightree shows Confirmed or Void:** the record stays Completed and its status is matched. Confirmed checks MDR RCV and unchecks No Pickup. Void checks No Pickup. Job Closed and Date Returned are filled if blank, and Brightree's lines (with serials) are filled in if none are on file. This fixes records like Tracy, Elijah.
+  - **Brightree still shows New:** the record goes **back to Active**, with Closed (Brightree) and MDR RCV unchecked.
+  - Records whose PUEX isn't in the report, or that have no PUEX #, are only listed.
+  - It shows a preview first, and nothing is saved until Apply. After Apply it downloads `MDR_BT_Sync_Completed_YYYY-MM-DD.csv` and logs to the App Log.
+
+## Changes in `1.4.20`
+
+- **Match column: new "Abandoned" label** (red). It shows when SGI reported items returned on a line (SGI qty above 0) and Brightree confirmed a different amount, more or less. Those are the 🚚 and ⚠️ lines. A job shows one label, in this order:
+  1. **Fulfilled** (green): every line confirmed exactly as requested.
+  2. **Abandoned** (red): SGI said it came back, and Brightree's number doesn't match.
+  3. **Satisfied** (yellow): matched and accepted, but not exactly as requested.
+  4. **No Match** (red, with reasons): unchanged.
 
 ## Changes in `1.4.19`
 
