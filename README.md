@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.17` (November 13, 2026)
+**Version:** `1.4.18` (November 12, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,25 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.18`
+
+- **Merge: Confirmed/Void (MDR) wins.** Once a PUEX is Confirmed or Void in Brightree, a merge can't override that with SGI's side.
+  - **Which record is kept:** the Confirmed/Void record first. Then the one with Brightree lines, then the one with a real patient name (not blank or "Unknown"), then the one with the most pieces.
+  - **Only the other record is Confirmed/Void:** its Closed (Brightree), Verified, No Pickup, Brightree lines and No Match reasons replace the kept record's.
+  - **Both are Confirmed/Void:** the kept record's status stays and every Brightree line from both is kept. The kept record's copy wins only when both have the same item and type, because they describe the same PUEX.
+  - **SGI pieces:** pieces from both records are kept, as before.
+  - **Filled if missing:** patient name (when blank or "Unknown"), PID, Entry ID, Pickup Date and Shipped By. Never overwritten.
+  - **Carried over:** Job Closed, Date Returned and any Pending Review items. Source locks from both records are kept.
+  - **References:** combined with no repeats. The old check could add the same numbers again when they were in a different order.
+  - **Name warning:** if the patient names don't look like the same person, the merge prompt says so before you confirm.
+- **Load CSV: newest Confirmed/Void row wins.** A Confirmed or Void PUEX can't be undone in Brightree, so MDR wins.
+  - When a Confirmed/Void row matches a record, its Brightree lines always replace the record's.
+  - Its status is applied too: Closed (Brightree) and Job Closed, then Verified with No Pickup unchecked for Confirmed, or No Pickup for Void.
+  - This replaces the 1.3.0 rule that sent a second Confirmed/Void row to **Pending Review**. New rows no longer go there. Items already in the queue stay until you Approve or Reject them, and "Add Pending Correction" still works.
+  - The tradeoff: if one Job # really has two separate Brightree events, the later row overwrites the earlier one.
+- **Name matching** (Ref Cleanup and the merge warning): a single letter matches a word starting with it, and extra words are fine. So "Coolidge, Mary G." matches "Coolidge, Mary Grace".
+- **Ref Cleanup overrides** (`index.html`): rows held back because the name didn't match now show their changes and an **Include** checkbox. Tick any that are just a typo, and Apply updates them too (the count is on the Apply button). The completed CSV notes them as "Name override".
 
 ## Changes in `1.4.17`
 

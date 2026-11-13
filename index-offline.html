@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.17">
+<meta name="version" content="1.4.18">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1338,8 +1338,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.17';
-const BUILD_DATE = '2026-11-13';
+const VERSION = '1.4.18';
+const BUILD_DATE = '2026-11-12';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1363,8 +1363,17 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+') [OFFLINE]','
 const OFFLINE_MODE = true;
 const CHANGELOG = [
   {
+    version:'1.4.18',
+    date:'Nov 12, 2026',
+    items:[
+      'Load CSV: a Confirmed or Void row now always replaces what\'s on the matching record. Brightree can\'t undo a Confirm or Void, so MDR wins: the newest row\'s Brightree lines and status (Closed, Verified for Confirmed, No Pickup for Void) overwrite the record instead of waiting in Pending Review.',
+      'Merge: Confirmed/Void (MDR) wins. The record kept is the Confirmed/Void one, then one with a real patient name. If only the other record is Confirmed/Void, its status and Brightree lines replace the kept record\'s. When both are, every Brightree line is kept. SGI pieces from both records stay.',
+      'Merge also fills in anything the kept record is missing (name if blank or Unknown, PID, Entry ID, Pickup Date, Shipped By), carries over Job Closed, Date Returned and any Pending Review items, and combines references with no repeats. It warns you before merging records whose patient names don\'t match.',
+    ],
+  },
+  {
     version:'1.4.17',
-    date:'Nov 13, 2026',
+    date:'Nov 12, 2026',
     items:[
       'Reference numbers can no longer repeat on the same job. Existing repeats are removed automatically the next time the tracker loads, and Load CSV, Add Record and edits strip any repeat before saving.',
     ],
@@ -2666,6 +2675,7 @@ function pieceMatchKey(p){ return (p.type||'')+'|'+String(p.name||'').trim().toL
 function mergeDuplicateRecords(keeperId, otherIds){
   const keeper=records.find(r=>r.id===keeperId);
   if(!keeper) return;
+  const blankName=s=>!s||!String(s).trim()||String(s).trim().toLowerCase()==='unknown';
   otherIds.forEach(id=>{
     if(id===keeperId) return;
     const other=records.find(r=>r.id===id);
@@ -2676,27 +2686,52 @@ function mergeDuplicateRecords(keeperId, otherIds){
     if(other.mdrNotes && other.mdrNotes.trim() && other.mdrNotes.trim()!==(keeper.mdrNotes||'').trim()){
       keeper.mdrNotes=[keeper.mdrNotes,other.mdrNotes].filter(Boolean).join(' | ');
     }
+    // SGI pieces: union (keeper's own piece wins on a name/type clash).
     const haveKeys=new Set((keeper.pieces||[]).map(pieceMatchKey));
     (other.pieces||[]).forEach(p=>{ if(!haveKeys.has(pieceMatchKey(p))){ keeper.pieces=(keeper.pieces||[]).concat([p]); haveKeys.add(pieceMatchKey(p)); } });
-    const haveRKeys=new Set((keeper.resolvedPieces||[]).map(pieceMatchKey));
-    (other.resolvedPieces||[]).forEach(p=>{ if(!haveRKeys.has(pieceMatchKey(p))){ keeper.resolvedPieces=(keeper.resolvedPieces||[]).concat([p]); haveRKeys.add(pieceMatchKey(p)); } });
-    if(!keeper.soIds || !keeper.soIds.trim()) keeper.soIds=other.soIds||'';
-    else if(other.soIds && !keeper.soIds.includes(other.soIds)) keeper.soIds=keeper.soIds+', '+other.soIds;
+    // 1.4.18 — MDR wins. A Confirmed/Void record's MDR side is final: if the keeper
+    // isn't Confirmed/Void but this one is, its status and MDR lines replace the
+    // keeper's. If both are, every MDR line is kept (the keeper's copy of an item/type
+    // both have stays, since both describe the same PUEX).
+    if(other.confirmed && !keeper.confirmed){
+      keeper.confirmed=true;
+      keeper.verified=!!other.verified;
+      keeper.noPickup=!!other.noPickup;
+      keeper.resolvedPieces=(other.resolvedPieces||[]).slice();
+      keeper.matchReasons=(other.matchReasons||[]).slice();
+    } else {
+      const haveRKeys=new Set((keeper.resolvedPieces||[]).map(pieceMatchKey));
+      (other.resolvedPieces||[]).forEach(p=>{ if(!haveRKeys.has(pieceMatchKey(p))){ keeper.resolvedPieces=(keeper.resolvedPieces||[]).concat([p]); haveRKeys.add(pieceMatchKey(p)); } });
+    }
+    if(other.jobClosed) keeper.jobClosed=true;
+    if(!keeper.dateReturned && other.dateReturned) keeper.dateReturned=other.dateReturned;
+    if((other.pendingResolved||[]).length) keeper.pendingResolved=(keeper.pendingResolved||[]).concat(other.pendingResolved);
+    // Fill anything the keeper is missing (never overwrite).
+    if(blankName(keeper.patientName) && !blankName(other.patientName)) keeper.patientName=other.patientName;
+    ['patientId','entryId','pickupDate','shippedBy'].forEach(f=>{ if(!keeper[f] && other[f]) keeper[f]=other[f]; });
+    if(!keeper.dropOffBy && keeper.pickupDate) keeper.dropOffBy=computeLateBy(keeper.pickupDate);
+    keeper.locked=Object.assign({}, other.locked||{}, keeper.locked||{});
+    // References: combined with no repeats (the old substring check could add repeats).
+    keeper.soIds=dedupeRefs(mergeRefTokens(keeper.soIds||'', other.soIds||''));
   });
   saveRecs(keeper);
   otherIds.forEach(id=>{ if(id!==keeperId) deleteRecordLocalAndSP(id); });
   renderTable();
+  if(typeof completedView!=='undefined' && completedView && typeof renderCompletedTable==='function') renderCompletedTable();
   toast('Duplicate records merged','s');
 }
 // Picks the "keeper" out of a duplicate group: prefer one with resolvedPieces already
 // on it (so a Completed-tab merge doesn't lose the Confirmed/Void match), otherwise the
 // one with the most pieces, otherwise just the first.
 function pickMergeKeeper(group){
+  // 1.4.18: prefer a Confirmed/Void record, then one with MDR lines, then one with a real
+  // patient name (not blank/"Unknown"), then the one with the most pieces.
+  const named=r=>!!(r.patientName&&r.patientName.trim()&&r.patientName.trim().toLowerCase()!=='unknown');
+  const score=r=>[r.confirmed?1:0,(r.resolvedPieces||[]).length?1:0,named(r)?1:0,(r.pieces||[]).length];
   let best=group[0];
   group.forEach(r=>{
-    const rHasResolved=(r.resolvedPieces||[]).length>0, bHasResolved=(best.resolvedPieces||[]).length>0;
-    if(rHasResolved && !bHasResolved) best=r;
-    else if(rHasResolved===bHasResolved && (r.pieces||[]).length>(best.pieces||[]).length) best=r;
+    const a=score(r), b=score(best);
+    for(let i=0;i<a.length;i++){ if(a[i]!==b[i]){ if(a[i]>b[i]) best=r; break; } }
   });
   return best;
 }
@@ -2707,7 +2742,10 @@ function mergeDuplicatesFor(recId){
   const keeper=pickMergeKeeper(group);
   const others=group.filter(r=>r.id!==keeper.id);
   const label=`${keeper.patientName||'this patient'} — Job #${keeper.jobNum||'—'}`;
-  if(!confirm(`Merge ${group.length} duplicate records for ${label}?\n\nNotes and pieces from all copies are combined onto one record. The other ${others.length} record(s) are permanently deleted from SharePoint. This cannot be undone.`)) return;
+  // 1.4.18: call out names that don't look like the same person, so it's a deliberate yes.
+  const odd=others.filter(o=>!namesCompatible(o.patientName,keeper.patientName));
+  const nameWarn=odd.length?`\n\n⚠ The patient names don't match: "${keeper.patientName}" vs ${odd.map(o=>'"'+o.patientName+'"').join(', ')}. Only merge if this is the same patient.`:'';
+  if(!confirm(`Merge ${group.length} duplicate records for ${label}?${nameWarn}\n\nNotes and pieces from all copies are combined onto one record. The other ${others.length} record(s) are permanently deleted from SharePoint. This cannot be undone.`)) return;
   mergeDuplicateRecords(keeper.id, others.map(r=>r.id));
 }
 
@@ -2967,20 +3005,16 @@ function loadConfirmedVoid(text, preRows){
         // record already has resolvedPieces on it, anything new goes to pendingResolved
         // instead and waits for him to Approve or Reject it on the Completed tab — see
         // approvePending()/rejectPending() and the "Pending Review" badge.
-        if(Array.isArray(ex.resolvedPieces) && ex.resolvedPieces.length){
-          ex.pendingResolved = ex.pendingResolved || [];
-          ex.pendingResolved.push({
-            id: gid(), pieces, status, soIds: inc.soIds, entryId: inc.entryId, addedAt: tod(), source:'import'
-          });
-        } else {
-          ex.resolvedPieces = pieces;
-        }
+        // 1.4.18 (Antwain): a Confirmed or Void PUEX can't be un-confirmed or un-voided in
+        // Brightree, so MDR wins: the newest Confirmed/Void row always replaces what's on
+        // the record — its Brightree lines AND its status — instead of going to Pending
+        // Review. (Older Pending Review items already in the queue are left as they are.)
+        ex.resolvedPieces = pieces;
         if(status==='void'){
-          if(!ex.noPickup){
-            ex.noPickup=true;
-            if(!ex.dateReturned) ex.dateReturned=tod();
-            changed=true;
-          }
+          if(!ex.noPickup){ ex.noPickup=true; changed=true; }
+          if(!ex.dateReturned) ex.dateReturned=tod();
+        } else if(status==='confirmed'){
+          if(ex.noPickup){ ex.noPickup=false; changed=true; }
         }
         // Both Confirmed and Void: if not already marked, close the job and (for Confirmed)
         // mark it Verified. Closed (Brightree) is checked either way — it's driven purely by
@@ -5662,6 +5696,17 @@ function normalizeRef(s){
 // 1.4.17: a reference number should never appear twice on the same job. These keep the
 // order and the record's own separators, and only rewrite the string (as ", "-joined)
 // when there actually is a repeat, so records without repeats aren't touched or re-synced.
+// 1.4.18: are two patient names the same person, allowing for initials and extra words?
+// Every word of the shorter name has to appear in the longer one, where a single letter
+// also matches a word starting with it ("Coolidge, Mary G." = "Coolidge, Mary Grace").
+// A blank or "Unknown" name never conflicts.
+function namesCompatible(a,b){
+  const w=s=>(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+  const A=w(a), B=w(b);
+  if(!A.length||!B.length||A.join(' ')==='unknown'||B.join(' ')==='unknown') return true;
+  const [s,l]=A.length<=B.length?[A,B]:[B,A];
+  return s.every(x=>l.some(y=>y===x||(x.length===1&&y.startsWith(x))||(y.length===1&&x.startsWith(y))));
+}
 function refTokenList(s){ return String(s||'').split(/[\s,;|\/]+/).map(t=>t.trim()).filter(Boolean); }
 function hasDupRefs(s){ const t=refTokenList(s).map(x=>x.toLowerCase()); return t.length!==new Set(t).size; }
 function dedupeRefs(s){
