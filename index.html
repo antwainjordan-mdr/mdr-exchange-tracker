@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.16">
+<meta name="version" content="1.4.17">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -517,7 +517,9 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
-#fi-daily,#fi-confirmedvoid,#fi-combined{display:none;}
+#fi-daily,#fi-confirmedvoid,#fi-combined,#fi-refclean{display:none;}
+.puexbf-t{width:100%;border-collapse:collapse;font-size:11px;min-width:0;}
+.puexbf-t th,.puexbf-t td{padding:3px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}
 @media(max-width:700px){.hdr{padding:8px 12px;}.toolbar{padding:7px 12px;}.twrap{padding:8px 6px;}table{min-width:900px;}.frow{grid-template-columns:1fr;}.spills{display:none;}}
 
 /* ══ PRINT ══ */
@@ -626,6 +628,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 
     
     <label class="btn btn-daily btn-sm mdr-only" title="Load the combined PowerBI CSV (New/Confirmed/Void all in one export) — rows are routed automatically by their own status">📥 Load CSV<input type="file" id="fi-combined" accept=".csv" onchange="handleLoadCombinedCSV(event)"></label>
+    <label class="btn btn-sm mdr-only" style="background:#0f766e;color:#fff;" title="TEMPORARY: one-time Reference Cleanup. Pick MDR_Reference_Cleanup.csv; shows a preview before anything is saved.">🧹 Ref Cleanup<input type="file" id="fi-refclean" accept=".csv" onchange="handleRefCleanup(event)"></label>
     <a class="btn btn-sm" id="btnGitHub" href="https://github.com/antwainjordan-mdr/mdr-exchange-tracker/upload/main" target="_blank" rel="noopener" style="display:none;background:#24292f;color:#fff;" title="Upload files to the GitHub repo">GitHub</a>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
@@ -972,6 +975,21 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     </div>
     <div class="mftr">
       <button class="btn btn-primary" onclick="closeRebookModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPORARY (1.4.17 only): Reference Cleanup preview. -->
+<div class="moverlay" id="refcleanOverlay">
+  <div class="modal" style="max-width:900px;">
+    <div class="mhdr">
+      <span class="mtitle">🧹 Reference Cleanup: Preview</span>
+      <button class="closebtn" onclick="closeRefCleanup()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" id="refcleanBody"></div>
+    <div class="mftr">
+      <button class="btn" onclick="closeRefCleanup()" style="background:transparent;border:1px solid var(--border);color:var(--text2);">Cancel</button>
+      <button class="btn btn-primary" id="refcleanApply" onclick="applyRefCleanup()">Apply</button>
     </div>
   </div>
 </div>
@@ -1348,8 +1366,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.16';
-const BUILD_DATE = '2026-11-12';
+const VERSION = '1.4.17';
+const BUILD_DATE = '2026-11-13';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1363,6 +1381,14 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.17',
+    date:'Nov 13, 2026',
+    items:[
+      'Reference numbers can no longer repeat on the same job. Existing repeats are removed automatically the next time the tracker loads, and Load CSV, Add Record and edits strip any repeat before saving.',
+      'TEMPORARY: new "🧹 Ref Cleanup" button (MDR only) for a one-time cleanup from Appsmith. Matched by Entry ID, it removes repeated reference numbers, adds any Appsmith reference a record is missing (nothing else is removed), and fills a blank Shipped By. It shows a preview first, never adds a record, and downloads a CSV of what changed after Apply.',
+    ],
+  },
   {
     version:'1.4.16',
     date:'Nov 12, 2026',
@@ -2249,7 +2275,7 @@ function loadDaily(text, preRows){
   function doMerge(ex, inc){
       let changed=false;
       // Union references (covers SGI 1-ref vs daily 3-refs scenario)
-      const newSo=mergeRefs(ex.soIds, inc.soIds);
+      const newSo=dedupeRefs(mergeRefs(ex.soIds, inc.soIds));
       if(newSo!==(ex.soIds||'')){ex.soIds=newSo;changed=true;}
       // Fill blanks from the incoming row. Late By Date is never taken from the report —
       // it's always calculated from Pickup Date (see computeLateBy above), whether that's
@@ -2315,7 +2341,7 @@ function loadDaily(text, preRows){
     // so it's reliable even when an old record stored the piece under a different name.
     const hasMemoryDownload=/memory\s*download/i.test(rawPieces);
     const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
-    const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
+    const soIds=dedupeRefs(col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids'));
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
     // Late By Date is never read from the report — see computeLateBy().
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
@@ -2923,7 +2949,7 @@ function loadConfirmedVoid(text, preRows){
     const rawPieces=col(row,'pieces');
     const pieces=parsePiecesDaily(rawPieces);
     const jobNum=col(row,'job #','job#','jobnum','job number').replace(/\.00$/,'');
-    const soIds=col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids');
+    const soIds=dedupeRefs(col(row,'otherids','other ids','so / puex ids','so/puex ids','reference','so_puex_ids'));
     const pickupDate=normDate(col(row,'pickup date','pickupdate'));
     // Late By Date is never read from the report — see computeLateBy().
     const entryId=col(row,'entry id','entryid','entry_id','EntryID');
@@ -3152,6 +3178,120 @@ function handleLoadCombinedCSV(e){
   reader.onerror=()=>toast('Failed to read file','e');
   reader.readAsText(f);
   e.target.value='';
+}
+
+// ══════════════════════════════════
+// TEMPORARY (1.4.17 only): one-time Reference Cleanup from Appsmith.
+// Reads MDR_Reference_Cleanup.csv (built from Appsmith's Table1Copy export): Entry ID,
+// Patient Name, Shipped By, References. Matches EXISTING records by Entry ID (never adds
+// one). References: the record's own numbers with repeats removed, plus any Appsmith
+// number it's missing; nothing is dropped. Shipped By: filled only where blank, then
+// locked. A record whose name clearly differs from Appsmith's is skipped and listed.
+// Preview first; nothing is saved until Apply; a CSV of what changed downloads after.
+// ══════════════════════════════════
+const REFCLEAN_HEADERS=['entry id','patient name','shipped by','references'];
+let _refcleanPlan=null;
+function handleRefCleanup(e){
+  const f=e.target.files[0]; e.target.value='';
+  if(!f){ toast('No file selected','e'); return; }
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const rows=parseCSV(ev.target.result);
+      const have=Object.keys(rows[0]||{}).map(k=>k.trim().toLowerCase());
+      const missing=REFCLEAN_HEADERS.filter(h=>!have.includes(h));
+      if(!rows.length||missing.length){ toast('⚠ Not the Reference Cleanup file — missing column(s): '+(missing.join(', ')||'all'),'e'); return; }
+      logAppAction('Reference Cleanup', `Previewed file: ${f.name}`);
+      _refcleanPlan=refcleanBuildPlan(rows);
+      refcleanRenderPreview(f.name);
+      document.getElementById('refcleanOverlay').classList.add('open');
+    }catch(err){ toast('Error reading file: '+err.message,'e'); console.error('Reference cleanup:',err); }
+  };
+  reader.onerror=()=>toast('Failed to read file','e');
+  reader.readAsText(f);
+}
+function refcleanBuildPlan(rows){
+  const col=(row,n)=>{const k=Object.keys(row).find(k=>k.trim().toLowerCase()===n);return k?String(row[k]||'').trim():'';};
+  const nid=s=>(s==null?'':String(s)).trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,'');
+  const nname=s=>(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+  const blankName=s=>!s||!String(s).trim()||String(s).trim().toLowerCase()==='unknown';
+  const byEntry=new Map();
+  rows.forEach(row=>{ const id=nid(col(row,'entry id')); if(id) byEntry.set(id,{name:col(row,'patient name'),shippedBy:col(row,'shipped by'),refs:col(row,'references')}); });
+  const plan={changes:[],skipped:[],noMatch:0,fileCount:byEntry.size};
+  records.forEach(r=>{
+    const a=r.entryId&&byEntry.get(nid(r.entryId));
+    if(!a){ plan.noMatch++; return; }
+    const label={id:r.id,patient:r.patientName||'(no name)',job:r.jobNum||'',entry:nid(r.entryId)};
+    if(!blankName(r.patientName)&&a.name&&nname(r.patientName)!==nname(a.name)){
+      // Names with "&" (two patients on one entry) or extra words still count when every
+      // word of the shorter name is in the longer one.
+      const A=new Set(nname(r.patientName).split(' ')), B=new Set(nname(a.name).split(' '));
+      const [s,l]=A.size<=B.size?[A,B]:[B,A];
+      if(![...s].every(w=>l.has(w))){ plan.skipped.push({...label,before:r.soIds||'',why:`Name differs (Appsmith: ${a.name})`}); return; }
+    }
+    const before=r.soIds||'';
+    const after=dedupeRefs(mergeRefTokens(before,a.refs));
+    const set={}, notes=[];
+    if(after!==before){
+      const bt=refTokenList(before), at=refTokenList(after);
+      const removed=bt.length-new Set(bt.map(t=>t.toLowerCase())).size;
+      const added=at.filter(t=>!bt.some(b=>b.toLowerCase()===t.toLowerCase()));
+      set.soIds=after;
+      if(removed) notes.push(`Removed ${removed} repeat${removed>1?'s':''}`);
+      if(added.length) notes.push(`Added ${added.join(', ')}`);
+      if(!removed&&!added.length) notes.push('Reformatted');
+    }
+    if(!r.shippedBy&&a.shippedBy){ set.shippedBy=a.shippedBy; notes.push('Shipped By'); }
+    if(notes.length) plan.changes.push({...label,before,after:set.soIds||before,set,notes});
+  });
+  return plan;
+}
+function refcleanRenderPreview(fname){
+  const p=_refcleanPlan, body=document.getElementById('refcleanBody');
+  const nRef=p.changes.filter(c=>'soIds' in c.set).length, nSb=p.changes.filter(c=>'shippedBy' in c.set).length;
+  const row=c=>`<tr><td>${esc(c.patient)}</td><td>${esc(c.job||'—')}</td><td>${esc(c.entry)}</td><td>${esc(c.before||'—')}</td><td>${esc(c.after||'—')}</td><td>${esc(c.notes?c.notes.join(', '):c.why)}</td></tr>`;
+  const table=(title,list)=>list.length?`<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">${title} (${list.length})</div><div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:6px;"><table class="puexbf-t"><tr><th>Patient</th><th>Job #</th><th>Entry ID</th><th>Reference now</th><th>Reference after</th><th>Details</th></tr>${list.map(row).join('')}</table></div>`:'';
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">
+      File: <b>${esc(fname)}</b> · ${p.fileCount} Appsmith entries<br>
+      <b>${nRef}</b> record(s) will get their references cleaned up.<br>
+      <b>${nSb}</b> record(s) will get a missing Shipped By filled in.<br>
+      <b>${p.skipped.length}</b> skipped because the name didn't match. ${p.noMatch} record(s) aren't in the file.<br>
+      No records will be added, and no reference will be removed except repeats.
+    </div>
+    ${table('Will change',p.changes)}
+    ${table('Skipped, name did not match',p.skipped.map(s=>({...s,after:s.before})))}`;
+  document.getElementById('refcleanApply').disabled=!p.changes.length;
+}
+function closeRefCleanup(){ document.getElementById('refcleanOverlay').classList.remove('open'); }
+async function applyRefCleanup(){
+  const p=_refcleanPlan; if(!p||!p.changes.length) return;
+  const btn=document.getElementById('refcleanApply'); btn.disabled=true; btn.textContent='Saving…';
+  const touched=[];
+  p.changes.forEach(c=>{
+    const r=records.find(x=>x.id===c.id); if(!r) return;
+    Object.entries(c.set).forEach(([k,v])=>{ r[k]=v; });
+    if('shippedBy' in c.set){ r.locked=r.locked||{}; r.locked.shippedBy=true; }
+    saveRecs(r,{skipSync:true}); touched.push(r);
+  });
+  saveRecs();
+  buildChips();renderTable();renderStats();
+  try{
+    if(!spSiteId||!spListId){ try{ await ensureSPIds(); }catch(e){ console.error('ensureSPIds failed during Reference Cleanup:',e); } }
+    if(spSiteId&&spListId) await syncAllToSharePoint(touched);
+    else { setSyncStatus('error','\u26a0 Not connected to SharePoint \u2014 changes saved locally only. Do NOT refresh until this clears.'); toast('Not connected to SharePoint \u2014 saved locally only','e'); }
+  }catch(err){ console.error('Reference cleanup sync:',err); toast('Sync error: '+err.message,'e'); }
+  try{
+    const hdr=['Patient','Job #','Entry ID','Reference Before','Reference After','Changes'];
+    const lines=[hdr.join(',')].concat(p.changes.filter(c=>touched.some(t=>t.id===c.id)).map(c=>[c.patient,c.job,c.entry,c.before,c.after,c.notes.join('; ')].map(csvEsc).join(',')));
+    const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`MDR_Reference_Cleanup_Completed_${tod()}.csv`;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  }catch(err){ console.error('Reference cleanup CSV:',err); }
+  logAppAction('Reference Cleanup', `Applied: ${touched.length} record(s) updated, ${p.skipped.length} skipped`);
+  await _flushAuditQueue();
+  toast(`✓ Reference Cleanup: ${touched.length} record(s) updated`,'s');
+  btn.textContent='Apply'; closeRefCleanup(); _refcleanPlan=null;
 }
 
 function handleLoadConfirmedVoid(e){
@@ -5752,8 +5892,26 @@ function overlayClick(e){if(e.target===document.getElementById('moverlay'))close
 // every record's Reference field matches the same format regardless of who typed it.
 function normalizeRef(s){
   if(!s) return s;
-  return s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim();
+  return dedupeRefs(s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim());
 }
+// 1.4.17: a reference number should never appear twice on the same job. These keep the
+// order and the record's own separators, and only rewrite the string (as ", "-joined)
+// when there actually is a repeat, so records without repeats aren't touched or re-synced.
+function refTokenList(s){ return String(s||'').split(/[\s,;|\/]+/).map(t=>t.trim()).filter(Boolean); }
+function hasDupRefs(s){ const t=refTokenList(s).map(x=>x.toLowerCase()); return t.length!==new Set(t).size; }
+function dedupeRefs(s){
+  if(!s||!hasDupRefs(s)) return s||'';
+  const seen=new Set(), out=[];
+  refTokenList(s).forEach(t=>{ const k=t.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(t); } });
+  return out.join(', ');
+}
+function mergeRefTokens(existing, incoming){
+  const have=new Set(refTokenList(existing).map(t=>t.toLowerCase()));
+  const add=[]; refTokenList(incoming).forEach(t=>{ const k=t.toLowerCase(); if(!have.has(k)){ have.add(k); add.push(t); } });
+  if(!add.length) return existing||'';
+  return existing ? existing+', '+add.join(', ') : add.join(', ');
+}
+
 
 // Q6/Q6b: display-only — stored data stays "126244,35645" (no change to SharePoint or
 // Load Daily/Confirmed-Void matching), but anywhere the raw comma-joined string is shown
@@ -6509,11 +6667,12 @@ async function loadFromSharePoint(){
       // before saveModal() started normalizing on save (only ever happened when SGI
       // manually added a record). Self-healing \u2014 once every record's been fixed this
       // finds nothing and does nothing, so it's safe to leave running on every load.
-      const slashRecs = records.filter(r=>r.soIds && r.soIds.includes('/'));
+      // 1.4.17: the same pass now also removes a reference number repeated on one record.
+      const slashRecs = records.filter(r=>r.soIds && (r.soIds.includes('/') || hasDupRefs(r.soIds)));
       if(slashRecs.length){
         slashRecs.forEach(r=>{ r.soIds = normalizeRef(r.soIds); r._dirty = true; });
         localStorage.setItem('mdr_v5', JSON.stringify(records));
-        console.log(`[MDR] Reference field cleanup: converted "/" to "," on ${slashRecs.length} existing record(s)`);
+        console.log(`[MDR] Reference field cleanup: fixed "/" or repeated numbers on ${slashRecs.length} existing record(s)`);
         syncAllToSharePoint(slashRecs).catch(e=>console.error('Reference slash-fix sync failed:',e));
       }
       // One-time cleanup: Late By Date used to come straight from the report. It's now

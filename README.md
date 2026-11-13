@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.16` (November 12, 2026)
+**Version:** `1.4.17` (November 13, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -211,6 +211,23 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.17`
+
+- **No repeated reference numbers on a job.**
+  - Each number now appears once per record, in its original order. A repeat is removed when:
+    - The tracker loads, which cleans existing records once (same self-healing pass that fixes leftover "/" separators). Only records that actually had a repeat are changed and re-synced.
+    - Load CSV runs, on both new records and merges.
+    - Add Record or Edit Record saves.
+  - Records without repeats keep their exact formatting.
+- **TEMPORARY (`index.html` only): 🧹 Ref Cleanup button** (MDR only, next to Load CSV), for a one-time cleanup from Appsmith.
+  - It takes `MDR_Reference_Cleanup.csv`, built from Appsmith's Table1Copy export. The columns are Entry ID, Patient Name, Shipped By ("Assigned To" as First L.) and References (Appsmith's SO / PUEX IDs, " / " changed to ", ").
+  - It matches **existing records only by Entry ID** and never adds a record.
+  - **References:** it keeps the record's own numbers with repeats removed, and adds any Appsmith number the record is missing. Nothing else is removed, so PURL and numbers from the daily stay.
+  - **Shipped By:** it fills only a blank Shipped By, then locks it.
+  - A record whose name clearly differs from Appsmith's is skipped and listed. Names that share all their words still match, for example two patients on one entry.
+  - It shows a preview first, and nothing is saved until Apply. After Apply, it downloads `MDR_Reference_Cleanup_Completed_YYYY-MM-DD.csv` (Patient, Job #, Entry ID, Reference Before, Reference After, Changes) and logs to the App Log.
+  - It will be removed in the next release.
 
 ## Changes in `1.4.16`
 
