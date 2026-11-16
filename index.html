@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.32">
+<meta name="version" content="1.4.34">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -687,7 +687,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     <input type="text" id="searchQ" placeholder="Search patient, job #, reference, equipment, serial #…" oninput="onSearchInput()">
   </div>
   <span class="flbl">Status:</span>
-  <select class="fsel" id="statusF" onchange="chipFilter=null;renderTable()">
+  <select class="fsel" id="statusF" onchange="chipFilter=null;renderTable();updateAddPendingVisibility()">
     <option value="all">All Active</option>
     <option value="incomplete">Incomplete</option>
     <option value="pending" selected>Pending</option>
@@ -1186,6 +1186,20 @@ function toggleHideReturned(){
 // toggleHideResolved() / hideResolved removed — "All Active" now always excludes
 // Confirmed/Void jobs (see baseFiltered()), and those records live on the
 // MDR-only Completed tab instead (see toggleCompletedView()).
+// 1.4.33 (Antwain): "Add Pending Correction" only ever applies to a Confirmed/Void
+// job - it can't do anything for a job still sitting at Pending, so leaving it
+// visible while the Status filter is set to Pending just invites someone to
+// reach for it expecting it to fix a piece qty (exactly what happened). Keep it
+// out of sight whenever that filter reads Pending, on top of whatever tab it's
+// normally shown/hidden by.
+function updateAddPendingVisibility(){
+  const btn=document.getElementById('btnAddPending');
+  if(!btn) return;
+  const statusSel=document.getElementById('statusF');
+  const onPending=statusSel && statusSel.value==='pending';
+  if(onPending){ btn.style.display='none'; return; }
+  btn.style.display = completedView ? '' : 'none';
+}
 function toggleCompletedView(){
   completedView=!completedView;
   const btn=document.getElementById('btnCompletedView');
@@ -1199,6 +1213,7 @@ function toggleCompletedView(){
   document.querySelectorAll('.toolbar .completed-only').forEach(el=>{
     el.style.display = completedView ? '' : 'none';
   });
+  updateAddPendingVisibility();
   if(!completedView){
     pendingOnly=false;
     const pb=document.getElementById('btnPendingOnly');
@@ -1382,7 +1397,7 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.32';
+const VERSION = '1.4.34';
 const BUILD_DATE = '2026-11-16';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
@@ -1397,6 +1412,20 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.4.34',
+    date:'Nov 16, 2026',
+    items:[
+      "Bug fix: Pickup Date (a locked/source field, same as MDR Requested qty) only ever got filled in the first time it was blank and then froze - a later report correcting the date (e.g. source now says shipped 11/11, not the 11/06 already on the job) never took. It now updates to track the most recent source value whenever it changes, same rule as locked quantities, and Late By Date recalculates whenever Pickup Date changes instead of only the first time it's set.",
+    ],
+  },
+  {
+    version:'1.4.33',
+    date:'Nov 16, 2026',
+    items:[
+      "\u201c\u2795 Add Pending Correction\u201d no longer appears while the Status filter is set to Pending - it only ever applies to a Confirmed/Void job, so having it visible on a still-Pending job invited exactly the confusion it caused (looking like a way to fix a piece qty, which it isn't).",
+    ],
+  },
   {
     version:'1.4.32',
     date:'Nov 16, 2026',
@@ -2417,11 +2446,22 @@ function loadDaily(text, preRows){
       // Union references (covers SGI 1-ref vs daily 3-refs scenario)
       const newSo=dedupeRefs(mergeRefs(ex.soIds, inc.soIds));
       if(newSo!==(ex.soIds||'')){ex.soIds=newSo;changed=true;}
-      // Fill blanks from the incoming row. Late By Date is never taken from the report —
-      // it's always calculated from Pickup Date (see computeLateBy above), whether that's
-      // the Pickup Date we already had or one this row is filling in for the first time.
-      if(!ex.pickupDate&&inc.pickupDate){ex.pickupDate=inc.pickupDate;changed=true;}
-      if(!ex.dropOffBy&&ex.pickupDate){ex.dropOffBy=computeLateBy(ex.pickupDate);changed=true;}
+      // 1.4.34 (bug fix): Pickup Date is a locked/source field (see the obj/makeLockMap
+      // call below) just like MDR Requested qty, so the same rule applies — if source
+      // data changes, the locked value has to track it, not just fill in blank once and
+      // then freeze. Previously this only ever set Pickup Date the first time it was
+      // blank; a later report correcting the date (e.g. "shipped 11/11 not 11/06") never
+      // took. Late By Date is never taken from the report itself — it's always calculated
+      // from Pickup Date (see computeLateBy above) — but it has to be recalculated
+      // whenever Pickup Date changes, not only the first time it's filled in.
+      if(inc.pickupDate && ex.pickupDate!==inc.pickupDate){
+        ex.pickupDate=inc.pickupDate;
+        ex.dropOffBy=computeLateBy(ex.pickupDate);
+        changed=true;
+      } else if(!ex.dropOffBy&&ex.pickupDate){
+        ex.dropOffBy=computeLateBy(ex.pickupDate);
+        changed=true;
+      }
       if(!ex.patientId&&inc.patientId){ex.patientId=inc.patientId;changed=true;}
       if(!ex.entryId&&inc.entryId){ex.entryId=inc.entryId;changed=true;}
       if(!ex.jobNum&&inc.jobNum){ex.jobNum=inc.jobNum;changed=true;}

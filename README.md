@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.32` (November 16, 2026)
+**Version:** `1.4.34` (November 16, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -196,6 +196,14 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.4.34`
+
+- Bug fix: Pickup Date (a locked/source field, same as MDR Requested qty) only ever got filled in the first time it was blank and then froze - a later report correcting the date (e.g. source now says shipped 11/11, not the 11/06 already on the job) never took. It now updates to track the most recent source value whenever it changes, same rule as locked quantities, and Late By Date recalculates whenever Pickup Date changes instead of only the first time it's set.
+
+## Changes in `1.4.33`
+
+- "➕ Add Pending Correction" no longer appears while the Status filter is set to Pending - it only ever applies to a Confirmed/Void job, so having it visible on a still-Pending job invited exactly the confusion it caused (looking like a way to fix a piece qty, which it isn't).
 
 ## Changes in `1.4.32`
 
