@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MDR Exchange Tracker</title>
-<meta name="version" content="1.4.34">
+<meta name="version" content="1.5.0">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -628,17 +628,26 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
     </div>
 
     
-    <label class="btn btn-daily btn-sm mdr-only" title="Load the combined PowerBI CSV (New/Confirmed/Void all in one export) — rows are routed automatically by their own status">📥 Load CSV<input type="file" id="fi-combined" accept=".csv" onchange="handleLoadCombinedCSV(event)"></label>
-    <label class="btn btn-sm mdr-only" style="background:#0f766e;color:#fff;" title="TEMPORARY: one-time Reference Cleanup. Pick MDR_Reference_Cleanup.csv; shows a preview before anything is saved.">🧹 Ref Cleanup<input type="file" id="fi-refclean" accept=".csv" onchange="handleRefCleanup(event)"></label>
-    <label class="btn btn-sm mdr-only" style="background:#7c3aed;color:#fff;" title="TEMPORARY: one-time Brightree sync of the Completed tab. Pick MDR_BT_Sync.csv; shows a preview before anything is saved.">🔄 BT Sync<input type="file" id="fi-btsync" accept=".csv" onchange="handleBtSync(event)"></label>
-    <a class="btn btn-sm" id="btnGitHub" href="https://github.com/antwainjordan-mdr/mdr-exchange-tracker/upload/main" target="_blank" rel="noopener" style="display:none;background:#24292f;color:#fff;" title="Upload files to the GitHub repo">GitHub</a>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Record
     </button>
-    
+
     <button class="btn btn-sm" onclick="clearSiteCache()" style="background:transparent;color:var(--text3);border:1px solid var(--border);" title="Clear all browser cache, tokens and reload — fixes most issues">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Clear Cache
     </button>
+    <!-- 1.5.0: Load CSV / Ref Cleanup / BT Sync / GitHub / Account Settings, formerly
+         five separate toolbar buttons, now live together behind one menu next to
+         Clear Cache (user request, logged while answering the locked-field/PURL doc). -->
+    <div class="settings-menu-wrap mdr-only" style="position:relative;display:inline-block;">
+      <button class="btn btn-sm" onclick="toggleSettingsMenu(event)" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="Load CSV, Ref Cleanup, BT Sync, GitHub, Account Settings">🧩 Settings ▾</button>
+      <div id="settingsMenuPanel" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;flex-direction:column;gap:4px;min-width:175px;box-shadow:0 4px 14px rgba(0,0,0,.25);">
+        <label class="btn btn-daily btn-sm" style="width:100%;box-sizing:border-box;" title="Load the combined PowerBI CSV (New/Confirmed/Void all in one export) — rows are routed automatically by their own status">📥 Load CSV<input type="file" id="fi-combined" accept=".csv" onchange="handleLoadCombinedCSV(event)"></label>
+        <label class="btn btn-sm" style="width:100%;box-sizing:border-box;background:#0f766e;color:#fff;" title="TEMPORARY: one-time Reference Cleanup. Pick MDR_Reference_Cleanup.csv; shows a preview before anything is saved.">🧹 Ref Cleanup<input type="file" id="fi-refclean" accept=".csv" onchange="handleRefCleanup(event)"></label>
+        <label class="btn btn-sm" style="width:100%;box-sizing:border-box;background:#7c3aed;color:#fff;" title="TEMPORARY: one-time Brightree sync of the Completed tab. Pick MDR_BT_Sync.csv; shows a preview before anything is saved.">🔄 BT Sync<input type="file" id="fi-btsync" accept=".csv" onchange="handleBtSync(event)"></label>
+        <a class="btn btn-sm" id="btnGitHub" href="https://github.com/antwainjordan-mdr/mdr-exchange-tracker/upload/main" target="_blank" rel="noopener" style="width:100%;box-sizing:border-box;display:none;background:#24292f;color:#fff;" title="Upload files to the GitHub repo">GitHub</a>
+        <button class="btn btn-sm" onclick="openAccountSettings();toggleSettingsMenu()" style="width:100%;box-sizing:border-box;background:transparent;color:var(--text2);border:1px solid var(--border);" title="Choose who can edit locked fields">🧩 Account Settings</button>
+      </div>
+    </div>
     <button class="btn btn-sm mdr-only" onclick="openAppAuditLog(event)" style="background:transparent;color:var(--text2);border:1px solid var(--border);" title="View app activity log">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>App Log
     </button>
@@ -731,7 +740,7 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
         <th class="col-sginotes" style="min-width:160px">SGI Notes</th>
         <th class="col-mdrnotes" style="min-width:160px">MDR Notes</th>
         <th class="srt" onclick="sortBy('dropOffBy')" style="min-width:120px">Late by Date ↕</th>
-        <th class="ctr" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
+        <th class="ctr th-mdr-only" style="min-width:80px">Verified<br><span style="font-size:9px;color:var(--green);font-weight:400">(MDR RCV)</span></th>
         <th class="ctr th-mdr-only" style="min-width:80px">Closed<br><span style="font-size:9px;color:var(--blue);font-weight:400">(Brightree)</span></th>
         <th style="min-width:80px;text-align:center">Activity</th>
         <th class="no-print" style="min-width:50px"></th>
@@ -949,6 +958,31 @@ tr.clickable-row.r-selected td{background:rgba(79,142,247,.12) !important;box-sh
 </div>
 
 <!-- CHANGELOG / WHAT'S NEW -->
+<!-- ACCOUNT SETTINGS (1.5.0): who's allowed to edit a value locked from source
+     (record-level locked fields + the piece-level MDR Requested qty box). Shared
+     across every device/browser via the AppSettings SharePoint list — see
+     ensureAppSettingsListId/loadAppSettings/saveLockEditAllowlist. -->
+<div class="moverlay" id="acctSettingsOverlay" onclick="if(event.target===this)closeAccountSettings()">
+  <div class="modal" style="max-width:420px;">
+    <div class="mhdr">
+      <span class="mtitle">🧩 Account Settings</span>
+      <button class="closebtn" onclick="closeAccountSettings()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody">
+      <p style="font-size:11px;color:var(--text3);margin:0 0 8px;">Users on this list can edit a value that's locked from source (Patient Name, Patient ID, Pickup Date, Entry ID, Job #, Shipped By, and MDR Requested qty). A source mismatch on the next import still overwrites a manual edit and notes it in MDR Notes — this list only controls who's allowed to make that edit in the first place.</p>
+      <div id="acctUserList" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:6px;">
+        <input type="email" id="acctNewUser" placeholder="name@mdr.net" style="flex:1;font-size:12px;padding:5px 7px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);">
+        <button class="btn btn-sm" onclick="addAcctUser()">Add</button>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-sm" onclick="closeAccountSettings()" style="background:transparent;color:var(--text2);border:1px solid var(--border);">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveAcctSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="moverlay" id="changelogOverlay" onclick="if(event.target===this)closeChangelog()">
   <div class="modal" style="max-width:480px;">
     <div class="mhdr">
@@ -1125,7 +1159,20 @@ let userRole    = null;
 let authenticatedRole = null;
 let spSiteId    = null;
 let appAuditListId = null;
+let appSettingsListId = null;
+let appSettingsItemId = null;
 let spListId    = null;
+
+// 1.5.0: who is allowed to edit a value that's locked from source (record-level
+// LOCKABLE fields + the piece-level MDR Requested qty box). Defaults to just
+// antwainjordan@mdr.net, same as when this started as a hardcoded, single-user
+// feature; now configurable from Settings ▸ Account Settings and persisted on
+// SharePoint (see ensureAppSettingsListId/loadAppSettings/saveLockEditAllowlist)
+// so every device/browser sees the same list, not just whoever last touched it.
+let lockEditAllowlist = ['antwainjordan@mdr.net'];
+function canEditLocked(){
+  return !!(currentUser && lockEditAllowlist.includes(String(currentUser.username||'').toLowerCase()));
+}
 
 // ══════════════════════════════════
 //  THEME
@@ -1397,8 +1444,8 @@ function applyNotesCollapse(){
 // to SemVer starting at 1.0.0 on 2026-11-08. Older CHANGELOG entries below keep their
 // original `build:` date-slug key as a historical record of what they were actually
 // called at the time — they were never renumbered retroactively.
-const VERSION = '1.4.34';
-const BUILD_DATE = '2026-11-16';
+const VERSION = '1.5.0';
+const BUILD_DATE = '2026-11-20';
 console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78bfa;font-weight:bold');
 // Request: "Add an App Version label next to the logo and app title, top left."
 // Shown as v + VERSION, with the full version + build date in the title tooltip.
@@ -1412,6 +1459,44 @@ console.log('%c[MDR Exchange Tracker] v'+VERSION+' ('+BUILD_DATE+')','color:#a78
   }
 })();
 const CHANGELOG = [
+  {
+    version:'1.5.0',
+    date:'Nov 20, 2026',
+    items:[
+      "New: locked-field manual override. A user on the lock-edit allowlist (Account Settings → 🧩, default: antwainjordan@mdr.net only) can now edit a value that's locked from source — Patient Name, Patient ID, Pickup Date, Entry ID, Job #, Shipped By, and the piece-level MDR Requested qty box. On the next CSV import, source wins if it disagrees with the manual value, and a note naming the actual field(s) changed is added to MDR Notes (which shows up in the Activity Log as a labeled override, since that log is SharePoint's own version history on the record's fields).",
+      "New: PURL. Any MDR employee can flag an added piece as PURL instead of PKP (for a request that can't easily be pulled from source yet, e.g. a PUEX not yet synced into Appsmith) — it gets a ⚙️ before its PKP badge (MDR-only) and is never matched, altered, or removed by CSV data. A literal \"PURL\" token typed into the Reference field (or already present on an incoming CSV row) always sorts to the very first position, as plain text.",
+      "The quick \"+Add Item\" view and the full Add/Edit Record popup's item picker both drop the old Exchange/Pickup choice: SGI gets a single PKP control (no dropdown, no PURL), MDR keeps a PKP/PURL choice (dropdown in the full popup, two buttons in the quick view).",
+      "New Settings menu (🧩, next to Clear Cache) consolidates Load CSV, Ref Cleanup, BT Sync, and GitHub — formerly four separate toolbar buttons — plus a new Account Settings panel for adding/removing who's on the lock-edit allowlist. Requires a SharePoint list named \"AppSettings\" (Title + Value columns) — see README.",
+    ],
+  },
+  {
+    version:'1.4.38',
+    date:'Nov 16, 2026',
+    items:[
+      "Verified (MDR RCV) column is MDR-only now, same as Closed (Brightree) - SGI no longer sees it at all (it used to show up disabled/view-only for SGI).",
+    ],
+  },
+  {
+    version:'1.4.37',
+    date:'Nov 16, 2026',
+    items:[
+      "\u201cExport as\u201d CSV: dropped the No Pickup and Verified columns, added Drop Off Date (the Late By Date) right after Pickup Date.",
+    ],
+  },
+  {
+    version:'1.4.36',
+    date:'Nov 16, 2026',
+    items:[
+      "Bug fix: \u201cPending Review\u201d and \u201cAdd Pending Correction\u201d (both Completed-tab-only tools - neither pertains to an Active job) were showing up on the Active view too. Root cause: a routine that runs on every render was unconditionally re-showing every MDR-only toolbar button, which overrode the Completed-tab visibility check for just those two. They're now excluded from that blanket show, so they only ever appear on the Completed tab as intended.",
+    ],
+  },
+  {
+    version:'1.4.35',
+    date:'Nov 16, 2026',
+    items:[
+      "Reference number links (SO Order / PuEx, Brightree) now stay clickable for MDR even while previewing SGI View for testing - they only go plain-text for a real SGI-authenticated session. Previously the preview toggle itself flipped this off, same way it would for a real SGI login, which defeated using SGI View to check anything link-related.",
+    ],
+  },
   {
     version:'1.4.34',
     date:'Nov 16, 2026',
@@ -2138,7 +2223,14 @@ function csvEsc(v){
 // Kept as its own function (not inlined) so this is one line to change back later.
 function normPieceType(t){return 'Pickup';}
 function pieceAbbr(p){return p.type==='Pickup'?'PKP':'EXC';}
-function pieceBadge(p,style){const st=style?` style="${style}"`:'';return`<span class="ptbadge ${p.type==='Pickup'?'bp':'be'}"${st}>${pieceAbbr(p)}</span>`;}
+// 1.5.0: a PURL-flagged piece — one that was requested proactively and can't
+// easily be pulled from source yet (see doMerge's purl exemption) — gets a
+// gear icon next to its PKP chip. MDR-only; SGI never sees it.
+function pieceBadge(p,style){
+  const st=style?` style="${style}"`:'';
+  const gear=(p.purl&&isMDR())?'<span title="PURL — added ahead of source data" style="margin-right:3px;">⚙️</span>':'';
+  return`<span class="ptbadge ${p.type==='Pickup'?'bp':'be'}"${st}>${gear}${pieceAbbr(p)}</span>`;
+}
 
 // A device's serial number is the last word of its name when that word looks like a
 // serial (6+ letters/digits with at least 4 digits): "Oximeter MBH2601549" -> MBH2601549,
@@ -2258,13 +2350,15 @@ function exportReportCSV(){
   if(!rows.length){toast('No records to export','e');return;}
   logAppAction('Export CSV',`Exported ${rows.length} records to CSV`);
   const yn=v=>v?'Yes':'No';
-  const head=['#','Pickup Date','Patient','Patient ID','Job #','Pieces / Items','Reference','Notes','Job Closed','No Pickup','Verified'];
+  // 1.4.37 (Antwain): "No Pickup" and "Verified" columns dropped, "Drop Off Date"
+  // (Late By Date) added in their place.
+  const head=['#','Pickup Date','Drop Off Date','Patient','Patient ID','Job #','Pieces / Items','Reference','Notes','Job Closed'];
   const lines=[head.map(csvEsc).join(',')];
   rows.forEach((r,i)=>{
     const pieces=(r.pieces||[]).map(p=>`${pieceAbbr(p)} ${p.name} ×${p.expectedQty}`).join('\n');
     lines.push([
-      i+1, r.pickupDate?fmtDate(r.pickupDate):'', r.patientName||'', r.patientId||'', r.jobNum||'',
-      pieces, displayRef(r.soIds), exportNotesText(r), yn(r.jobClosed), yn(r.noPickup), yn(r.verified)
+      i+1, r.pickupDate?fmtDate(r.pickupDate):'', r.dropOffBy?fmtDate(r.dropOffBy):'', r.patientName||'', r.patientId||'', r.jobNum||'',
+      pieces, displayRef(r.soIds), exportNotesText(r), yn(r.jobClosed)
     ].map(csvEsc).join(','));
   });
   const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
@@ -2441,10 +2535,30 @@ function loadDaily(text, preRows){
 
   let added=0,merged=0,skipped=0;
 
+  // 1.5.0: FIELD was flagged as a manual override (applyLockOverrideIfNeeded) on
+  // this record. If this import's source value for FIELD now agrees, the override
+  // stands — leave it. If source disagrees (and actually has a value to compare),
+  // source wins: overwrite, note it, and clear the override flag so it doesn't
+  // keep re-triggering on the next import once a fresh manual value is compared
+  // against a once-stale source line. PURL is a piece-level concept with no
+  // record-level override today, so there's nothing to exempt here.
+  function checkLockOverride(ex, inc, field){
+    if(!ex.lockOverrides || !ex.lockOverrides[field]) return false;
+    const incVal=inc[field];
+    if(incVal===undefined||incVal===null||String(incVal).trim()==='') return false;
+    if(String(ex[field]||'').trim()===String(incVal).trim()) return false;
+    const oldVal=ex[field];
+    const by=ex.lockOverrides[field].by||'unknown';
+    ex[field]=incVal;
+    appendMdrNote(ex,`${FIELD_LABELS[field]||field} was overwritten because source data was not updated (was "${oldVal||'blank'}", manually set by ${by}). Please update source MDR.`);
+    delete ex.lockOverrides[field];
+    return true;
+  }
+
   function doMerge(ex, inc){
       let changed=false;
       // Union references (covers SGI 1-ref vs daily 3-refs scenario)
-      const newSo=dedupeRefs(mergeRefs(ex.soIds, inc.soIds));
+      const newSo=sortPurlFirst(dedupeRefs(mergeRefs(ex.soIds, inc.soIds)));
       if(newSo!==(ex.soIds||'')){ex.soIds=newSo;changed=true;}
       // 1.4.34 (bug fix): Pickup Date is a locked/source field (see the obj/makeLockMap
       // call below) just like MDR Requested qty, so the same rule applies — if source
@@ -2454,18 +2568,29 @@ function loadDaily(text, preRows){
       // took. Late By Date is never taken from the report itself — it's always calculated
       // from Pickup Date (see computeLateBy above) — but it has to be recalculated
       // whenever Pickup Date changes, not only the first time it's filled in.
+      // 1.5.0: a canEditLocked() user's manual override to a locked field is checked
+      // against this import's source value FIRST — if source disagrees, source wins
+      // (consuming the override) and an MDR Note documents it; see checkLockOverride.
+      // This runs ahead of the ordinary fill-in-if-blank/always-overwrite rules below
+      // so an override that source now confirms isn't double-processed.
+      if(checkLockOverride(ex,inc,'pickupDate')) changed=true;
       if(inc.pickupDate && ex.pickupDate!==inc.pickupDate){
         ex.pickupDate=inc.pickupDate;
-        ex.dropOffBy=computeLateBy(ex.pickupDate);
-        changed=true;
-      } else if(!ex.dropOffBy&&ex.pickupDate){
-        ex.dropOffBy=computeLateBy(ex.pickupDate);
         changed=true;
       }
+      if(ex.pickupDate){
+        const newLate=computeLateBy(ex.pickupDate);
+        if(ex.dropOffBy!==newLate){ ex.dropOffBy=newLate; changed=true; }
+      }
+      if(checkLockOverride(ex,inc,'patientId')) changed=true;
       if(!ex.patientId&&inc.patientId){ex.patientId=inc.patientId;changed=true;}
+      if(checkLockOverride(ex,inc,'entryId')) changed=true;
       if(!ex.entryId&&inc.entryId){ex.entryId=inc.entryId;changed=true;}
+      if(checkLockOverride(ex,inc,'jobNum')) changed=true;
       if(!ex.jobNum&&inc.jobNum){ex.jobNum=inc.jobNum;changed=true;}
+      if(checkLockOverride(ex,inc,'shippedBy')) changed=true;
       if(!ex.shippedBy&&inc.shippedBy){ex.shippedBy=inc.shippedBy;changed=true;}
+      if(checkLockOverride(ex,inc,'patientName')) changed=true;
       const blankName=!ex.patientName||!ex.patientName.trim()||ex.patientName.trim().toLowerCase()==='unknown';
       if(blankName&&inc.patientName&&inc.patientName.trim().toLowerCase()!=='unknown'){ex.patientName=inc.patientName;changed=true;}
       // Merge pieces: add new ones by name; update expected qty if it changed.
@@ -2498,11 +2623,22 @@ function loadDaily(text, preRows){
             ex.pieces=[...(ex.pieces||[]),np];
             byKey.set(pieceKey(np),np);
             changed=true;
+          } else if(existP.purl){
+            // 1.5.0: a PURL-flagged piece never comes from — and is never altered or
+            // removed by — CSV source data (Antwain, 2026-11-20). A same-named CSV
+            // line is a coincidence, not a match: leave the PURL piece exactly as is.
           } else {
             // 1.4.16: a hand-added piece whose name matches a source piece becomes
             // the source piece (locked); SGI's received qty/check-in stays as entered.
             if(!existP.fromSource){ existP.fromSource=true; if(!existP.type&&np.type) existP.type=np.type; changed=true; }
             if(existP.expectedQty!==np.expectedQty){
+              // 1.5.0: if this piece's MDR Requested qty was manually overridden,
+              // source wins on a mismatch and the override is noted + consumed,
+              // same rule as the record-level fields (checkLockOverride above).
+              if(existP.qtyOverride){
+                appendMdrNote(ex,`MDR Requested qty for "${existP.name}" was overwritten because source data was not updated (was ${existP.expectedQty}, manually set by ${existP.qtyOverride.by||'unknown'}). Please update source MDR.`);
+                delete existP.qtyOverride;
+              }
               existP.expectedQty=np.expectedQty; // qty changed on the source — reflect it
               changed=true;
             }
@@ -4201,6 +4337,35 @@ function isFieldLocked(rec,field){
   if(isSGI() && rec.source==='manual' && !SGI_AFTER_SAVE_EDITABLE.includes(field)) return true;
   return false;
 }
+// 1.5.0: same question, but asking "is this field locked FOR ME SPECIFICALLY,
+// right now" — a user on the lockEditAllowlist can edit a record-level LOCKABLE
+// field even though it's locked from source (the SGI-after-save-manual-record
+// restriction above still applies to everyone; this is only about the
+// source-lock half of isFieldLocked).
+function isFieldLockedForEdit(rec,field){
+  if(!rec) return false;
+  if(isSGI() && rec.source==='manual' && !SGI_AFTER_SAVE_EDITABLE.includes(field)) return true;
+  if(isLocked(rec,field) && canEditLocked()) return false;
+  return isLocked(rec,field);
+}
+const FIELD_LABELS={patientName:'Patient Name',patientId:'Patient ID',pickupDate:'Pickup Date',entryId:'Entry ID',jobNum:'Job #',shippedBy:'Shipped By'};
+function appendMdrNote(rec,text){
+  rec.mdrNotes=[rec.mdrNotes,text].filter(Boolean).join(' | ');
+}
+// 1.5.0: a canEditLocked() user just changed FIELD on a record where it was
+// genuinely locked from source. Remember that it was a manual override (so the
+// next CSV import can decide whether source still agrees — see doMerge's
+// checkLockOverride) and leave a distinctly-worded line in MDR Notes, which
+// surfaces automatically in the Activity Log (SharePoint's own version-diff
+// history on the MDR Notes field) as a labeled override, not a silent edit.
+function applyLockOverrideIfNeeded(rec,field,newVal){
+  if(!isLocked(rec,field)) return; // not actually locked from source — ordinary edit
+  const oldVal=rec[field];
+  if(String(oldVal||'').trim()===String(newVal||'').trim()) return; // no real change
+  rec.lockOverrides=rec.lockOverrides||{};
+  rec.lockOverrides[field]={by:(currentUser&&currentUser.username)||'unknown',at:tod()};
+  appendMdrNote(rec,`Manual override by ${(currentUser&&currentUser.username)||'unknown'}: ${FIELD_LABELS[field]||field} changed from "${oldVal||'blank'}" to "${newVal||'blank'}" on ${tod()}.`);
+}
 
 // ══════════════════════════════════
 //  FILTER / SORT
@@ -4507,8 +4672,12 @@ function renderRefLinks(soIds){
   const tokens=soIds.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
   const parts=tokens.map(t=>{
     const cp=copyIcon(t,'Copy reference number'); // Q1/Q3b: both views, one button per number
-    // SGI sees plain text — no Brightree links
-    if(isSGI()) return`<span class="refnum-row copy-hover-group"><span class="refplain">${esc(t)}</span>${cp}</span>`;
+    // 1.4.35 (Antwain): a real SGI-authenticated session sees plain text, no
+    // Brightree links — gated on authenticatedRole (fixed at login), NOT on
+    // userRole/isSGI() (which toggleRoleView() intentionally flips), so an MDR
+    // admin previewing as SGI for testing still gets clickable links, the same
+    // reasoning already used for the role-toggle button itself (see applyRoleUI()).
+    if(authenticatedRole==='sgi') return`<span class="refnum-row copy-hover-group"><span class="refplain">${esc(t)}</span>${cp}</span>`;
     // MDR: 6-digit number starting with 1 → SO Order
     if(/^1\d{5}$/.test(t)){
       const url=`https://brightree.net/F1/0351/MedRes/OrderEntry/frmSOOrder.aspx?SalesOrderKey=${t}&Edit=1`;
@@ -5149,7 +5318,7 @@ function renderRow(r,rowNum){
 
   // Pickup date cell — locked rows show the plain locked display (click to copy, since
   // clicking doesn't enter the record — Q3b); unlocked rows get the Q4 text+calendar field.
-  const pickupHtml=isFieldLocked(r,'pickupDate')
+  const pickupHtml=isFieldLockedForEdit(r,'pickupDate')
     ?`<div class="flock" ${r.pickupDate?`data-copy="${esc(fmtDate(r.pickupDate))}" title="Click to copy"`:''}><span class="li2">🔒</span><span class="lv">${esc(fmtDate(r.pickupDate))}</span></div>`
     :dateFieldHtml(`pd-${r.id}`, r.pickupDate, 'pickupDateBlur', `data-recid="${r.id}" onclick="event.stopPropagation()"`);
 
@@ -5212,9 +5381,9 @@ function renderRow(r,rowNum){
       onclick="event.stopPropagation()"
       ${isSGI()?'readonly style="opacity:.75;cursor:default"':''}>${esc(r.mdrNotes)}</textarea></td>
     <td>${lateHtml}</td>
-    <td class="ctr">
+    <td class="ctr col-mdr-only">
       <div class="cbwrap">
-        <input type="checkbox" class="bigcb cb-verified" ${r.verified?'checked':''} ${isSGI()?'disabled title="MDR sets this — view only"':''}
+        <input type="checkbox" class="bigcb cb-verified" ${r.verified?'checked':''}
           onchange="updateF('${r.id}','verified',this.checked)" onclick="event.stopPropagation()">
       </div>
       <span class="print-cb verified-p${r.verified?' checked-p':''}"></span>
@@ -5280,10 +5449,14 @@ function renderPcell(r){
     // Whole card border/background follows the same Match/Over/Short state as the
     // text label above (only for source pieces once a qty's been entered).
     const cardCls=varWord?' '+(variance==='match'?'av-match':variance==='overage'?'av-over':'av-short'):'';
-    // MDR requested qty — its own box, always blue, never editable, sitting right
-    // next to the SGI received box. No icon between them.
+    // MDR requested qty — its own box, always blue. Never editable, sitting right
+    // next to the SGI received box, with one exception (1.5.0): a user on the
+    // lockEditAllowlist may correct a SOURCE piece's requested qty directly; the
+    // next CSV import checks it against source and source wins on a mismatch
+    // (see doMerge's qtyOverride handling above). No icon between the two boxes.
+    const mdrEditable=p.fromSource && canEditLocked();
     const mdrBox=(p.expectedQty!==undefined&&p.expectedQty!==null)
-      ?`<input type="number" class="qrcv qmdr" value="${esc(p.expectedQty)}" readonly onclick="event.stopPropagation()" title="MDR requested qty">`
+      ?`<input type="number" class="qrcv qmdr" value="${esc(p.expectedQty)}" ${mdrEditable?`onchange="updatePieceExpectedQty('${r.id}','${p.id}',this.value)"`:'readonly'} onclick="event.stopPropagation()" title="MDR requested qty${mdrEditable?' (editable — authorized override)':''}">`
       :'';
     // 1.4.30: SGI's return qty is editable whether or not the piece has matched
     // source yet — for a manually-added piece this is the ONLY qty SGI fills in
@@ -5411,7 +5584,8 @@ function noPickupChanged(id, checked){
 // ══════════════════════════════════
 function updateF(id,field,value){
   const rec=records.find(r=>r.id===id);if(!rec)return;
-  if(isFieldLocked(rec,field)){toast('Field is locked','e');return;}
+  if(isFieldLockedForEdit(rec,field)){toast('Field is locked','e');return;}
+  if(LOCKABLE.includes(field)) applyLockOverrideIfNeeded(rec,field,value);
   rec[field]=value;
   saveRecs(rec);
   if(field==='pickupDate')buildChips();
@@ -5464,6 +5638,25 @@ function updatePieceQty(rid,pid,val){
   const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
   p.receivedQty=val===''?null:parseInt(val);
   saveRecs(rec);refreshPiece(rec,p);refreshRowStatus(rec);renderStats();
+}
+
+// 1.5.0: MDR Requested qty (the "mdrBox") is a source value, normally never
+// editable — but a lockEditAllowlist user can correct it on a source piece.
+// Flags the piece as overridden (doMerge checks it against the next import —
+// source wins on a mismatch) and leaves a distinctly-worded MDR Note, same
+// pattern as applyLockOverrideIfNeeded for the record-level fields.
+function updatePieceExpectedQty(rid,pid,val){
+  const rec=records.find(r=>r.id===rid);if(!rec)return;
+  const p=rec.pieces.find(p=>p.id===pid);if(!p)return;
+  if(!(p.fromSource&&canEditLocked())){toast('Field is locked','e');return;}
+  const nv=val===''?0:parseInt(val);
+  if(isNaN(nv))return;
+  const old=p.expectedQty;
+  if(old===nv)return;
+  p.expectedQty=nv;
+  p.qtyOverride={by:(currentUser&&currentUser.username)||'unknown',at:tod()};
+  appendMdrNote(rec,`Manual override by ${(currentUser&&currentUser.username)||'unknown'}: MDR Requested qty for "${p.name}" changed from ${old} to ${nv} on ${tod()}.`);
+  saveRecs(rec);refreshRowStatus(rec);renderStats();
 }
 
 function refreshPiece(rec,p){
@@ -5632,7 +5825,7 @@ function setModalField(fname,rec){
   // Pickup Date's visible/hidden toggle is on the whole text+calendar wrapper, not just
   // the inner text input (showing only the text input would orphan the calendar button).
   const toggleEl=fname==='pickupDate'?(document.getElementById('m-pickupDate-wrap')||inp):inp;
-  const locked=rec&&isFieldLocked(rec,fname);
+  const locked=rec&&isFieldLockedForEdit(rec,fname);
   if(locked){
     lockDiv.style.display='flex';
     const rawVal=fname==='pickupDate'?fmtDate(rec[fname]):(rec[fname]||'');
@@ -6132,19 +6325,27 @@ function renderPopupPselList(){
   if(!list.length){ c.innerHTML=''; return; }
   c.innerHTML = list.map(x=>{
     const safeId=x.name.replace(/[^a-zA-Z0-9]/g,'_');
+    // 1.5.0: EXC/RTN retired as visual identifiers — this quick "+Add Item" view is
+    // click-a-button-to-add-with-that-type, no dropdown. SGI gets a single PKP
+    // button; MDR gets PKP and PURL (PURL = a request that can't easily be pulled
+    // from source yet, open to any MDR employee — not just antwainjordan@mdr.net).
+    const purlBtn = isMDR()
+      ? `<button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}',true,'${safeId}')">PURL</button>`
+      : '';
     return`
     <div style="display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;" onclick="event.stopPropagation()">
       <span style="flex:1">${esc(x.name)}</span>
       <input type="number" class="popt-qty" id="popup-pq_${safeId}" value="1" min="1" style="width:34px;font-size:10px;" onclick="event.stopPropagation()">
-      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Exchange','${safeId}')">EXC</button>
-      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}','Pickup','${safeId}')">PKP</button>
+      ${purlBtn}
+      <button class="btn btn-xs" style="background:var(--surface3);color:var(--text2);padding:2px 7px;" onclick="popupAddItem('${esc(x.name)}',false,'${safeId}')">PKP</button>
     </div>`;
   }).join('');
 }
 
-function popupAddItem(name, type, safeId){
+function popupAddItem(name, purl, safeId){
   const qEl = safeId ? document.getElementById('popup-pq_'+safeId) : null;
   const qty = qEl ? (parseInt(qEl.value)||1) : 1;
+  const isPurl = isMDR() && !!purl;
   // 1.4.29: a piece with this name already on the record (source or manual) gets this
   // qty added onto it instead of a second duplicate line — "like items merge into one
   // request" now that type no longer separates them.
@@ -6152,15 +6353,23 @@ function popupAddItem(name, type, safeId){
   if(existing){
     // 1.4.30: only a source piece's expected qty grows with a re-add here. A manual
     // (SGI) piece's MDR-requested qty stays locked at 0 until a source entry
-    // matches it by name — only its return qty grows.
+    // matches it by name — only its return qty grows. 1.5.0: a PURL piece's
+    // requested qty grows instead — it's a real request, never backed by source.
     if(existing.fromSource) existing.expectedQty = (existing.expectedQty||0) + qty;
-    existing.receivedQty = (existing.receivedQty===null||existing.receivedQty===undefined?0:existing.receivedQty) + qty;
+    else if(existing.purl) existing.expectedQty = (existing.expectedQty||0) + qty;
+    else existing.receivedQty = (existing.receivedQty===null||existing.receivedQty===undefined?0:existing.receivedQty) + qty;
+  } else if(isPurl){
+    // 1.5.0: PURL — a proactive request that can't easily be pulled from source
+    // yet. Its requested qty is real (not forced to 0) and it's never matched,
+    // altered, or removed by CSV data (see doMerge's purl exemption).
+    const id = gid();
+    popupAddPieces.push({id,name,type:'Pickup',expectedQty:qty,receivedQty:null,checked:false,fromSource:false,purl:true});
   } else {
     const id = gid();
     // 1.4.30: a manually-added (SGI) piece's MDR-requested qty is forced to 0 and
     // locked until a source entry matches it by name (doMerge then overwrites it
     // with the real source qty) — the qty typed here fills only the return qty.
-    popupAddPieces.push({id,name,type:normPieceType(type),expectedQty:0,receivedQty:qty,checked:false,fromSource:false});
+    popupAddPieces.push({id,name,type:normPieceType('Pickup'),expectedQty:0,receivedQty:qty,checked:false,fromSource:false});
   }
   renderPopupCurPieces();
   renderPopupPselList();
@@ -6252,15 +6461,21 @@ function renderPselList(){
   if(!items.length){list.innerHTML='<div style="color:var(--text3);font-size:11px;padding:5px">No items match</div>';return;}
   list.innerHTML=items.map(item=>{
     const safeId=item.name.replace(/[^a-zA-Z0-9]/g,'_');
+    // 1.5.0: the full Add/Edit Record popup keeps a dropdown — EXC/RTN retired,
+    // options are now PKP/PURL only. SGI gets a plain PKP chip, no dropdown
+    // (PURL is MDR-only — any MDR employee, not just antwainjordan@mdr.net).
+    const typeCtl = isMDR()
+      ? `<select class="fsel" id="pt_${safeId}" style="padding:3px 6px;font-size:11px;min-width:80px;" onclick="event.stopPropagation()">
+          <option value="PKP">PKP</option>
+          <option value="PURL">PURL</option>
+        </select>`
+      : `<span class="ptbadge bp" style="padding:3px 8px;">PKP</span>`;
     return`<div class="popt" style="cursor:default">
       <div class="popt-left" style="flex:1">
         <span class="popt-name">${esc(item.name)}</span>
         ${!item.isFromData?'<span class="tagnew">CUSTOM</span>':''}
       </div>
-      <select class="fsel" id="pt_${safeId}" style="padding:3px 6px;font-size:11px;min-width:80px;" onclick="event.stopPropagation()">
-        <option value="Exchange">Exchange</option>
-        <option value="Pickup">Pickup</option>
-      </select>
+      ${typeCtl}
       <input type="number" class="popt-qty" id="pq_${safeId}" value="1" min="1" style="width:36px;" onclick="event.stopPropagation()">
       <button class="btn btn-success btn-xs" onclick="addPieceModal('${esc(item.name)}',null,'${safeId}')" style="padding:3px 7px;font-size:10px;">Add</button>
     </div>`;
@@ -6271,7 +6486,8 @@ function addPieceModal(name,typeArg,safeId){
   const id=safeId||name.replace(/[^a-zA-Z0-9]/g,'_');
   const typeEl=document.getElementById('pt_'+id);
   const qEl=document.getElementById('pq_'+id);
-  const type=typeArg||(typeEl?typeEl.value:'Exchange');
+  const sel=typeArg||(typeEl?typeEl.value:'PKP'); // 'PKP' or 'PURL'; SGI never has the dropdown, always PKP
+  const isPurl=isMDR()&&sel==='PURL';
   const qty=qEl?parseInt(qEl.value)||1:1;
   // 1.4.29: a piece with this name already on the record (source or manual) gets this
   // qty added onto it instead of a second duplicate line — "like items merge into one
@@ -6280,14 +6496,19 @@ function addPieceModal(name,typeArg,safeId){
   if(existing){
     // 1.4.30: only a source piece's expected qty grows with a re-add here. A manual
     // (SGI) piece's MDR-requested qty stays locked at 0 until a source entry
-    // matches it by name — only its return qty grows.
+    // matches it by name — only its return qty grows. 1.5.0: a PURL piece's
+    // requested qty grows instead — it's a real request, never backed by source.
     if(existing.fromSource) existing.expectedQty=(existing.expectedQty||0)+qty;
-    existing.receivedQty=(existing.receivedQty===null||existing.receivedQty===undefined?0:existing.receivedQty)+qty;
+    else if(existing.purl) existing.expectedQty=(existing.expectedQty||0)+qty;
+    else existing.receivedQty=(existing.receivedQty===null||existing.receivedQty===undefined?0:existing.receivedQty)+qty;
+  } else if(isPurl){
+    // 1.5.0: PURL — never backed by source, never altered/removed by CSV data.
+    mAddPieces.push({id:gid(),name,type:'Pickup',expectedQty:qty,receivedQty:null,checked:false,fromSource:false,purl:true});
   } else {
     // 1.4.30: a manually-added (SGI) piece's MDR-requested qty is forced to 0 and
     // locked until a source entry matches it by name (doMerge then overwrites it
     // with the real source qty) — the qty typed here fills only the return qty.
-    mAddPieces.push({id:gid(),name,type:normPieceType(type),expectedQty:0,receivedQty:qty,checked:false,fromSource:false});
+    mAddPieces.push({id:gid(),name,type:normPieceType('Pickup'),expectedQty:0,receivedQty:qty,checked:false,fromSource:false});
   }
   renderCurPieces();renderPselList();
   document.getElementById('m-psearch').value='';
@@ -6320,7 +6541,7 @@ function overlayClick(e){if(e.target===document.getElementById('moverlay'))close
 // every record's Reference field matches the same format regardless of who typed it.
 function normalizeRef(s){
   if(!s) return s;
-  return dedupeRefs(s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim());
+  return sortPurlFirst(dedupeRefs(s.replace(/\//g,',').replace(/,{2,}/g,',').replace(/^,|,$/g,'').trim()));
 }
 // 1.4.17: a reference number should never appear twice on the same job. These keep the
 // order and the record's own separators, and only rewrite the string (as ", "-joined)
@@ -6343,6 +6564,18 @@ function dedupeRefs(s){
   const seen=new Set(), out=[];
   refTokenList(s).forEach(t=>{ const k=t.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(t); } });
   return out.join(', ');
+}
+// 1.5.0: "PURL" in the Reference field (typed by any MDR employee, or already
+// present on an incoming CSV row) always sorts to the very first position —
+// both on manual save and on CSV-merge (both paths funnel through here: see
+// normalizeRef and doMerge's newSo). Plain text, no special styling, same as
+// any other reference chip.
+function sortPurlFirst(s){
+  if(!s) return s||'';
+  const toks=refTokenList(s);
+  if(!toks.some(t=>t.toUpperCase()==='PURL')) return s;
+  const rest=toks.filter(t=>t.toUpperCase()!=='PURL');
+  return ['PURL',...rest].join(', ');
 }
 function mergeRefTokens(existing, incoming){
   const have=new Set(refTokenList(existing).map(t=>t.toLowerCase()));
@@ -6393,7 +6626,7 @@ function saveModal(){
     return el.classList.contains('dtext') ? (parseFlexDate(raw)||'') : raw;
   }
   const getLocked=field=>{
-    if(editId){const rec=records.find(r=>r.id===editId);if(rec&&isFieldLocked(rec,field))return rec[field]||'';}
+    if(editId){const rec=records.find(r=>r.id===editId);if(rec&&isFieldLockedForEdit(rec,field))return rec[field]||'';}
     return'';
   };
 
@@ -6429,7 +6662,12 @@ function saveModal(){
   } else {
     recToSave = records.find(r=>r.id===editId);
     if(recToSave){
-      LOCKABLE.forEach(f=>{if(!isFieldLocked(recToSave,f))recToSave[f]=gv(`m-${f}`)||recToSave[f];});
+      LOCKABLE.forEach(f=>{
+        if(isFieldLockedForEdit(recToSave,f)) return; // still locked for this user — leave unchanged
+        const nv=gv(`m-${f}`)||recToSave[f];
+        if(canEditLocked() && isLocked(recToSave,f)) applyLockOverrideIfNeeded(recToSave,f,nv);
+        recToSave[f]=nv;
+      });
       recToSave.soIds=normalizeRef(gv('m-soIds'))||recToSave.soIds;
       // Late By Date is calculated, never typed — always derived from the (possibly
       // just-updated) Pickup Date above, same rule as import. See computeLateBy().
@@ -6690,7 +6928,14 @@ function applyRoleUI(){
     document.querySelectorAll('.hacts .btn,.hacts label').forEach(b=>b.style.display='');
     document.querySelectorAll('.col-mdr-only,.th-mdr-only').forEach(el=>el.style.display='');
     document.querySelectorAll('#statusF option.mdr-only').forEach(el=>el.style.display='');
-    document.querySelectorAll('.toolbar .mdr-only').forEach(el=>el.style.display='');
+    // 1.4.36 (bug fix): this used to blindly show EVERY .toolbar .mdr-only element,
+    // which clobbered Pending Review / Add Pending Correction's own completedView-based
+    // visibility (see toggleCompletedView()) any time this function ran afterward (e.g.
+    // on a plain page load/render) — showing both on the Active view even though neither
+    // pertains to an Active job. Excluding .completed-only here leaves their visibility
+    // entirely up to toggleCompletedView()/updateAddPendingVisibility() instead.
+    document.querySelectorAll('.toolbar .mdr-only:not(.completed-only)').forEach(el=>el.style.display='');
+    if(typeof updateAddPendingVisibility==='function') updateAddPendingVisibility();
     // SGI-only view toggles (e.g. Hide Returned Jobs) never apply to MDR — hidden, and
     // reset off so flipping MDR -> SGI preview -> MDR never leaves a stale filter active.
     document.querySelectorAll('.sgi-only').forEach(el=>el.style.display='none');
@@ -6804,10 +7049,14 @@ function mergePieceList(list){
       id:g[0].id,
       name:g[0].name,
       type:'Pickup',
-      expectedQty:g.reduce((sum,p)=>sum+(p.fromSource?(p.expectedQty||0):0),0),
+      // 1.5.0: a PURL member's expectedQty is a real request too (same as a
+      // fromSource member) — it just never counts toward "real demand" in the
+      // CSV sense, so it still needs to survive this merge uninflated-but-kept.
+      expectedQty:g.reduce((sum,p)=>sum+((p.fromSource||p.purl)?(p.expectedQty||0):0),0),
       receivedQty:anyCounted?g.reduce((sum,p)=>sum+(p.receivedQty||0),0):null,
       checked:g.every(p=>p.checked),
       fromSource:g.some(p=>p.fromSource),
+      purl:g.some(p=>p.purl),
       serialNum:(g.find(p=>p.serialNum)||{}).serialNum||'',
       memoryDownload:g.some(p=>p.memoryDownload),
     };
@@ -6838,7 +7087,7 @@ function mergeDuplicatePieces(recs){
 function zeroManualExpected(list){
   let changed=false;
   (list||[]).forEach(p=>{
-    if(!p || p.fromSource) return;
+    if(!p || p.fromSource || p.purl) return; // 1.5.0: a PURL piece's requested qty is a real request, never zeroed
     // If SGI's return qty was never filled in on an existing manual piece, back
     // it in from the original qty that was typed when the entry was created
     // (what's about to become the now-zeroed MDR-requested qty) rather than
@@ -7624,6 +7873,7 @@ async function showSignedIn(email){
   // antwainjordan@mdr.net by request — he doesn't need his own reminder.
   if(isMDR() && email.toLowerCase()!=='antwainjordan@mdr.net') showPrintWarningModal();
   scheduleTokenRefresh();
+  if(isMDR()) loadAppSettings().then(()=>renderTable()).catch(()=>{}); // 1.5.0: lock-edit allowlist, shared via SharePoint
   await loadFromSharePoint();
   presenceJoin().catch(e=>console.warn('Presence join failed:',e));
   if(!window._auditFlushInterval){
@@ -7652,6 +7902,108 @@ async function ensureAppAuditListId(){
   if(!found) throw new Error('AppAudit list not found');
   appAuditListId = found.id;
   console.log('[AppAudit] List ID found:', appAuditListId);
+}
+
+// 1.5.0: a small shared settings store, same pattern as AppAudit/Presence — a
+// pre-existing SharePoint list (create it once by hand: a list named
+// "AppSettings" with the default Title column plus one more text column,
+// "Value" — see README) that this app looks up by name, never provisions.
+// Holds one row per setting; today that's just the lock-edit allowlist.
+async function ensureAppSettingsListId(){
+  if(appSettingsListId) return;
+  if(!spSiteId) await ensureSPIds();
+  const lists = await gGet(`/sites/${spSiteId}/lists?$filter=displayName eq 'AppSettings'`);
+  const found = (lists.value||[])[0];
+  if(!found) throw new Error('AppSettings list not found');
+  appSettingsListId = found.id;
+  console.log('[AppSettings] List ID found:', appSettingsListId);
+}
+async function loadAppSettings(){
+  try{
+    await ensureAppSettingsListId();
+    const items = await gGet(`/sites/${spSiteId}/lists/${appSettingsListId}/items?$expand=fields&$top=50`);
+    const row = (items.value||[]).find(i=>i.fields && i.fields.Title==='LockEditAllowlist');
+    if(row){
+      appSettingsItemId = row.id;
+      try{
+        const v = JSON.parse(row.fields.Value||'[]');
+        if(Array.isArray(v) && v.length) lockEditAllowlist = v.map(x=>String(x).toLowerCase());
+      }catch(e){ console.warn('[AppSettings] Bad LockEditAllowlist JSON, keeping default:', e.message); }
+    }
+  }catch(e){
+    // No AppSettings list yet (or not reachable) — keep the antwainjordan@mdr.net-only
+    // default silently; Account Settings will say so when someone opens it.
+    console.warn('[AppSettings] Could not load (keeping default allowlist):', e.message||e);
+  }
+}
+async function saveLockEditAllowlist(list){
+  const clean=[...new Set(list.map(x=>String(x).trim().toLowerCase()).filter(Boolean))];
+  if(!clean.length){ toast('Keep at least one user','e'); return false; }
+  try{
+    await ensureAppSettingsListId();
+    const body={fields:{Title:'LockEditAllowlist', Value:JSON.stringify(clean)}};
+    if(appSettingsItemId){
+      await gPatch(`/sites/${spSiteId}/lists/${appSettingsListId}/items/${appSettingsItemId}`, body);
+    } else {
+      const r = await gPost(`/sites/${spSiteId}/lists/${appSettingsListId}/items`, body);
+      appSettingsItemId = r.id;
+    }
+    lockEditAllowlist = clean;
+    logAppAction('Account Settings', `Lock-edit allowlist set to: ${clean.join(', ')}`);
+    return true;
+  }catch(e){
+    console.error('[AppSettings] Save failed:', e);
+    toast('Create the "AppSettings" SharePoint list first (see README) — could not save','e');
+    return false;
+  }
+}
+
+// 1.5.0: toolbar menu holding Load CSV / Ref Cleanup / BT Sync / GitHub / Account
+// Settings (previously five separate buttons). Closes on an outside click.
+function toggleSettingsMenu(e){
+  if(e) e.stopPropagation();
+  const p=document.getElementById('settingsMenuPanel');
+  if(!p) return;
+  p.style.display = (p.style.display==='flex') ? 'none' : 'flex';
+}
+document.addEventListener('click', function(e){
+  const wrap=document.querySelector('.settings-menu-wrap');
+  const panel=document.getElementById('settingsMenuPanel');
+  if(wrap && panel && panel.style.display==='flex' && !wrap.contains(e.target)) panel.style.display='none';
+});
+
+// 1.5.0: Account Settings — add/remove who's on the lock-edit allowlist. Editing
+// this list is itself restricted to someone already on it, so a user can't grant
+// themselves override access.
+let _acctDraft=[];
+function openAccountSettings(){
+  if(!canEditLocked()){ toast('Only an authorized user can change this list','e'); return; }
+  _acctDraft=[...lockEditAllowlist];
+  renderAcctList();
+  document.getElementById('acctSettingsOverlay').classList.add('open');
+}
+function closeAccountSettings(){ document.getElementById('acctSettingsOverlay').classList.remove('open'); }
+function renderAcctList(){
+  const c=document.getElementById('acctUserList'); if(!c) return;
+  c.innerHTML = _acctDraft.map((email,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="flex:1;font-size:12px;">${esc(email)}</span>
+      <button class="btn btn-xs" onclick="removeAcctUser(${i})" style="background:transparent;color:var(--text3);border:1px solid var(--border);">Remove</button>
+    </div>`).join('') || '<div style="font-size:11px;color:var(--text3)">No users yet.</div>';
+}
+function addAcctUser(){
+  const el=document.getElementById('acctNewUser');
+  const email=(el.value||'').trim().toLowerCase();
+  if(!email){ return; }
+  if(_acctDraft.includes(email)){ toast('Already on the list','i'); el.value=''; return; }
+  _acctDraft.push(email);
+  el.value='';
+  renderAcctList();
+}
+function removeAcctUser(i){ _acctDraft.splice(i,1); renderAcctList(); }
+async function saveAcctSettings(){
+  const ok = await saveLockEditAllowlist(_acctDraft);
+  if(ok){ toast('Saved','s'); closeAccountSettings(); applyRoleUI(); renderTable&&renderTable(); }
 }
 
 async function ensurePresenceListId(){

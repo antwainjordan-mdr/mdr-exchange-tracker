@@ -1,6 +1,6 @@
 # MDR Exchange Tracker
 
-**Version:** `1.4.34` (November 16, 2026)
+**Version:** `1.5.0` (November 20, 2026)
 **Owner:** Antwain Jordan, Medical Resources Inc. (MDR)
 **Live site:** https://antwainjordan-mdr.github.io/mdr-exchange-tracker/
 
@@ -47,11 +47,11 @@ Versioning switched to SemVer starting at `1.0.0` on November 8, 2026. Older `CH
 | Refresh | All | Reloads every record from SharePoint. |
 | **CSV** (green) | All | Downloads the rows **on screen** as a CSV (see Exporting). |
 | **PDF** (red) | All | Prints or saves the rows on screen as a PDF report. MDR also gets a brief "SGI approximate arrival" notice when clicking either export button, logged to the App Log. |
-| **📥 Load CSV** | MDR | Imports a Power BI CSV export — New, Confirmed, and Void rows can all be in the same file, and each row is routed automatically by its own status (see Load CSV). Refuses the file if it's missing any of the expected columns. |
 | **✓ Completed** | MDR | Opens the Completed tab — a separate, read-only comparison of Confirmed/Void jobs (see Completed tab below). |
 | Add Record | All | Adds a job by hand. Saving on a Job # that already exists no longer silently creates a duplicate — both records are kept, and a review popup opens (and reopens on reload until resolved) comparing the two so you can merge or keep them separate. |
 | **⧉ Find Duplicates** | MDR | Scans every record for likely duplicates — same Job # + same patient, or same Job # + same reference # — and lists each pair to Approve (merge) or Reject (dismiss). Nothing merges without you clicking Approve. |
 | Clear Cache | All | Wipes this browser's saved data and tokens and reloads. Fixes most odd behavior. You sign in again after. |
+| **🧩 Settings ▾** (1.5.0, next to Clear Cache) | MDR | A menu holding **📥 Load CSV**, **🧹 Ref Cleanup**, **🔄 BT Sync**, **GitHub** (antwainjordan@mdr.net only), and **🧩 Account Settings** — see Locked-field overrides & PURL below. These were five separate toolbar buttons before 1.5.0; nothing about what they do changed, only where they live. |
 | App Log | MDR | Who did what, and when (sign-ins, loads, exports, refreshes). |
 | Updates | All | Full update history. |
 
@@ -149,7 +149,7 @@ Click **✓ Completed** in the toolbar to open a separate, read-only view of eve
 
 Both the CSV and PDF buttons use exactly the rows on screen (current month, range, status and search).
 
-- **CSV** columns: #, Pickup Date, Patient, Patient ID, Job #, Pieces / Items, Reference, Notes, Job Closed, No Pickup, Verified. The last three are Yes/No. The Notes text matches the PDF: No Pickup, ★ Memory Download (MDR only), SGI notes, quantity differences and MDR notes. The file is named `MDR_Exchange_Report_YYYY-MM-DD.csv` and opens cleanly in Excel.
+- **CSV** columns: #, Pickup Date, Drop Off Date, Patient, Patient ID, Job #, Pieces / Items, Reference, Notes, Job Closed (Yes/No). The Notes text matches the PDF: No Pickup, ★ Memory Download (MDR only), SGI notes, quantity differences and MDR notes. The file is named `MDR_Exchange_Report_YYYY-MM-DD.csv` and opens cleanly in Excel.
 - **PDF** opens the print dialog with a one-table report. Rows are colored by type, and overdue rows are marked. Choose **Save as PDF** to keep a file.
 
 ## Dates and time zone
@@ -164,12 +164,29 @@ All "today" dates use **Central (Alabama) time**, whatever the PC's clock is set
 - SharePoint throttling (429/503) is retried with back-off. The sync light says "Rate-limited, retrying".
 - A record deleted locally but not yet on SharePoint is retried until it succeeds, so it doesn't come back on refresh.
 
+## Locked-field overrides & PURL (1.5.0)
+
+**Who can edit a locked field.** A value locked from source — Patient Name, Patient ID, Pickup Date, Entry ID, Job #, Shipped By, and the piece-level MDR Requested qty box — is normally read-only once it's locked. A user on the **lock-edit allowlist** (🧩 Settings ▾ → 🧩 Account Settings; defaults to `antwainjordan@mdr.net` only) can edit it anyway, same place in the UI as always, no special mode to turn on.
+
+**What happens on the next CSV import.** A manual edit to a field that was actually locked is remembered as an override. The next time Load CSV brings in that record:
+- If source now agrees with the manual value, nothing happens — the override just stands.
+- If source disagrees, **source wins**: the manual value is overwritten, and a note naming the actual field(s) changed is added to MDR Notes (e.g. "Pickup Date was overwritten because source data was not updated..."). Because MDR Notes is a synced field, that note shows up as a normal entry in the record's Activity Log (SharePoint's own version history) — it reads as a labeled manual override, not a silent edit.
+
+**PURL.** Any MDR employee — not just someone on the lock-edit allowlist — can add a piece as **PURL** instead of PKP, for a request that can't easily be pulled from source yet (for example, a PUEX you know about but haven't synced into Appsmith). A PURL piece:
+- Shows a ⚙️ before its PKP badge, MDR view only — SGI never sees it and never has a PURL option.
+- Keeps the requested qty you typed (it isn't zeroed out the way an ordinary manually-added piece is).
+- Is never matched, altered, or removed by CSV source data, ever — none of the "source wins on mismatch" behavior above applies to it.
+- A literal `PURL` token typed into the Reference field (by anyone, or already present on an incoming CSV row) always sorts to the very first position, displayed as plain text like any other reference number.
+
+**Account Settings** itself (adding/removing who's on the allowlist) is restricted to someone already on the allowlist, so nobody can grant themselves override access. It needs the **AppSettings** SharePoint list — see below.
+
 ## SharePoint lists used
 
 | List | Used for |
 |---|---|
 | ExchangeRecords | The records (one item per job). Needs 3 columns the Completed tab depends on — see below. |
 | AppAudit | The App Log entries. |
+| AppSettings | The lock-edit allowlist (1.5.0) and any future shared app settings. Needs the default **Title** column plus one more **Plain text** column named `Value`. Add it once: open the site, **+ New > List**, name it `AppSettings`, then **+ Add column > Single line of text** (or Multiple lines), name it `Value`, save. If this list doesn't exist yet, Account Settings falls back to the `antwainjordan@mdr.net`-only default and tells you to create it before saving. |
 | Presence list | Who's online (heartbeat every 4 minutes). |
 | Documents > Daily Uploads | Archived copies of each `data.csv` loaded. |
 
@@ -196,6 +213,29 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - App registration redirect URI must be listed under the **Single-page application** platform (it already is): `https://antwainjordan-mdr.github.io/mdr-exchange-tracker/`
 - Delegated permissions needed: `User.Read`, `Sites.ReadWrite.All` (admin consent already granted, including for SGI). `offline_access` is requested at sign-in and needs no extra consent step.
 - **Implicit grant** (access tokens / ID tokens) is no longer used by the app. Leave it enabled until MDR and an SGI guest account have both signed in on this build, then uncheck both boxes under Authentication.
+
+## Changes in `1.5.0`
+
+- New: locked-field manual override. A user on the lock-edit allowlist (Account Settings 🧩, default: antwainjordan@mdr.net only) can now edit a value that's locked from source — Patient Name, Patient ID, Pickup Date, Entry ID, Job #, Shipped By, and the piece-level MDR Requested qty box. On the next CSV import, source wins if it disagrees with the manual value, and a note naming the actual field(s) changed is added to MDR Notes (which shows up in the Activity Log as a labeled override, since that log is SharePoint's own version history on the record's fields).
+- New: PURL. Any MDR employee can flag an added piece as PURL instead of PKP (for a request that can't easily be pulled from source yet, e.g. a PUEX not yet synced into Appsmith) — it gets a ⚙️ before its PKP badge (MDR-only) and is never matched, altered, or removed by CSV data. A literal "PURL" token typed into the Reference field (or already present on an incoming CSV row) always sorts to the very first position, as plain text.
+- The quick "+Add Item" view and the full Add/Edit Record popup's item picker both drop the old Exchange/Pickup choice: SGI gets a single PKP control (no dropdown, no PURL), MDR keeps a PKP/PURL choice (dropdown in the full popup, two buttons in the quick view).
+- New Settings menu (🧩, next to Clear Cache) consolidates Load CSV, Ref Cleanup, BT Sync, and GitHub — formerly four separate toolbar buttons — plus a new Account Settings panel for adding/removing who's on the lock-edit allowlist. Requires a SharePoint list named "AppSettings" (Title + Value columns) — see above.
+
+## Changes in `1.4.38`
+
+- Verified (MDR RCV) column is MDR-only now, same as Closed (Brightree) - SGI no longer sees it at all (it used to show up disabled/view-only for SGI).
+
+## Changes in `1.4.37`
+
+- "Export as" CSV: dropped the No Pickup and Verified columns, added Drop Off Date (the Late By Date) right after Pickup Date.
+
+## Changes in `1.4.36`
+
+- Bug fix: "Pending Review" and "Add Pending Correction" (both Completed-tab-only tools - neither pertains to an Active job) were showing up on the Active view too. Root cause: a routine that runs on every render was unconditionally re-showing every MDR-only toolbar button, which overrode the Completed-tab visibility check for just those two. They're now excluded from that blanket show, so they only ever appear on the Completed tab as intended.
+
+## Changes in `1.4.35`
+
+- Reference number links (SO Order / PuEx, Brightree) now stay clickable for MDR even while previewing SGI View for testing - they only go plain-text for a real SGI-authenticated session. Previously the preview toggle itself flipped this off, same way it would for a real SGI login, which defeated using SGI View to check anything link-related.
 
 ## Changes in `1.4.34`
 
@@ -341,13 +381,13 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 - **Serial # box:**
   - Shows only for items in `SERIAL_ITEMS` (currently Apnea Monitor, Oximeter, Concentrator, Suction Machine; the full list is still to come), or for any piece that already has a serial.
   - On those rows, the serial is no longer repeated in the item name.
-- **SGI and hand-added records:** once saved, SGI can only edit **Patient ID, Job # and Reference**, unless those are locked from source. Name, Pickup Date, Entry ID and Shipped By are locked for SGI. MDR can edit anything not locked from source.
+- **SGI and hand-added records:** once saved, SGI can only edit **Patient ID, Job # and Reference**, unless those are locked from source. Name, Pickup Date, Entry ID and Shipped By are locked for SGI. MDR can edit anything not locked from source — except a user on the lock-edit allowlist, who can also edit the locked-from-source fields themselves (1.5.0 — see Locked-field overrides & PURL below).
 - **Load CSV onto a hand-added record:**
   - Fills in anything missing (including a blank or "Unknown" name, plus Shipped By) and never overwrites.
   - Only fields the CSV row actually carries get locked.
   - A hand-added piece whose name matches a source piece becomes the source piece: it's locked, and the requested qty comes from the CSV while SGI's received qty and check-in stay.
   - Other hand-added pieces are left alone, and SGI can still add or remove them.
-- **GitHub button** (`index.html`, only for antwainjordan@mdr.net): opens the repo's upload page, in the spot where the PUEX Backfill button used to be.
+- **GitHub button** (`index.html`, only for antwainjordan@mdr.net): opens the repo's upload page. Lives inside the **🧩 Settings** menu as of 1.5.0 (previously its own toolbar button).
 
 - **Fixed: empty area below the table.** Each date field has a hidden calendar picker behind it. Those pickers had no anchor, so they stretched the page far below the table, and scrolling past the last row scrolled the whole page into empty space. They're now anchored to their date field, so the page is exactly one window tall and the table always reaches the bottom.
 - **Removed the temporary 🧾 PUEX Backfill button** (`index.html`). The one-time status catch-up is done. Its description under `1.4.15` is kept as a record.
@@ -397,7 +437,7 @@ There's no "unlimited length" toggle to look for — that setting only exists fo
 
 ## Changes in `1.4.11`
 
-- **📊 Inventory Reports** button in the header (MDR view only, and only when the xMDR Tools extension 1.19.0+ is installed). It opens a window that starts xMDR Tools' Inventory Reports run and shows its progress and the "PUEX status shows None" list. The work happens in the extension (`exchange-bridge.js`); the page only says hello, sends Start / ▶ Run, and draws the state it gets back. See the xMDR Tools README.
+- **📊 Inventory Reports** button in the header (MDR view only, and only when the xMDR Tools extension 1.19.0+ is installed; currently verified against xMDR Tools v1.20.5, Nov 18 2026). It opens a window that starts xMDR Tools' Inventory Reports run and shows its progress and the "PUEX status shows None" list. The work happens in the extension (`exchange-bridge.js`); the page only says hello, sends Start / ▶ Run, and draws the state it gets back. See the xMDR Tools README.
 - The button is re-checked whenever the MDR/SGI view changes (`applyRoleUI` calls `invShowBtn()`), so the SGI preview hides it too.
 - `<meta name="version">` now carries the app version (`1.4.11`) instead of an old date stamp, so every version marker in the file matches.
 - `index-offline.html` has the same code (button, window, script, `invShowBtn()` call, version markers) so the two files don't drift apart. The button stays hidden there: xMDR Tools only connects to the live site, so the offline copy never gets an answer.
